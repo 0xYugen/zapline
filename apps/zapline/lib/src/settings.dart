@@ -63,6 +63,21 @@ class AppSettings {
   set versionChoices(Map<String, String> v) =>
       _db.setSetting('versionChoices', jsonEncode(v));
 
+  /// Channels the user said have no guide, by channel key: not asked
+  /// about again when matching guides.
+  Set<String> get noGuideChannels {
+    final raw = _db.setting('noGuideChannels');
+    if (raw == null) return {};
+    try {
+      return {for (final k in jsonDecode(raw) as List) '$k'};
+    } on FormatException {
+      return {};
+    }
+  }
+
+  set noGuideChannels(Set<String> v) =>
+      _db.setSetting('noGuideChannels', jsonEncode(v.toList()));
+
   /// How the picture fills the screen.
   BoxFit get videoFit => switch (_db.setting('videoFit')) {
     'cover' => BoxFit.cover,

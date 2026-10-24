@@ -208,4 +208,97 @@ void main() {
       );
     });
   }
+
+  for (final d in [phone, phoneLandscape]) {
+    testWidgets('filters, guide and versions on ${d.name}', (tester) async {
+      problems.clear();
+      useDevice(tester, d);
+      debugEngineFactory = FakeEngine.new;
+      const names = [
+        'IT | Rai 1 HD',
+        'IT | Rai 1 FHD',
+        'IT | Rai 1 4K',
+        'IT | Rai 2 HD',
+        'IT | Rai 2 FHD',
+        'IT | Rai 3',
+        'IT | Rete 4 FHD',
+        'IT | Canale 5 HD',
+        'IT | Canale 5 4K',
+        'IT | Italia 1',
+        'IT | La7 HD',
+        'IT | Sky Sport Uno',
+        'UK | BBC One',
+        'UK | ITV',
+        'DE | Das Erste',
+        'XXX Adult 1',
+      ];
+      final state = fakeState(
+        count: names.length,
+        names: names,
+        unmatched: {6, 12},
+        groups: [
+          'IT | Rai',
+          'IT | Rai',
+          'IT | Rai',
+          'IT | Rai',
+          'IT | Rai',
+          'IT | Rai',
+          'IT | Mediaset',
+          'IT | Mediaset',
+          'IT | Mediaset',
+          'IT | Mediaset',
+          'IT | Altri',
+          'IT | Sport',
+          'UK | General',
+          'UK | General',
+          'DE | Allgemein',
+          'XXX For adults',
+        ],
+      );
+      await state.addSource(
+        const SourceInput(
+          url: 'http://x.example/get.php?username=a&password=b',
+        ),
+      );
+      state.settings.setLanguage('it');
+      await tester.pumpWidget(capturable(ZaplineApp(state: state), d));
+      await step(tester);
+      await shot(tester, d, '20-channels-versions-it');
+      await tester.longPress(find.text('Rai 1').first);
+      await step(tester);
+      await tapText(tester, 'Versione: 4K');
+      await shot(tester, d, '21-version-sheet-it');
+      await back(tester);
+      await tapText(tester, 'Impostazioni');
+      await tapText(tester, state.sources.single.name);
+      await shot(tester, d, '22-source-it');
+      if (await tapText(tester, 'Gruppi e filtri')) {
+        await shot(tester, d, '23-filters-it');
+        await tapText(tester, 'Solo canali italiani');
+        await shot(tester, d, '23b-filters-italian-it');
+        await tester.scrollUntilVisible(
+          find.text('Italia'),
+          200,
+          scrollable: find.byType(Scrollable).last,
+        );
+        await step(tester);
+        await tapText(tester, 'Italia');
+        await shot(tester, d, '24-country-it');
+        await back(tester);
+        await back(tester);
+      }
+      if (await tapText(tester, 'Guida TV (EPG)')) {
+        await shot(tester, d, '25-guide-it');
+        await tapText(tester, '2 canali non hanno ancora la guida TV.');
+        await shot(tester, d, '26-match-it');
+        await back(tester);
+        await back(tester);
+      }
+      // ignore: avoid_print
+      print(
+        '${d.name} v3: ${problems.length} problems\n'
+        '${problems.toSet().join('\n')}',
+      );
+    });
+  }
 }

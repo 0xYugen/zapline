@@ -976,6 +976,22 @@ class ZaplineDatabase {
     ];
   }
 
+  /// What guide channel [guideId] airs at [at], to tell guides apart.
+  Programme? airingOn(String guideId, DateTime at) {
+    final r = _db.select(
+      'SELECT start, stop, title FROM programmes '
+      'WHERE guide_id = ? AND start <= ? AND stop > ? LIMIT 1',
+      [guideId, _secs(at), _secs(at)],
+    );
+    if (r.isEmpty) return null;
+    return Programme(
+      channelId: guideId,
+      start: _time(r.first['start'] as int),
+      stop: _time(r.first['stop'] as int),
+      title: r.first['title'] as String,
+    );
+  }
+
   /// The programme airing at [at] and the one after it.
   (Programme?, Programme?) nowNext(Channel c, DateTime at) {
     final list =

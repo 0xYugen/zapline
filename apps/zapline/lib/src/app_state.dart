@@ -8,6 +8,7 @@ import 'package:zapline_core/zapline_core.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import 'secret_store.dart';
+import 'countries.dart';
 import 'format.dart';
 import 'free_epg.dart';
 import 'settings.dart';
@@ -372,8 +373,9 @@ class AppState extends ChangeNotifier {
 
   /// [c]'s name without the quality words when it stands for several
   /// versions ("Rai 1" for "Rai 1 FHD").
-  String displayName(Channel c) =>
-      versionsOf(c).length > 1 ? _variant(c.name).baseName : c.name;
+  String displayName(Channel c) => withoutCountryTag(
+    versionsOf(c).length > 1 ? _variant(c.name).baseName : c.name,
+  );
 
   /// "4K", "FHD", "HD" or "SD" as [c]'s name says, if it says.
   String? qualityOf(Channel c) => _variant(c.name).quality.label;
@@ -656,12 +658,60 @@ class AppState extends ChangeNotifier {
   }
 
   /// Links [c] to [guideId] for good; survives re-syncs.
+  /// Links [c] and its other versions to guide channel [guideId].
   void assignGuide(Channel c, String guideId) {
-    db.setGuideOverride(c, guideId);
+    for (final v in versionsOf(c)) {
+      db.setGuideOverride(v, guideId);
+    }
     db.rebuildGuideLinks();
     _reload();
     notifyListeners();
   }
+
+  /// Links several channels at once (the sure matches).
+  void assignGuides(Iterable<(Channel, String)> links) {
+    for (final (c, id) in links) {
+      for (final v in versionsOf(c)) {
+        db.setGuideOverride(v, id);
+      }
+    }
+    db.rebuildGuideLinks();
+    _reload();
+    notifyListeners();
+  }
+
+  /// Channels of [sourceId] worth matching to a guide: shown, without a
+  /// guide in any of their versions, and not marked as having none.
+  List<Channel> channelsNeedingGuide(String sourceId) {
+    final missing = {
+      for (final c in db.unmatchedChannels(sourceId: sourceId))
+        ZaplineDatabase.channelKey(c),
+    };
+    if (missing.isEmpty) return const [];
+    final none = settings.noGuideChannels;
+    return [
+      for (final c in _mergeVersions(
+        db.channels(sourceId: sourceId, visibility: _visibility),
+      ))
+        if (!none.contains(ZaplineDatabase.channelKey(c)) &&
+            versionsOf(c)
+                .every((v) => missing.contains(ZaplineDatabase.channelKey(v))))
+          c,
+    ];
+  }
+
+  /// Stops asking for a guide for [c].
+  void markNoGuide(Channel c) {
+    settings.noGuideChannels = {
+      ...settings.noGuideChannels,
+      ZaplineDatabase.channelKey(c),
+    };
+    notifyListeners();
+  }
+
+  /// What guide channel [guideId] airs now, if its guide is loaded.
+  Programme? airingOn(String guideId) =>
+      db.airingOn(guideId, DateTime.now().toUtc());
 
   /// The archive URL for [p] on [c], or `null` if it cannot be replayed.
   Uri? catchupUrl(Channel c, Programme p) {

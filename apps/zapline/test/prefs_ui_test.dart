@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zapline/main.dart';
-import 'package:zapline/src/screens/manage_source_screen.dart';
+import 'package:zapline/src/screens/filters_screen.dart';
 import 'package:zapline/src/screens/settings_screen.dart';
 import 'package:zapline_core/zapline_core.dart';
 
@@ -52,17 +52,19 @@ void main() {
       state.previewFilter(source.id, const GroupFilter(include: ['even'])),
       (1, 2, 10),
     );
-    await _push(tester, ManageSourceScreen(state: state, sourceId: source.id));
-    expect(find.textContaining('Shows 2 of 2 groups'), findsOneWidget);
+    await _push(tester, FiltersScreen(state: state, sourceId: source.id));
+    expect(find.text("You'll see 20 channels in 2 groups"), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField).at(2), 'even');
+    // Keywords live under Advanced.
+    await tester.ensureVisible(find.text('Advanced: keyword filter'));
+    await tester.tap(find.text('Advanced: keyword filter'));
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('Shows 1 of 2 groups · 10 channels'),
-      findsOneWidget,
-    );
+    await tester.enterText(find.byType(TextField).first, 'even');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Apply filter'));
     await tester.tap(find.text('Apply filter'));
     await tester.pumpAndSettle();
+    expect(find.text("You'll see 10 channels in 1 group"), findsOneWidget);
 
     expect(state.groups, ['Even']);
     expect(state.channels().length, 10);
@@ -73,7 +75,7 @@ void main() {
     expect(state.groups, containsAll(['Even', 'Odd']));
   });
 
-  testWidgets('hidden channels disappear and come back from Manage', (
+  testWidgets('hidden channels disappear and come back from the filters', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1920, 1080));
@@ -90,13 +92,13 @@ void main() {
 
     final id = state.sources.single.id;
     expect(state.hiddenChannels(id).single.name, 'Channel 1');
-    await _push(tester, ManageSourceScreen(state: state, sourceId: id));
+    await _push(tester, FiltersScreen(state: state, sourceId: id));
     await tester.scrollUntilVisible(
       find.text('Show again'),
       300,
       scrollable: find
           .descendant(
-            of: find.byType(ManageSourceScreen),
+            of: find.byType(FiltersScreen),
             matching: find.byType(Scrollable),
           )
           .first,

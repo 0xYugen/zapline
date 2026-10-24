@@ -365,13 +365,13 @@ abstract class AppLocalizations {
   /// No description provided for @fixDone.
   ///
   /// In en, this message translates to:
-  /// **'Done. Press Back to return.'**
+  /// **'Done! This channel now has a guide.'**
   String get fixDone;
 
   /// No description provided for @fixAllMatched.
   ///
   /// In en, this message translates to:
-  /// **'Every channel of this source has a guide.'**
+  /// **'Done! Every channel you watch has a guide or is marked as having none.'**
   String get fixAllMatched;
 
   /// No description provided for @fixUnmatched.
@@ -1349,13 +1349,13 @@ abstract class AppLocalizations {
   /// No description provided for @daysToKeep.
   ///
   /// In en, this message translates to:
-  /// **'Days of guide to keep'**
+  /// **'Days of guide'**
   String get daysToKeep;
 
   /// No description provided for @daysToKeepHint.
   ///
   /// In en, this message translates to:
-  /// **'Fewer days update faster on small devices.'**
+  /// **'Fewer days, faster updates.'**
   String get daysToKeepHint;
 
   /// No description provided for @daysCount.
@@ -2021,7 +2021,7 @@ abstract class AppLocalizations {
   /// No description provided for @versionUhd.
   ///
   /// In en, this message translates to:
-  /// **'Ultra HD · needs a fast connection'**
+  /// **'Ultra HD'**
   String get versionUhd;
 
   /// No description provided for @versionFhd.
@@ -2033,13 +2033,13 @@ abstract class AppLocalizations {
   /// No description provided for @versionHd.
   ///
   /// In en, this message translates to:
-  /// **'HD · uses less data'**
+  /// **'HD'**
   String get versionHd;
 
   /// No description provided for @versionSd.
   ///
   /// In en, this message translates to:
-  /// **'SD · lowest data use'**
+  /// **'SD'**
   String get versionSd;
 
   /// No description provided for @versionOther.
@@ -2171,37 +2171,37 @@ abstract class AppLocalizations {
   /// No description provided for @tallyTv.
   ///
   /// In en, this message translates to:
-  /// **'{groups} groups · {items} channels'**
+  /// **'{groups, plural, =1{1 group} other{{groups} groups}} · {items} channels'**
   String tallyTv(int groups, int items);
 
   /// No description provided for @tallyMovies.
   ///
   /// In en, this message translates to:
-  /// **'{groups} categories · {items} movies'**
+  /// **'{groups, plural, =1{1 category} other{{groups} categories}} · {items} movies'**
   String tallyMovies(int groups, int items);
 
   /// No description provided for @tallyShows.
   ///
   /// In en, this message translates to:
-  /// **'{groups} categories · {items} series'**
+  /// **'{groups, plural, =1{1 category} other{{groups} categories}} · {items} series'**
   String tallyShows(int groups, int items);
 
   /// No description provided for @youWillSeeTv.
   ///
   /// In en, this message translates to:
-  /// **'You\'ll see {items} channels in {groups} groups'**
+  /// **'You\'ll see {items} channels in {groups, plural, =1{1 group} other{{groups} groups}}'**
   String youWillSeeTv(int groups, int items);
 
   /// No description provided for @youWillSeeMovies.
   ///
   /// In en, this message translates to:
-  /// **'You\'ll see {items} movies in {groups} categories'**
+  /// **'You\'ll see {items} movies in {groups, plural, =1{1 category} other{{groups} categories}}'**
   String youWillSeeMovies(int groups, int items);
 
   /// No description provided for @youWillSeeShows.
   ///
   /// In en, this message translates to:
-  /// **'You\'ll see {items} series in {groups} categories'**
+  /// **'You\'ll see {items} series in {groups, plural, =1{1 category} other{{groups} categories}}'**
   String youWillSeeShows(int groups, int items);
 
   /// No description provided for @hideAdult.
@@ -2293,6 +2293,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name} hidden'**
   String groupHiddenMsg(String name);
+
+  /// No description provided for @guideCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'{matched} of {total} channels have a guide'**
+  String guideCoverage(int matched, int total);
+
+  /// No description provided for @guideFailedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'A guide could not be loaded: {error}'**
+  String guideFailedLine(String error);
+
+  /// No description provided for @matchOneByOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the right guide yourself, one at a time'**
+  String get matchOneByOne;
+
+  /// No description provided for @guidesInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Guides in use'**
+  String get guidesInUse;
+
+  /// No description provided for @providerGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'From your provider'**
+  String get providerGuide;
+
+  /// No description provided for @providerGuideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Always on'**
+  String get providerGuideHint;
+
+  /// No description provided for @providerGuidePerChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Always on · also asked channel by channel'**
+  String get providerGuidePerChannel;
+
+  /// No description provided for @freeGuideOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Free · {country}'**
+  String freeGuideOf(String country);
+
+  /// No description provided for @freeGuideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Public guide, fills in what the provider lacks'**
+  String get freeGuideHint;
+
+  /// No description provided for @guideLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Your link (XMLTV)'**
+  String get guideLink;
+
+  /// No description provided for @guideRemovedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} removed'**
+  String guideRemovedNamed(String name);
+
+  /// No description provided for @addGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a guide'**
+  String get addGuide;
+
+  /// No description provided for @addFreeGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Free guide for a country (recommended)'**
+  String get addFreeGuide;
+
+  /// No description provided for @addGuideLink.
+  ///
+  /// In en, this message translates to:
+  /// **'A link of my own (XMLTV)'**
+  String get addGuideLink;
+
+  /// No description provided for @ifSomethingsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'If something\'s off'**
+  String get ifSomethingsOff;
+
+  /// No description provided for @timesWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'The times are wrong'**
+  String get timesWrong;
+
+  /// No description provided for @timesWrongHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the guide earlier or later'**
+  String get timesWrongHint;
+
+  /// No description provided for @noShift.
+  ///
+  /// In en, this message translates to:
+  /// **'No shift'**
+  String get noShift;
+
+  /// No description provided for @refreshGuideNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Update the guide now'**
+  String get refreshGuideNow;
+
+  /// No description provided for @refreshGuideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'It also updates on its own'**
+  String get refreshGuideHint;
+
+  /// No description provided for @matchProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel {current} of {total} without a guide'**
+  String matchProgress(int current, int total);
+
+  /// No description provided for @sureMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} near-certain matches'**
+  String sureMatches(int count);
+
+  /// No description provided for @sureMatchesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Same name, only HD or FHD differs'**
+  String get sureMatchesHint;
+
+  /// No description provided for @sureMatchesTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} channels now have a guide'**
+  String sureMatchesTaken(int count);
+
+  /// No description provided for @takeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get takeAll;
+
+  /// No description provided for @inGroupNoGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'{group} · no guide'**
+  String inGroupNoGuide(String group);
+
+  /// No description provided for @whichGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Which of these guides is right? Recognise it by what it airs now:'**
+  String get whichGuide;
+
+  /// No description provided for @noSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'No guide looks like this channel. Search for it by name:'**
+  String get noSuggestions;
+
+  /// No description provided for @veryLikely.
+  ///
+  /// In en, this message translates to:
+  /// **'VERY LIKELY'**
+  String get veryLikely;
+
+  /// No description provided for @airingNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now: {title} · until {time}'**
+  String airingNow(String title, String time);
+
+  /// No description provided for @nothingAiringNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing airing now'**
+  String get nothingAiringNow;
+
+  /// No description provided for @searchAnotherGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Not here? Search another guide'**
+  String get searchAnotherGuide;
+
+  /// No description provided for @noGuideForIt.
+  ///
+  /// In en, this message translates to:
+  /// **'No guide'**
+  String get noGuideForIt;
+
+  /// No description provided for @skipForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for now'**
+  String get skipForNow;
+
+  /// No description provided for @guideLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'{channel} now uses the guide of {guide}'**
+  String guideLinked(String channel, String guide);
+
+  /// No description provided for @versionUhdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs a fast connection'**
+  String get versionUhdHint;
+
+  /// No description provided for @versionFhdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharp picture, for most connections'**
+  String get versionFhdHint;
+
+  /// No description provided for @versionHdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses less data'**
+  String get versionHdHint;
+
+  /// No description provided for @versionSdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest data use'**
+  String get versionSdHint;
 }
 
 class _AppLocalizationsDelegate

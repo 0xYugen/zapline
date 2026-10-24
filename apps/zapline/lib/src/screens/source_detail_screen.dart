@@ -13,6 +13,7 @@ import '../widgets/free_epg_picker.dart';
 import '../widgets/settings_widgets.dart';
 import 'filters_screen.dart';
 import 'guide_mapping_screen.dart';
+import 'guide_settings_screen.dart';
 import 'manage_source_screen.dart';
 
 /// A source at a glance: how many channels, how much of them has a TV
@@ -112,7 +113,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
       final otherGuides = s.extraGuideUrls
           .where((u) => FreeEpg.ofUrl(u) == null)
           .length;
-      final missing = cov.channels - cov.matched;
+      final missing = _state.channelsNeedingGuide(s.id).length;
 
       return AdaptivePage(
         title: s.name,
@@ -162,13 +163,8 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                   if (s.guideOffset != Duration.zero)
                     l.shiftedBy('${s.guideOffset.inMinutes} min'),
                 ].join(' · '),
-                onTap: () => _open(
-                  ManageSourceScreen(
-                    state: _state,
-                    sourceId: s.id,
-                    section: SourceSection.guide,
-                  ),
-                ),
+                onTap: () =>
+                    _open(GuideSettingsScreen(state: _state, sourceId: s.id)),
               ),
               SettingsTile(
                 icon: Icons.filter_alt_outlined,
@@ -205,13 +201,8 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                       s.url,
                   if (s.username.isNotEmpty) s.username,
                 ].join(' · '),
-                onTap: () => _open(
-                  ManageSourceScreen(
-                    state: _state,
-                    sourceId: s.id,
-                    section: SourceSection.name,
-                  ),
-                ),
+                onTap: () =>
+                    _open(ManageSourceScreen(state: _state, sourceId: s.id)),
               ),
             ],
           ),

@@ -43,13 +43,13 @@ class _VersionSheet extends StatefulWidget {
 class _VersionSheetState extends State<_VersionSheet> {
   late bool _remember = widget.remember;
 
-  String _describe(AppLocalizations l, Channel v) =>
+  (String, String) _describe(AppLocalizations l, Channel v) =>
       switch (ChannelVariant.parse(v.name).quality) {
-        VideoQuality.uhd => l.versionUhd,
-        VideoQuality.fhd => l.versionFhd,
-        VideoQuality.hd => l.versionHd,
-        VideoQuality.sd => l.versionSd,
-        VideoQuality.unknown => l.versionOther,
+        VideoQuality.uhd => (l.versionUhd, l.versionUhdHint),
+        VideoQuality.fhd => (l.versionFhd, l.versionFhdHint),
+        VideoQuality.hd => (l.versionHd, l.versionHdHint),
+        VideoQuality.sd => (l.versionSd, l.versionSdHint),
+        VideoQuality.unknown => (l.versionOther, v.name),
       };
 
   @override
@@ -114,11 +114,11 @@ class _VersionSheetState extends State<_VersionSheet> {
                       ),
                     ),
                     title: Text(
-                      _describe(l, v),
+                      _describe(l, v).$1,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      v.name,
+                      _describe(l, v).$2,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

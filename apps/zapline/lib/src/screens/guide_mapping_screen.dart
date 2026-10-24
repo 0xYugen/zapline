@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
@@ -9,11 +10,10 @@ import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/tv_text_field.dart';
 
-/// Lets the user link channels the automatic matcher left without a guide.
-///
-/// Left: channels without a guide. Right: ranked suggestions for the
-/// selected channel plus a search over every guide channel. A choice is
-/// stored as an override and survives re-syncs.
+/// Gives channels the automatic matcher missed a TV guide, one channel at a
+/// time: the likely guides are shown with what they air now, so the right
+/// one is recognised by its programme rather than by a code. Sure matches
+/// can be taken all at once. Choices survive re-syncs.
 class GuideMappingScreen extends StatefulWidget {
   const GuideMappingScreen({
     super.key,
@@ -32,274 +32,504 @@ class GuideMappingScreen extends StatefulWidget {
   State<GuideMappingScreen> createState() => _GuideMappingScreenState();
 }
 
+/// A suggestion at least this good is taken as sure.
+const _sure = 0.9;
+
 class _GuideMappingScreenState extends State<GuideMappingScreen> {
-  late List<Channel> _unmatched = _load();
+  AppState get _state => widget.state;
+
+  late List<Channel> _queue = _load();
+  late final int _total = _queue.length;
+  int _done = 0;
+  bool _searching = false;
+  final _query = TextEditingController();
 
   List<Channel> _load() => widget.only != null
       ? [widget.only!]
-      : widget.state.unmatchedChannels(widget.sourceId);
-  Channel? _selected;
-  final _query = TextEditingController();
-  final _firstOption = FocusNode();
-  final _search = FocusNode();
-  String? _message;
+      : _state.channelsNeedingGuide(widget.sourceId);
 
   @override
   void initState() {
     super.initState();
-    _selected = _unmatched.firstOrNull;
     _query.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _query.dispose();
-    _firstOption.dispose();
-    _search.dispose();
     super.dispose();
   }
 
-  void _assign(XmltvChannel g) {
-    final c = _selected;
-    if (c == null) return;
-    widget.state.assignGuide(c, g.id);
+  Channel? get _current => _queue.firstOrNull;
+
+  void _next({required bool done}) {
+    HapticFeedback.selectionClick();
     setState(() {
-      _message = '${c.name} now uses the guide of ${g.displayName}.';
-      _unmatched = widget.only != null
-          ? const []
-          : widget.state.unmatchedChannels(widget.sourceId);
-      _selected = _unmatched.firstOrNull;
+      final c = _queue.removeAt(0);
+      if (done) {
+        _done++;
+      } else {
+        // Skipped: asked again at the end.
+        _queue.add(c);
+      }
+      _searching = false;
       _query.clear();
     });
   }
 
+  void _assign(Channel c, XmltvChannel g) {
+    _state.assignGuide(c, g.id);
+    _snack(context.l10n.guideLinked(_state.displayName(c), g.displayName));
+    _next(done: true);
+  }
+
+  void _noGuide(Channel c) {
+    _state.markNoGuide(c);
+    _next(done: true);
+  }
+
+  void _snack(String text) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(content: Text(text), duration: const Duration(seconds: 2)),
+    );
+
+  /// Channels whose best suggestion is all but certain; worked out once,
+  /// ranking every channel against every guide is slow.
+  late final List<(Channel, XmltvChannel)> _allSure = widget.only != null
+      ? const []
+      : _sureMatches();
+
+  List<(Channel, XmltvChannel)> _sureMatches() => [
+    for (final c in _queue)
+      if (_state.guideSuggestions(c).firstOrNull case (final g, final score)
+          when score >= _sure)
+        (c, g),
+  ];
+
+  void _takeSure(List<(Channel, XmltvChannel)> sure) {
+    _state.assignGuides([for (final (c, g) in sure) (c, g.id)]);
+    final taken = {for (final (c, _) in sure) c};
+    setState(() {
+      _queue = [
+        for (final c in _queue)
+          if (!taken.contains(c)) c,
+      ];
+      _done += taken.length;
+    });
+    _snack(context.l10n.sureMatchesTaken(taken.length));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final selected = _selected;
+    final l = context.l10n;
     final phone = context.isPhone;
-    return Scaffold(
-      appBar: phone ? AppBar(title: Text(context.l10n.fixTvGuide)) : null,
-      body: Padding(
-        padding: phone
-            ? const EdgeInsets.fromLTRB(16, 4, 16, 0)
-            : const EdgeInsets.fromLTRB(56, 40, 56, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!phone) ...[
-              Text(
-                context.l10n.fixTvGuide,
-                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-            ],
-            Text(
-              _unmatched.isEmpty
-                  ? (widget.only != null
-                        ? context.l10n.fixDone
-                        : context.l10n.fixAllMatched)
-                  : context.l10n.fixUnmatched(_unmatched.length),
-              style: const TextStyle(color: ZaplineColors.textMuted),
-            ),
-            if (_message != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  _message!,
-                  style: const TextStyle(color: ZaplineColors.ok),
+    final c = _current;
+    final sure = [
+      for (final e in _allSure)
+        if (_queue.contains(e.$1)) e,
+    ];
+    final body = c == null
+        ? _finished(l)
+        : ListView(
+            padding: phone
+                ? const EdgeInsets.fromLTRB(16, 4, 16, 24)
+                : const EdgeInsets.fromLTRB(56, 40, 56, 32),
+            children: [
+              if (!phone)
+                Text(
+                  l.fixTvGuide,
+                  style: const TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: phone
-                  ? _phoneBody(selected)
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: 360,
-                          child: FocusTraversalGroup(
-                            child: ListView.builder(
-                              itemCount: _unmatched.length,
-                              itemBuilder: (context, i) {
-                                final c = _unmatched[i];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: FocusCard(
-                                    autofocus: i == 0,
-                                    selected: identical(c, selected),
-                                    onFocused: () => setState(() {
-                                      _selected = c;
-                                      _query.clear();
-                                    }),
-                                    // Straight to the best suggestion; the search
-                                    // field (and the TV keyboard) only if none.
-                                    onPressed: () =>
-                                        (_firstOption.context != null
-                                                ? _firstOption
-                                                : _search)
-                                            .requestFocus(),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        ChannelLogo(
-                                          channel: c,
-                                          width: 44,
-                                          height: 32,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            c.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+              if (_total > 1) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l.matchProgress(_done + 1, _total),
+                          style: const TextStyle(
+                            color: ZaplineColors.textMuted,
                           ),
                         ),
-                        const SizedBox(width: 32),
-                        Expanded(
-                          child: selected == null
-                              ? const SizedBox.shrink()
-                              : FocusTraversalGroup(
-                                  child: _candidates(selected),
-                                ),
-                        ),
-                      ],
+                      ),
+                      Text(
+                        '${(_done * 100 / _total).round()}%',
+                        style: const TextStyle(color: ZaplineColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: _done / _total,
+                      minHeight: 4,
+                      color: ZaplineColors.focus,
+                      backgroundColor: ZaplineColors.line,
                     ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+              if (sure.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: _SureBanner(
+                    count: sure.length,
+                    onTake: () => _takeSure(sure),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: _ChannelCard(
+                  key: ValueKey(c),
+                  state: _state,
+                  channel: c,
+                  searching: _searching,
+                  query: _query,
+                  onSearch: () => setState(() => _searching = true),
+                  onPick: (g) => _assign(c, g),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _noGuide(c),
+                      style: _buttonStyle(outlined: true),
+                      child: Text(l.noGuideForIt),
+                    ),
+                  ),
+                  if (_queue.length > 1) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.tonal(
+                        onPressed: () => _next(done: false),
+                        style: _buttonStyle(outlined: false),
+                        child: Text(l.skipForNow),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          );
+    return Scaffold(
+      appBar: phone ? AppBar(title: Text(l.fixTvGuide)) : null,
+      body: body,
+    );
+  }
+
+  static ButtonStyle _buttonStyle({required bool outlined}) =>
+      (outlined ? OutlinedButton.styleFrom : FilledButton.styleFrom)(
+        minimumSize: const Size.fromHeight(52),
+        foregroundColor: ZaplineColors.text,
+        backgroundColor: outlined ? null : ZaplineColors.surfaceHigh,
+        side: outlined ? const BorderSide(color: ZaplineColors.line) : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
         ),
+      );
+
+  Widget _finished(AppLocalizations l) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.check_circle_rounded,
+            size: 56,
+            color: ZaplineColors.ok,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.only != null ? l.fixDone : l.fixAllMatched,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 20),
+          FocusCard(
+            autofocus: true,
+            onPressed: () => Navigator.of(context).maybePop(),
+            child: Text(l.back),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SureBanner extends StatelessWidget {
+  const _SureBanner({required this.count, required this.onTake});
+
+  final int count;
+  final VoidCallback onTake;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2B2412),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF5A4716)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome_rounded, color: ZaplineColors.focus),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.sureMatches(count),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                Text(l.sureMatchesHint, style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FocusCard(
+            onPressed: onTake,
+            selected: true,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Text(
+              l.takeAll,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  /// Phones: the channel to fix is picked from a dropdown-like row above
-  /// its suggestions, since two columns don't fit.
-  Widget _phoneBody(Channel? selected) {
-    if (_unmatched.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: 44,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _unmatched.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
-            itemBuilder: (context, i) {
-              final c = _unmatched[i];
-              final on = identical(c, selected);
-              return ChoiceChip(
-                label: Text(c.name),
-                selected: on,
-                showCheckmark: false,
-                selectedColor: ZaplineColors.focus,
-                labelStyle: TextStyle(
-                  color: on ? ZaplineColors.onFocus : ZaplineColors.text,
-                  fontWeight: FontWeight.w700,
+/// The channel to match, its likely guides with what they air now, and a
+/// search over every guide channel.
+class _ChannelCard extends StatelessWidget {
+  const _ChannelCard({
+    super.key,
+    required this.state,
+    required this.channel,
+    required this.searching,
+    required this.query,
+    required this.onSearch,
+    required this.onPick,
+  });
+
+  final AppState state;
+  final Channel channel;
+  final bool searching;
+  final TextEditingController query;
+  final VoidCallback onSearch;
+  final ValueChanged<XmltvChannel> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final q = query.text.trim();
+    final suggestions = state.guideSuggestions(channel);
+    final options = searching && q.isNotEmpty
+        ? [for (final g in state.searchGuide(q, limit: 12)) (g, 0.0)]
+        : suggestions.take(searching ? 8 : 3).toList();
+    // Outlined, so the guide choices inside stand out as buttons.
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: ZaplineColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              ChannelLogo(channel: channel, width: 64, height: 44),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state.displayName(channel),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (channel.groupTitle case final g? when g.isNotEmpty)
+                      Text(
+                        l.inGroupNoGuide(g),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: ZaplineColors.textMuted,
+                        ),
+                      ),
+                  ],
                 ),
-                onSelected: (_) => setState(() {
-                  _selected = c;
-                  _query.clear();
-                }),
-              );
-            },
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: selected == null
-              ? Center(
-                  child: Text(
-                    context.l10n.pickChannelAbove,
-                    style: TextStyle(color: ZaplineColors.textMuted),
+          const SizedBox(height: 14),
+          Text(
+            suggestions.isEmpty && !searching ? l.noSuggestions : l.whichGuide,
+            style: const TextStyle(fontSize: 14, height: 1.4),
+          ),
+          if (searching)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: TvTextField(
+                builder: (readOnly) => TextField(
+                  readOnly: readOnly,
+                  controller: query,
+                  autofocus: true,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: l.searchTheGuide,
+                    prefixIcon: const Icon(Icons.search_rounded),
                   ),
-                )
-              : _candidates(selected),
-        ),
-      ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          for (final (i, (g, score)) in options.indexed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _GuideOption(
+                autofocus: i == 0 && !searching,
+                name: g.displayName,
+                airing: state.airingOn(g.id),
+                likely: i == 0 && score >= _sure && !searching,
+                onPressed: () => onPick(g),
+              ),
+            ),
+          if (searching && q.isNotEmpty && options.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                l.nothingFoundTryAnother,
+                style: const TextStyle(color: ZaplineColors.textMuted),
+              ),
+            ),
+          if (!searching)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onSearch,
+                style: TextButton.styleFrom(
+                  foregroundColor: ZaplineColors.focus,
+                  textStyle: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                icon: const Icon(Icons.search_rounded),
+                label: Text(l.searchAnotherGuide),
+              ),
+            ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _candidates(Channel c) {
-    final q = _query.text.trim();
-    final options = q.isEmpty
-        ? [for (final (g, _) in widget.state.guideSuggestions(c)) g]
-        : widget.state.searchGuide(q);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          q.isEmpty
-              ? context.l10n.suggestionsFor(c.name)
-              : context.l10n.guideChannels,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        TvTextField(
-          builder: (readOnly) => TextField(
-            readOnly: readOnly,
-            controller: _query,
-            focusNode: _search,
-            autocorrect: false,
-            decoration: InputDecoration(
-              labelText: context.l10n.searchTheGuide,
-              prefixIcon: Icon(Icons.search),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (options.isEmpty)
-          Text(
-            context.l10n.nothingFoundTryAnother,
-            style: TextStyle(color: ZaplineColors.textMuted),
-          ),
-        Expanded(
-          child: ListView(
+class _GuideOption extends StatelessWidget {
+  const _GuideOption({
+    required this.name,
+    required this.airing,
+    required this.likely,
+    required this.onPressed,
+    this.autofocus = false,
+  });
+
+  final String name;
+  final Programme? airing;
+  final bool likely;
+  final VoidCallback onPressed;
+  final bool autofocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final a = airing;
+    final local = MaterialLocalizations.of(context);
+    String hm(DateTime t) => local.formatTimeOfDay(
+      TimeOfDay.fromDateTime(t.toLocal()),
+      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+    );
+    return FocusCard(
+      autofocus: autofocus,
+      onPressed: onPressed,
+      radius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              for (final (i, g) in options.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: FocusCard(
-                    focusNode: i == 0 ? _firstOption : null,
-                    onPressed: () => _assign(g),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            g.displayName,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        Text(g.id, style: const TextStyle(fontSize: 13)),
-                      ],
+              Expanded(
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (likely)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF17352A),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    l.veryLikely,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: ZaplineColors.ok,
                     ),
                   ),
                 ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 3),
+          Builder(
+            builder: (context) => Text(
+              a == null ? l.nothingAiringNow : l.airingNow(a.title, hm(a.stop)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: DefaultTextStyle.of(context).style.color
+                    ?.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

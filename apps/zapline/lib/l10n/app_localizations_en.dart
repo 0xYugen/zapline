@@ -150,10 +150,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixTvGuide => 'Fix TV guide';
 
   @override
-  String get fixDone => 'Done. Press Back to return.';
+  String get fixDone => 'Done! This channel now has a guide.';
 
   @override
-  String get fixAllMatched => 'Every channel of this source has a guide.';
+  String get fixAllMatched =>
+      'Done! Every channel you watch has a guide or is marked as having none.';
 
   @override
   String fixUnmatched(int count) {
@@ -764,10 +765,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clock24h => '24-hour clock';
 
   @override
-  String get daysToKeep => 'Days of guide to keep';
+  String get daysToKeep => 'Days of guide';
 
   @override
-  String get daysToKeepHint => 'Fewer days update faster on small devices.';
+  String get daysToKeepHint => 'Fewer days, faster updates.';
 
   @override
   String daysCount(int count) {
@@ -1176,16 +1177,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get channelVersion => 'Version (4K, HD…)';
 
   @override
-  String get versionUhd => 'Ultra HD · needs a fast connection';
+  String get versionUhd => 'Ultra HD';
 
   @override
   String get versionFhd => 'Full HD';
 
   @override
-  String get versionHd => 'HD · uses less data';
+  String get versionHd => 'HD';
 
   @override
-  String get versionSd => 'SD · lowest data use';
+  String get versionSd => 'SD';
 
   @override
   String get versionOther => 'Other version';
@@ -1263,32 +1264,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String tallyTv(int groups, int items) {
-    return '$groups groups · $items channels';
+    String _temp0 = intl.Intl.pluralLogic(
+      groups,
+      locale: localeName,
+      other: '$groups groups',
+      one: '1 group',
+    );
+    return '$_temp0 · $items channels';
   }
 
   @override
   String tallyMovies(int groups, int items) {
-    return '$groups categories · $items movies';
+    String _temp0 = intl.Intl.pluralLogic(
+      groups,
+      locale: localeName,
+      other: '$groups categories',
+      one: '1 category',
+    );
+    return '$_temp0 · $items movies';
   }
 
   @override
   String tallyShows(int groups, int items) {
-    return '$groups categories · $items series';
+    String _temp0 = intl.Intl.pluralLogic(
+      groups,
+      locale: localeName,
+      other: '$groups categories',
+      one: '1 category',
+    );
+    return '$_temp0 · $items series';
   }
 
   @override
   String youWillSeeTv(int groups, int items) {
-    return 'You\'ll see $items channels in $groups groups';
+    String _temp0 = intl.Intl.pluralLogic(
+      groups,
+      locale: localeName,
+      other: '$groups groups',
+      one: '1 group',
+    );
+    return 'You\'ll see $items channels in $_temp0';
   }
 
   @override
   String youWillSeeMovies(int groups, int items) {
-    return 'You\'ll see $items movies in $groups categories';
+    String _temp0 = intl.Intl.pluralLogic(
+      groups,
+      locale: localeName,
+      other: '$groups categories',
+      one: '1 category',
+    );
+    return 'You\'ll see $items movies in $_temp0';
   }
 
   @override
   String youWillSeeShows(int groups, int items) {
-    return 'You\'ll see $items series in $groups categories';
+    String _temp0 = intl.Intl.pluralLogic(
+      groups,
+      locale: localeName,
+      other: '$groups categories',
+      one: '1 category',
+    );
+    return 'You\'ll see $items series in $_temp0';
   }
 
   @override
@@ -1348,4 +1385,144 @@ class AppLocalizationsEn extends AppLocalizations {
   String groupHiddenMsg(String name) {
     return '$name hidden';
   }
+
+  @override
+  String guideCoverage(int matched, int total) {
+    return '$matched of $total channels have a guide';
+  }
+
+  @override
+  String guideFailedLine(String error) {
+    return 'A guide could not be loaded: $error';
+  }
+
+  @override
+  String get matchOneByOne => 'Pick the right guide yourself, one at a time';
+
+  @override
+  String get guidesInUse => 'Guides in use';
+
+  @override
+  String get providerGuide => 'From your provider';
+
+  @override
+  String get providerGuideHint => 'Always on';
+
+  @override
+  String get providerGuidePerChannel =>
+      'Always on · also asked channel by channel';
+
+  @override
+  String freeGuideOf(String country) {
+    return 'Free · $country';
+  }
+
+  @override
+  String get freeGuideHint => 'Public guide, fills in what the provider lacks';
+
+  @override
+  String get guideLink => 'Your link (XMLTV)';
+
+  @override
+  String guideRemovedNamed(String name) {
+    return '$name removed';
+  }
+
+  @override
+  String get addGuide => 'Add a guide';
+
+  @override
+  String get addFreeGuide => 'Free guide for a country (recommended)';
+
+  @override
+  String get addGuideLink => 'A link of my own (XMLTV)';
+
+  @override
+  String get ifSomethingsOff => 'If something\'s off';
+
+  @override
+  String get timesWrong => 'The times are wrong';
+
+  @override
+  String get timesWrongHint => 'Move the guide earlier or later';
+
+  @override
+  String get noShift => 'No shift';
+
+  @override
+  String get refreshGuideNow => 'Update the guide now';
+
+  @override
+  String get refreshGuideHint => 'It also updates on its own';
+
+  @override
+  String matchProgress(int current, int total) {
+    return 'Channel $current of $total without a guide';
+  }
+
+  @override
+  String sureMatches(int count) {
+    return '$count near-certain matches';
+  }
+
+  @override
+  String get sureMatchesHint => 'Same name, only HD or FHD differs';
+
+  @override
+  String sureMatchesTaken(int count) {
+    return '$count channels now have a guide';
+  }
+
+  @override
+  String get takeAll => 'Apply';
+
+  @override
+  String inGroupNoGuide(String group) {
+    return '$group · no guide';
+  }
+
+  @override
+  String get whichGuide =>
+      'Which of these guides is right? Recognise it by what it airs now:';
+
+  @override
+  String get noSuggestions =>
+      'No guide looks like this channel. Search for it by name:';
+
+  @override
+  String get veryLikely => 'VERY LIKELY';
+
+  @override
+  String airingNow(String title, String time) {
+    return 'Now: $title · until $time';
+  }
+
+  @override
+  String get nothingAiringNow => 'Nothing airing now';
+
+  @override
+  String get searchAnotherGuide => 'Not here? Search another guide';
+
+  @override
+  String get noGuideForIt => 'No guide';
+
+  @override
+  String get skipForNow => 'Skip for now';
+
+  @override
+  String guideLinked(String channel, String guide) {
+    return '$channel now uses the guide of $guide';
+  }
+
+  @override
+  String get versionUhdHint => 'Needs a fast connection';
+
+  @override
+  String get versionFhdHint => 'Sharp picture, for most connections';
+
+  @override
+  String get versionHdHint => 'Uses less data';
+
+  @override
+  String get versionSdHint => 'Lowest data use';
 }

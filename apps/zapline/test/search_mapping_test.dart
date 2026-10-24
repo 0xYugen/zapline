@@ -43,7 +43,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Fix TV guide'));
     await tester.pumpAndSettle();
-    expect(find.text('Suggestions for Channel 5 Extra'), findsOneWidget);
+    expect(find.text('Channel 5 Extra'), findsOneWidget);
+    expect(find.textContaining('Now: Show 5'), findsOneWidget);
 
     await tester.tap(find.text('Channel 5').last);
     await tester.pumpAndSettle();

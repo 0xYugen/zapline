@@ -17,6 +17,21 @@ String? groupCountry(String title) {
   return countryNames.containsKey(code) ? code : null;
 }
 
+/// [name] without a leading country tag ("IT | Rai 1" → "Rai 1"); the
+/// group already says the country.
+String withoutCountryTag(String name) {
+  final m = _taggedName.firstMatch(name);
+  if (m == null) return name;
+  final tag = m.group(1)!;
+  if (tag != tag.toUpperCase()) return name;
+  final code = _aliases[tag.toLowerCase()] ?? tag.toLowerCase();
+  if (!countryNames.containsKey(code)) return name;
+  final rest = name.substring(m.end).trim();
+  return rest.isEmpty ? name : rest;
+}
+
+final _taggedName = RegExp(r'^\s*[\[(|]?\s*([A-Za-z]{2,3})\s*[\])|:\-]+\s*');
+
 final _leadingTag = RegExp(r'^\W*([A-Za-z]{2,3})(?![A-Za-z0-9])');
 
 const _aliases = {
