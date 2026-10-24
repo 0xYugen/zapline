@@ -65,7 +65,7 @@ String pairingPage({required String pin}) {
     </div>
     <details>
       <summary>Extra TV guide (optional)</summary>
-      <label style="margin-top:10px">XMLTV guide link
+      <label style="margin-top:10px">EPG link (XMLTV)
         <input name="guide" type="url" inputmode="url"
                placeholder="http://guide.example/epg.xml.gz">
       </label>

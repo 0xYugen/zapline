@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 
@@ -117,8 +118,12 @@ Future<SyncResult> _syncInIsolate(
 
 /// App-wide state backed by the local database.
 class AppState extends ChangeNotifier {
-  AppState(this.db, {required this.syncRunner, SecretStore? secrets})
-    : secrets = secrets ?? MemorySecretStore() {
+  AppState(
+    this.db, {
+    required this.syncRunner,
+    SecretStore? secrets,
+    this.guideFetcher,
+  }) : secrets = secrets ?? MemorySecretStore() {
     _reload();
   }
 
@@ -403,12 +408,101 @@ class AppState extends ChangeNotifier {
   }
 
   /// Programmes of one channel overlapping [from]–[to], in order.
-  List<Programme> schedule(Channel c, DateTime from, DateTime to) =>
-      guide([c], from, to)[ZaplineDatabase.channelKey(c)] ??
-      const <Programme>[];
+  List<Programme> schedule(Channel c, DateTime from, DateTime to) {
+    final list =
+        guide([c], from, to)[ZaplineDatabase.channelKey(c)] ??
+        const <Programme>[];
+    if (list.isEmpty) _wantGuide(c);
+    return list;
+  }
 
-  (Programme?, Programme?) nowNext(Channel c) =>
-      db.nowNext(c, DateTime.now().toUtc());
+  (Programme?, Programme?) nowNext(Channel c) {
+    final result = db.nowNext(c, DateTime.now().toUtc());
+    if (result.$1 == null) _wantGuide(c);
+    return result;
+  }
+
+  // ----------------------------------------- guides fetched per channel
+
+  /// Asks Xtream sources for what's on when their XMLTV guide has nothing
+  /// for a channel. `null` turns it off (tests).
+  final ChannelGuideFetcher? guideFetcher;
+
+  final _guideAsked = <String, DateTime>{};
+  final _guideQueue = <(SourceRecord, Channel)>[];
+  int _guideRunning = 0;
+  Timer? _guideArrived;
+
+  /// Queues [c] for a per-channel fetch; called while rows are built, so
+  /// what's on screen is asked for first and each channel at most every
+  /// 15 minutes.
+  void _wantGuide(Channel c) {
+    if (guideFetcher == null) return;
+    final key = ZaplineDatabase.channelKey(c);
+    final now = DateTime.now();
+    final last = _guideAsked[key];
+    if (last != null && now.difference(last) < const Duration(minutes: 15)) {
+      return;
+    }
+    final source = sources.where((s) => s.id == c.sourceId).firstOrNull;
+    if (source == null || !ChannelGuideFetcher.supports(source)) return;
+    _guideAsked[key] = now;
+    _guideQueue.add((source, c));
+    // Scrolled past: drop the oldest requests, they can be asked again.
+    while (_guideQueue.length > 40) {
+      final (_, old) = _guideQueue.removeAt(0);
+      _guideAsked.remove(ZaplineDatabase.channelKey(old));
+    }
+    _pumpGuides();
+  }
+
+  void _pumpGuides() {
+    final fetcher = guideFetcher!;
+    while (_guideRunning < 4 && _guideQueue.isNotEmpty) {
+      final (source, c) = _guideQueue.removeLast();
+      _guideRunning++;
+      fetcher
+          .fetch(source, c)
+          .then((n) {
+            if (n > 0) _guideFetched();
+          }, onError: (Object _) {})
+          .whenComplete(() {
+            _guideRunning--;
+            _pumpGuides();
+          });
+    }
+  }
+
+  /// Redraws once for a burst of fetched channels.
+  void _guideFetched() {
+    _guideArrived ??= Timer(const Duration(milliseconds: 300), () {
+      _guideArrived = null;
+      version++;
+      notifyListeners();
+    });
+  }
+
+  /// What the last sync got from [sourceId]'s TV guides.
+  GuideStatus? guideStatus(String sourceId) {
+    final raw = db.setting('guideStatus:$sourceId');
+    if (raw == null) return null;
+    final j = jsonDecode(raw) as Map<String, Object?>;
+    return GuideStatus(
+      programmes: j['programmes'] as int? ?? 0,
+      errors: [for (final e in j['errors'] as List? ?? const []) '$e'],
+      perChannel: ChannelGuideFetcher.supports(
+        sources.firstWhere(
+          (s) => s.id == sourceId,
+          orElse: () => const SourceRecord(
+            id: '',
+            kind: SourceKind.m3u,
+            name: '',
+            url: '',
+          ),
+        ),
+      ),
+    );
+  }
 
   Map<String, List<Programme>> guide(
     List<Channel> channels,
@@ -562,10 +656,20 @@ class AppState extends ChangeNotifier {
     progress = const SyncProgress(SyncStage.channels);
     notifyListeners();
     try {
-      return await syncRunner(s, (p) {
+      final result = await syncRunner(s, (p) {
         progress = p;
         notifyListeners();
       });
+      db.setSetting(
+        'guideStatus:${s.id}',
+        jsonEncode({
+          'programmes': result.guide.programmes,
+          'errors': result.guideErrors,
+        }),
+      );
+      // A new sync may have brought a guide: ask again where it didn't.
+      _guideAsked.clear();
+      return result;
     } finally {
       syncingSourceId = null;
       progress = null;
@@ -573,4 +677,22 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
   }
+}
+
+/// Outcome of the TV guide part of a source's last sync.
+class GuideStatus {
+  const GuideStatus({
+    required this.programmes,
+    required this.errors,
+    required this.perChannel,
+  });
+
+  /// Programmes imported from the XMLTV guides.
+  final int programmes;
+
+  /// Guides that could not be downloaded or read, with the reason.
+  final List<String> errors;
+
+  /// The source can be asked for what's on channel by channel instead.
+  final bool perChannel;
 }

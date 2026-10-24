@@ -200,8 +200,13 @@ String maybeBase64(String s) {
   if (!RegExp(r'^[A-Za-z0-9+/]+={0,2}$').hasMatch(s)) return s;
   try {
     final decoded = utf8.decode(base64.decode(s));
-    // Reject decodes that produced control characters: it was plain text.
-    if (decoded.codeUnits.any((c) => c < 0x09)) return s;
+    // Short words such as "Film" or "News" are valid Base64 too; text that
+    // decodes to control characters was plain text all along.
+    if (decoded.codeUnits.any(
+      (c) => (c < 0x20 && c != 0x09 && c != 0x0a && c != 0x0d) || c == 0x7f,
+    )) {
+      return s;
+    }
     return decoded;
   } on FormatException {
     return s;

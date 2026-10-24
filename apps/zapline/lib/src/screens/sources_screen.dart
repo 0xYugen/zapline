@@ -75,6 +75,18 @@ class _SourcesScreenState extends State<SourcesScreen> {
     }
   }
 
+  /// Says what the last sync got from the source's EPG, in plain words.
+  static String _guideLine(GuideStatus g) {
+    final fallback = g.perChannel
+        ? ' What is on now and next is asked channel by channel instead.'
+        : ' Add an EPG link in Manage.';
+    if (g.errors.isNotEmpty) {
+      return 'EPG could not be loaded: ${g.errors.join('; ')}.$fallback';
+    }
+    if (g.programmes == 0) return 'The source sent an empty EPG.$fallback';
+    return 'EPG: ${g.programmes} programmes loaded.';
+  }
+
   void _delete(SourceRecord s) {
     if (_confirmDelete != s.id) {
       // The confirmation expires, so a stray press later never deletes.
@@ -260,10 +272,23 @@ class _SourcesScreenState extends State<SourcesScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            '${cov.channels} channels · guide for ${cov.matched} '
+            '${cov.channels} channels · TV guide (EPG) for ${cov.matched} '
             '(${(cov.ratio * 100).round()}%)',
             style: const TextStyle(fontSize: 16),
           ),
+          if (state.guideStatus(s.id) case final g?)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _guideLine(g),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: g.errors.isEmpty && g.programmes > 0
+                      ? ZaplineColors.textMuted
+                      : ZaplineColors.live,
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),

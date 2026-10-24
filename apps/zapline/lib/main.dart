@@ -42,14 +42,16 @@ Future<void> main() async {
   await LogoCache.init(await getApplicationCacheDirectory());
   final dir = await getApplicationSupportDirectory();
   final dbPath = '${dir.path}${Platform.pathSeparator}zapline.db';
+  final db = ZaplineDatabase.open(dbPath);
   late final AppState state;
   state = AppState(
-    ZaplineDatabase.open(dbPath),
+    db,
     syncRunner: isolateSyncRunner(
       dbPath,
       guideDays: () => state.settings.guideDays,
     ),
     secrets: const KeychainSecretStore(),
+    guideFetcher: ChannelGuideFetcher(db),
   );
   // Show the UI at once; the keystore can take seconds on first use and
   // passwords are only needed when syncing (which waits for them).

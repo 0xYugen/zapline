@@ -228,10 +228,10 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
               ),
             ],
           ),
-          () => const PageSection('TV guides'),
+          () => const PageSection('TV guides (EPG)'),
           () => const Text(
-            'The guide from the source itself is loaded automatically. Add '
-            'more XMLTV links here; the first match per channel wins.',
+            'The EPG from the source itself is loaded automatically. Add '
+            'more EPG links (XMLTV) here; the first match per channel wins.',
             style: TextStyle(color: ZaplineColors.textMuted),
           ),
           for (final url in _source.extraGuideUrls)
@@ -268,7 +268,7 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
                       autocorrect: false,
                       onSubmitted: (_) => _addGuide(),
                       decoration: const InputDecoration(
-                        labelText: 'Add an XMLTV guide link (.xml or .xml.gz)',
+                        labelText: 'Add an EPG link (XMLTV, .xml or .xml.gz)',
                       ),
                     ),
                   ),

@@ -12,11 +12,13 @@ AppState fakeState({
   Set<int> unmatched = const {},
   ZaplineDatabase? database,
   SecretStore? secrets,
+  ChannelGuideFetcher? guideFetcher,
 }) {
   final db = database ?? ZaplineDatabase.inMemory();
   return AppState(
     db,
     secrets: secrets,
+    guideFetcher: guideFetcher,
     syncRunner: (source, onProgress) async {
       final channels = [
         for (var i = 1; i <= count; i++)

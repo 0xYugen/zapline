@@ -726,15 +726,57 @@ class ZaplineDatabase {
     return GuideImportResult(channels: channels, programmes: programmes);
   }
 
+  /// Stores programmes fetched for one channel from its source (Xtream's
+  /// short EPG) and links the channel to them. Used when the source's
+  /// XMLTV guide is missing or has nothing for the channel.
+  void storeChannelGuide(Channel c, List<Programme> programmes) {
+    if (programmes.isEmpty) return;
+    final key = channelKey(c);
+    final id = '$channelGuidePrefix$key';
+    _transaction(() {
+      _db.execute(
+        'INSERT OR REPLACE INTO guide_channels(guide_id, names, icon) '
+        'VALUES (?, ?, NULL)',
+        [id, c.name],
+      );
+      final upsert = _db.prepare(
+        'INSERT OR REPLACE INTO programmes(guide_id, start, stop, title, '
+        'description) VALUES (?, ?, ?, ?, ?)',
+      );
+      try {
+        for (final p in programmes) {
+          upsert.execute([
+            id,
+            _secs(p.start),
+            _secs(p.stop),
+            p.title,
+            p.description,
+          ]);
+        }
+      } finally {
+        upsert.close();
+      }
+      _db.execute("INSERT OR REPLACE INTO epg_map VALUES (?, ?, 'source')", [
+        key,
+        id,
+      ]);
+    });
+  }
+
   /// Drops programmes that ended before [before].
   int pruneProgrammes(DateTime before) {
     _db.execute('DELETE FROM programmes WHERE stop < ?', [_secs(before)]);
     return _db.updatedRows;
   }
 
+  /// Prefix of guide ids holding a single channel's programmes fetched
+  /// from the source itself (see [storeChannelGuide]).
+  static const channelGuidePrefix = 'xc/';
+
   List<XmltvChannel> guideChannels() => [
     for (final r in _db.select(
-      'SELECT guide_id, names, icon FROM guide_channels',
+      'SELECT guide_id, names, icon FROM guide_channels '
+      "WHERE guide_id NOT LIKE '$channelGuidePrefix%'",
     ))
       XmltvChannel(
         id: r['guide_id'] as String,
@@ -784,6 +826,14 @@ class ZaplineDatabase {
     };
     final matcher = ChannelMatcher(guideChannels(), manualOverrides: overrides);
     final all = channels(visibility: ChannelVisibility.all);
+    // Per-channel guides from the source stay linked when no XMLTV guide
+    // matches the channel.
+    final fallback = {
+      for (final r in _db.select(
+        "SELECT channel_key, guide_id FROM epg_map WHERE kind = 'source'",
+      ))
+        r['channel_key'] as String: r['guide_id'] as String,
+    };
     var matched = 0;
     _transaction(() {
       _db.execute('DELETE FROM epg_map');
@@ -792,8 +842,13 @@ class ZaplineDatabase {
         for (final c in all) {
           final key = channelKey(c);
           final m = matcher.match(c, channelKey: key);
-          if (m == null) continue;
-          insert.execute([key, m.guideChannelId, m.kind.name]);
+          if (m != null) {
+            insert.execute([key, m.guideChannelId, m.kind.name]);
+          } else if (fallback[key] case final id?) {
+            insert.execute([key, id, 'source']);
+          } else {
+            continue;
+          }
           matched++;
         }
       } finally {

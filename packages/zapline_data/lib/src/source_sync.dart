@@ -122,7 +122,7 @@ class SourceSync {
   }
 
   Future<(List<Channel>, List<Uri>, Duration?)> _xtream(SourceRecord s) async {
-    final client = XtreamClient(_credentials(s), httpClient: _http);
+    final client = XtreamClient(credentialsOf(s), httpClient: _http);
     final XtreamAccount account;
     try {
       account = await client.authenticate();
@@ -159,7 +159,8 @@ class SourceSync {
     return (channels, [client.xmltvUrl], account.serverUtcOffset);
   }
 
-  static XtreamCredentials _credentials(SourceRecord s) {
+  /// Where and how to log in to an Xtream source.
+  static XtreamCredentials credentialsOf(SourceRecord s) {
     final u = Uri.parse(s.url.contains('://') ? s.url : 'http://${s.url}');
     return XtreamCredentials(
       baseUrl: Uri(
