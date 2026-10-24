@@ -4,6 +4,7 @@ import 'package:lineup_core/lineup_core.dart';
 import '../library.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/tv_text_field.dart';
 
 /// First-run screen. A single URL field accepts an M3U link, an Xtream
 /// `get.php` link (credentials are extracted automatically) or a bare server
@@ -104,13 +105,24 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                   style: t.titleMedium?.copyWith(color: LineupColors.textMuted),
                 ),
                 const SizedBox(height: 32),
-                TextField(
-                  controller: _url,
-                  autofocus: true,
-                  keyboardType: TextInputType.url,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Playlist URL or server address',
+                TvTextField(
+                  child: TextField(
+                    controller: _url,
+                    autofocus: true,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    textInputAction: _detected != null
+                        ? TextInputAction.go
+                        : TextInputAction.next,
+                    // With credentials in the link there is nothing else to
+                    // fill in: the keyboard's action key connects directly.
+                    onSubmitted: (_) => _detected != null
+                        ? _submit()
+                        : FocusScope.of(context).nextFocus(),
+                    decoration: const InputDecoration(
+                      labelText: 'Playlist URL or server address',
+                    ),
                   ),
                 ),
                 if (_detected != null) ...[
@@ -124,22 +136,26 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _user,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Username (Xtream only)',
+                        child: TvTextField(
+                          child: TextField(
+                            controller: _user,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Username (Xtream only)',
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
-                          controller: _pass,
-                          obscureText: true,
-                          onSubmitted: (_) => _submit(),
-                          decoration: const InputDecoration(
-                            labelText: 'Password (Xtream only)',
+                        child: TvTextField(
+                          child: TextField(
+                            controller: _pass,
+                            obscureText: true,
+                            onSubmitted: (_) => _submit(),
+                            decoration: const InputDecoration(
+                              labelText: 'Password (Xtream only)',
+                            ),
                           ),
                         ),
                       ),

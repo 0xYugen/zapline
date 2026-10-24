@@ -9,9 +9,16 @@ import 'player_screen.dart';
 /// Groups on the left, channels on the right. Both lists are lazily built so
 /// tens of thousands of channels stay cheap.
 class ChannelsScreen extends StatefulWidget {
-  const ChannelsScreen({super.key, required this.library});
+  const ChannelsScreen({
+    super.key,
+    required this.library,
+    this.autoplayFirst = false,
+  });
 
   final Library library;
+
+  /// Development aid: open the first channel immediately.
+  final bool autoplayFirst;
 
   @override
   State<ChannelsScreen> createState() => _ChannelsScreenState();
@@ -20,6 +27,26 @@ class ChannelsScreen extends StatefulWidget {
 class _ChannelsScreenState extends State<ChannelsScreen> {
   /// `null` means all channels.
   String? _group;
+
+  final _firstChannel = FocusNode(debugLabel: 'first channel');
+
+  @override
+  void initState() {
+    super.initState();
+    // `autofocus` is ignored when the previous screen still held focus while
+    // this one was built, so request it explicitly after the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _firstChannel.requestFocus();
+      if (widget.autoplayFirst && _visible.isNotEmpty) _play(_visible, 0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _firstChannel.dispose();
+    super.dispose();
+  }
 
   List<Channel> get _visible {
     final all = widget.library.channels;
@@ -110,7 +137,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: FocusCard(
-                      autofocus: i == 0 && _group == null,
+                      focusNode: i == 0 ? _firstChannel : null,
                       onPressed: () => _play(visible, i),
                       child: Row(
                         children: [

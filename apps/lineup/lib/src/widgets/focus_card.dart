@@ -46,7 +46,10 @@ class _FocusCardState extends State<FocusCard> {
     return FocusableActionDetector(
       autofocus: widget.autofocus,
       focusNode: widget.focusNode,
-      onShowFocusHighlight: (v) {
+      // Follow real focus rather than onShowFocusHighlight: Flutter's
+      // highlight mode can stay in "touch" on Android TV, which would hide
+      // the only cue a remote user has.
+      onFocusChange: (v) {
         setState(() => _focused = v);
         if (v) {
           widget.onFocused?.call();

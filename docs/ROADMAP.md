@@ -17,7 +17,12 @@ bugs. Part-time (20 h/week) roughly doubles them.
       media_kit/libmpv on every platform)
 - [ ] Verify whether media_kit's prebuilt libmpv/FFmpeg binaries are LGPL;
       otherwise build our own
-- [ ] Android build (needs Android SDK 36 on the dev machine)
+- [x] Android release APKs (arm64, armv7, x86_64) built; tested on an
+      Android TV emulator (API 36): onboarding, D-pad focus, channel list,
+      zapping. Video shows black there because media_kit forces software
+      rendering on emulators: verify on real hardware
+- [x] Playback verified on Windows against the mock panel (HLS)
+- [x] Dev flags: `LINEUP_DEV_SOURCE`, `LINEUP_DEV_AUTOPLAY` (`--dart-define`)
 - [ ] LGPL builds of libmpv/FFmpeg, licences of all binaries documented
 - [ ] Prototype measured on a real Fire TV Stick 4K: zapping time, memory,
       MPEG-TS + AC-3 + MP2 playback

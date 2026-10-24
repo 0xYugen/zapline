@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lineup/main.dart';
 import 'package:lineup/src/library.dart';
+import 'package:lineup/src/widgets/focus_card.dart';
 
 void main() {
   testWidgets(
@@ -24,6 +26,12 @@ void main() {
         findsOneWidget,
         reason: 'username/password fields hide once credentials are detected',
       );
+
+      // D-pad Down must leave the text field (TV remotes have no Tab key).
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      final focused = FocusManager.instance.primaryFocus!.context!;
+      expect(focused.findAncestorWidgetOfExactType<FocusCard>(), isNotNull);
     },
   );
 }

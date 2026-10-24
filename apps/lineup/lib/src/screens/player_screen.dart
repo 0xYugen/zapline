@@ -52,8 +52,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _subs
       ..add(
-        _player.stream.width.listen((w) {
-          if (w != null && w > 0 && _zapWatch.isRunning) {
+        // Zap ends when playback position first advances on the new stream.
+        // (Resolution events are not enough: two channels often share it.)
+        _player.stream.position.listen((p) {
+          if (p > Duration.zero && _zapWatch.isRunning) {
             _zapWatch.stop();
             setState(() => _lastZap = _zapWatch.elapsed);
           }
@@ -83,6 +85,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _lastZap = null;
     });
     _showOverlay();
+    // Stop first so a late position event from the old channel cannot end
+    // the measurement early.
+    _zapWatch.stop();
+    await _player.stop();
     _zapWatch
       ..reset()
       ..start();
