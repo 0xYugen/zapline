@@ -105,3 +105,61 @@ String normalizeChannelName(String name) {
   s = s.replaceAll(_nonAlnum, '');
   return s;
 }
+
+/// Ranks guide channels as candidates for a channel the automatic matcher
+/// could not link, best first. Used by the manual mapping screen, so it
+/// favours recall: exact normalised names, then containment, then shared
+/// words.
+List<(XmltvChannel, double)> rankGuideCandidates(
+  String channelName,
+  Iterable<XmltvChannel> guideChannels, {
+  int limit = 8,
+}) {
+  final target = normalizeChannelName(channelName);
+  final targetWords = _words(channelName);
+  if (target.isEmpty && targetWords.isEmpty) return const [];
+
+  final scored = <(XmltvChannel, double)>[];
+  for (final gc in guideChannels) {
+    var best = 0.0;
+    for (final name in [...gc.displayNames, gc.id.split('.').first]) {
+      final n = normalizeChannelName(name);
+      if (n.isEmpty) continue;
+      double s;
+      if (n == target) {
+        s = 1.0;
+      } else if (target.isNotEmpty &&
+          (n.contains(target) || target.contains(n))) {
+        s = 0.8 *
+                (n.length < target.length
+                    ? n.length / target.length
+                    : target.length / n.length) +
+            0.1;
+      } else {
+        final words = _words(name);
+        final shared = words.intersection(targetWords).length;
+        // Prefix matches catch abbreviations ("Cinema 1" vs "Cinema One").
+        final prefix = words.any((w) => targetWords.any((t) =>
+                w.length >= 3 &&
+                t.length >= 3 &&
+                (w.startsWith(t) || t.startsWith(w))))
+            ? 0.5
+            : 0.0;
+        final union = words.union(targetWords).length;
+        s = union == 0 ? 0 : 0.6 * shared / union;
+        if (shared == 0) s = prefix * 0.6;
+      }
+      if (s > best) best = s;
+    }
+    if (best > 0.15) scored.add((gc, best));
+  }
+  scored.sort((a, b) => b.$2.compareTo(a.$2));
+  return scored.take(limit).toList();
+}
+
+Set<String> _words(String s) {
+  var t = s.toLowerCase();
+  t = t.split('').map((c) => _diacritics[c] ?? c).join();
+  t = t.replaceFirst(_prefix, '').replaceAll(_quality, ' ');
+  return t.split(RegExp(r'[^a-z0-9+]+')).where((w) => w.isNotEmpty).toSet();
+}

@@ -147,6 +147,48 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ------------------------------------------------------ guide mapping
+
+  (int, List<XmltvChannel>)? _guideCache;
+
+  /// All guide channels; cached until the stored data changes.
+  List<XmltvChannel> get guideChannels {
+    final cached = _guideCache;
+    if (cached != null && cached.$1 == version) return cached.$2;
+    final list = db.guideChannels()
+      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    _guideCache = (version, list);
+    return list;
+  }
+
+  List<Channel> unmatchedChannels(String sourceId) =>
+      db.unmatchedChannels(sourceId: sourceId);
+
+  List<(XmltvChannel, double)> guideSuggestions(Channel c) =>
+      rankGuideCandidates(c.name, guideChannels);
+
+  /// Guide channels whose name or id contains [query].
+  List<XmltvChannel> searchGuide(String query, {int limit = 30}) {
+    final q = normalizeChannelName(query);
+    if (q.isEmpty) return const [];
+    return guideChannels
+        .where(
+          (g) =>
+              normalizeChannelName(g.id).contains(q) ||
+              g.displayNames.any((n) => normalizeChannelName(n).contains(q)),
+        )
+        .take(limit)
+        .toList();
+  }
+
+  /// Links [c] to [guideId] for good; survives re-syncs.
+  void assignGuide(Channel c, String guideId) {
+    db.setGuideOverride(c, guideId);
+    db.rebuildGuideLinks();
+    _reload();
+    notifyListeners();
+  }
+
   /// The archive URL for [p] on [c], or `null` if it cannot be replayed.
   Uri? catchupUrl(Channel c, Programme p) {
     if (!canReplay(c, p)) return null;

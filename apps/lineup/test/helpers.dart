@@ -4,7 +4,9 @@ import 'package:lineup_data/lineup_data.dart';
 
 /// An [AppState] over an in-memory database whose "sync" writes [count]
 /// fake channels and a guide instead of touching the network.
-AppState fakeState({int count = 20}) {
+/// Every channel whose number is in [unmatched] gets a name and no guide id
+/// that the automatic matcher cannot link.
+AppState fakeState({int count = 20, Set<int> unmatched = const {}}) {
   final db = LineupDatabase.inMemory();
   return AppState(
     db,
@@ -14,10 +16,10 @@ AppState fakeState({int count = 20}) {
           Channel(
             sourceId: source.id,
             id: '$i',
-            name: 'Channel $i',
+            name: unmatched.contains(i) ? 'Channel $i Extra' : 'Channel $i',
             number: i,
             groupTitle: i.isEven ? 'Even' : 'Odd',
-            epgChannelId: 'g$i',
+            epgChannelId: unmatched.contains(i) ? null : 'g$i',
             streamUrl: Uri.parse('http://x.example/live/u/p/$i.ts'),
             catchup: const CatchupInfo(mode: CatchupMode.xtream, days: 2),
           ),

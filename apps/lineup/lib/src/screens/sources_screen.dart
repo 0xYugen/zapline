@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lineup_data/lineup_data.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import 'add_source_screen.dart';
+import 'guide_mapping_screen.dart';
 
 /// Lists the user's sources with their guide coverage, and lets them add,
 /// refresh or remove one.
@@ -21,7 +25,35 @@ class _SourcesScreenState extends State<SourcesScreen> {
   /// Source awaiting a second press to confirm deletion. No modal dialogs:
   /// they are awkward with a remote.
   String? _confirmDelete;
+  Timer? _confirmTimer;
   String? _message;
+
+  /// Refresh button of each source; Down from "Add a source" lands on the
+  /// first one rather than whichever button sits nearest the centre.
+  final _refreshNodes = <String, FocusNode>{};
+
+  FocusNode _refreshNode(String id) =>
+      _refreshNodes.putIfAbsent(id, () => FocusNode());
+
+  KeyEventResult _addKey(FocusNode _, KeyEvent e) {
+    final first = widget.state.sources.firstOrNull;
+    if (e is KeyDownEvent &&
+        e.logicalKey == LogicalKeyboardKey.arrowDown &&
+        first != null) {
+      _refreshNode(first.id).requestFocus();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  void dispose() {
+    _confirmTimer?.cancel();
+    for (final n in _refreshNodes.values) {
+      n.dispose();
+    }
+    super.dispose();
+  }
 
   Future<void> _refresh(SourceRecord s) async {
     setState(() => _message = null);
@@ -42,9 +74,15 @@ class _SourcesScreenState extends State<SourcesScreen> {
 
   void _delete(SourceRecord s) {
     if (_confirmDelete != s.id) {
+      // The confirmation expires, so a stray press later never deletes.
+      _confirmTimer?.cancel();
+      _confirmTimer = Timer(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _confirmDelete = null);
+      });
       setState(() => _confirmDelete = s.id);
       return;
     }
+    _confirmTimer?.cancel();
     widget.state.deleteSource(s.id);
     setState(() => _confirmDelete = null);
     if (widget.state.isEmpty) Navigator.of(context).pop();
@@ -65,34 +103,40 @@ class _SourcesScreenState extends State<SourcesScreen> {
                 style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 24),
-              FocusCard(
-                autofocus: true,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => AddSourceScreen(state: state),
+              Focus(
+                canRequestFocus: false,
+                skipTraversal: true,
+                onKeyEvent: _addKey,
+                child: FocusCard(
+                  autofocus: true,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AddSourceScreen(state: state),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.add),
+                      SizedBox(width: 12),
+                      Text(
+                        'Add a source',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.add),
-                    SizedBox(width: 12),
-                    Text(
-                      'Add a source',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-              if (_message != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  _message!,
+              Padding(
+                key: const ValueKey('message'),
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  _message ?? '',
                   style: const TextStyle(color: LineupColors.textMuted),
                 ),
-              ],
+              ),
               const SizedBox(height: 16),
               for (final s in state.sources) _sourceCard(state, s),
             ],
@@ -106,7 +150,10 @@ class _SourcesScreenState extends State<SourcesScreen> {
     final syncing = state.syncingSourceId == s.id;
     final cov = state.coverage(s.id);
     final synced = s.syncedAt?.toLocal();
+    // Keys keep focus on the same button when the list above changes (a
+    // result message appears, a "Fix TV guide" button is added).
     return Container(
+      key: ValueKey('source-${s.id}'),
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -173,6 +220,8 @@ class _SourcesScreenState extends State<SourcesScreen> {
           Row(
             children: [
               FocusCard(
+                key: ValueKey('refresh-${s.id}'),
+                focusNode: _refreshNode(s.id),
                 onPressed: syncing || state.isSyncing
                     ? () {}
                     : () => _refresh(s),
@@ -181,15 +230,40 @@ class _SourcesScreenState extends State<SourcesScreen> {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
+              if (cov.matched < cov.channels) ...[
+                const SizedBox(width: 12),
+                FocusCard(
+                  key: ValueKey('fix-${s.id}'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          GuideMappingScreen(state: state, sourceId: s.id),
+                    ),
+                  ),
+                  child: Text(
+                    'Fix TV guide (${cov.channels - cov.matched})',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
               const SizedBox(width: 12),
               FocusCard(
+                key: ValueKey('remove-${s.id}'),
                 onPressed: () => _delete(s),
-                child: Text(
-                  _confirmDelete == s.id ? 'Press again to remove' : 'Remove',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: _confirmDelete == s.id ? LineupColors.live : null,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_confirmDelete == s.id) ...[
+                      const Icon(Icons.warning_amber_rounded, size: 20),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      _confirmDelete == s.id
+                          ? 'Press again to remove'
+                          : 'Remove',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -52,6 +52,14 @@ const _channels = [
     'https://test-streams.mux.dev/tos_ismc/main.m3u8'
   ),
   (6, 'Broken Stream', '2', 'broken.test', 'http://127.0.0.1:9/nothing.ts'),
+  // No guide id and a name the matcher cannot link: for manual mapping.
+  (
+    7,
+    'Cinema One HD',
+    '2',
+    '',
+    'https://test-streams.mux.dev/tos_ismc/main.m3u8',
+  ),
 ];
 
 const _categories = {'1': 'Test Patterns', '2': 'Demo Channels'};
@@ -267,11 +275,16 @@ String _xmltv() {
       .replaceAll('>', '&gt;');
 
   final b = StringBuffer('<?xml version="1.0" encoding="UTF-8"?>\n<tv>\n');
-  for (final c in _channels) {
+  final guide = [
+    for (final c in _channels)
+      if (c.$4.isNotEmpty) c,
+    (0, 'Cinema 1', '2', 'cinema1.test', ''),
+  ];
+  for (final c in guide) {
     b.writeln(
         '  <channel id="${c.$4}"><display-name>${esc(c.$2)}</display-name></channel>');
   }
-  for (final c in _channels) {
+  for (final c in guide) {
     for (final p in _programmes(c)) {
       b.writeln('  <programme start="${ts(p.$1)}" '
           'stop="${ts(p.$1.add(const Duration(minutes: 30)))}" channel="${c.$4}">'

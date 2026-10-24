@@ -22,7 +22,7 @@ void main() {
     expect(account.expiresAt!.isAfter(DateTime.now()), isTrue);
 
     final streams = await client.liveStreams();
-    expect(streams, hasLength(6));
+    expect(streams, hasLength(7));
     expect(await client.vodStreams(), isEmpty);
 
     final epg = await client.shortEpg(streams.first.streamId);
@@ -35,11 +35,12 @@ void main() {
             .parseBytes(res.stream)
             .toList();
     final guideChannels = items.whereType<XmltvChannel>().toList();
-    expect(guideChannels, hasLength(6));
-    expect(items.whereType<XmltvProgramme>().length, greaterThan(6 * 10));
+    expect(guideChannels, hasLength(7));
+    expect(items.whereType<XmltvProgramme>().length, greaterThan(7 * 10));
 
     final matcher = ChannelMatcher(guideChannels);
-    for (final s in streams) {
+    // Channel 7 deliberately has no guide id (manual mapping test case).
+    for (final s in streams.where((s) => s.epgChannelId != null)) {
       final ch = Channel(
           sourceId: 'mock',
           id: '${s.streamId}',
@@ -53,7 +54,7 @@ void main() {
         'GET', Uri.parse('$base/get.php?username=demo&password=demo')));
     final parser = M3uParser();
     final entries = await parser.parseBytes(m3u.stream).toList();
-    expect(entries, hasLength(6));
+    expect(entries, hasLength(7));
     expect(parser.header.epgUrls.single.path, '/xmltv.php');
     expect(detectXtreamCredentials(entries.first.url)?.username, 'demo');
   }, skip: base == null ? 'set MOCK_PANEL to run' : false);

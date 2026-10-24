@@ -106,4 +106,21 @@ void main() {
       expect(normalizeChannelName('Télé Ciné 4K'), 'telecine');
     });
   });
+
+  test('rankGuideCandidates orders plausible guide channels', () {
+    const guide = [
+      XmltvChannel(id: 'cinema1.test', displayNames: ['Cinema 1']),
+      XmltvChannel(id: 'news24.test', displayNames: ['News 24']),
+      XmltvChannel(id: 'cinemaclassic.test', displayNames: ['Cinema Classic']),
+      XmltvChannel(id: 'sport.test', displayNames: ['Sport One']),
+    ];
+    final r = rankGuideCandidates('IT: Cinema One HD', guide);
+    expect(r.first.$1.id, startsWith('cinema'));
+    expect(r.map((e) => e.$1.id), isNot(contains('news24.test')));
+
+    expect(
+        rankGuideCandidates('News 24 FHD', guide).first.$1.id, 'news24.test');
+    expect(rankGuideCandidates('News 24 FHD', guide).first.$2, 1.0);
+    expect(rankGuideCandidates('Something else', guide), isEmpty);
+  });
 }

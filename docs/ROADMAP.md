@@ -53,7 +53,8 @@ documented.
       lazy rows, "now" line, details header; verified on Android TV emulator
 - [x] Sources screen: add, refresh, remove (second press confirms), guide
       coverage
-- [ ] Manual guide mapping UI for unmatched channels
+- [x] Manual guide mapping: unmatched channels, ranked suggestions
+      (`rankGuideCandidates`), guide search; overrides survive re-syncs
 - [x] Catch-up: URL builder for xtream/xc, default, append, shift,
       flussonic and vod with Kodi-compatible placeholders; Xtream panel UTC
       offset from `server_info`; archive programmes marked in the guide and
@@ -62,7 +63,7 @@ documented.
 - [x] Favourites (hold OK, Menu key, long tap or right click), shown as a
       group; kept across re-syncs (database migration v1 → v2)
 - [x] Number-key zapping in the player
-- [ ] Channel search UI
+- [x] Channel search screen (prefix, accent-insensitive, live results)
 - [x] QR onboarding: while "Add a source" is open the TV serves a small
       form on the LAN (PIN required, locks after 5 wrong codes, no cloud);
       verified on the emulator through a forwarded port

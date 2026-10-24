@@ -504,6 +504,19 @@ class LineupDatabase {
     return GuideCoverage(channels: all.length, matched: matched);
   }
 
+  /// Channels with no guide link, in source order.
+  List<Channel> unmatchedChannels({String? sourceId}) => [
+    for (final r in _db.select(
+      'SELECT ${_channelCols.split(', ').map((c) => 'c.$c').join(', ')} '
+      'FROM channels c LEFT JOIN epg_map m '
+      "ON m.channel_key = c.source_id || '/' || c.id "
+      'WHERE m.guide_id IS NULL'
+      '${sourceId == null ? '' : ' AND c.source_id = ?'} ORDER BY c.sort',
+      [?sourceId],
+    ))
+      _channel(r),
+  ];
+
   GuideCoverage guideCoverage({String? sourceId}) {
     final r = _db.select(
       'SELECT count(*) AS n, count(m.guide_id) AS m FROM channels c '

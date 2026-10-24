@@ -20,6 +20,9 @@ final class XmltvChannel extends XmltvItem {
   final List<String> displayNames;
   final Uri? iconUrl;
 
+  /// The first display name, or the id when the guide gives none.
+  String get displayName => displayNames.isEmpty ? id : displayNames.first;
+
   @override
   String toString() => 'XmltvChannel($id, $displayNames)';
 }

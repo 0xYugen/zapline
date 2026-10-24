@@ -129,6 +129,7 @@ void main() {
 
     // Ended strictly before now: slots -4..-2 on two channels.
     expect(db.pruneProgrammes(now), 6);
+    expect(db.unmatchedChannels(sourceId: 'a').single.id, '3');
     db.setGuideOverride(chans[2], 'news.example');
     expect(db.rebuildGuideLinks().matched, 3);
   });
