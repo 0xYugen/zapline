@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../input_mode.dart';
 import '../theme.dart';
 
 /// A D-pad friendly tile: highlights and grows slightly when focused, and
@@ -102,10 +103,13 @@ class _FocusCardState extends State<FocusCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = _focused
+    // Touch has no hover or D-pad: a highlight would only stick to the last
+    // tapped card.
+    final lit = _focused && !InputMode.instance.touch;
+    final bg = lit
         ? ZaplineColors.focus
         : (widget.selected ? ZaplineColors.surfaceHigh : ZaplineColors.surface);
-    final fg = _focused ? ZaplineColors.onFocus : ZaplineColors.text;
+    final fg = lit ? ZaplineColors.onFocus : ZaplineColors.text;
 
     final longPressMode = widget.onLongPress != null;
     return Focus(
@@ -174,7 +178,7 @@ class _FocusCardState extends State<FocusCard> {
             onLongPress: widget.onLongPress,
             onSecondaryTap: widget.onLongPress,
             child: AnimatedScale(
-              scale: _focused ? 1.02 : 1,
+              scale: lit ? 1.02 : 1,
               duration: const Duration(milliseconds: 100),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 100),
@@ -183,9 +187,7 @@ class _FocusCardState extends State<FocusCard> {
                   color: bg,
                   borderRadius: BorderRadius.circular(widget.radius),
                   border: Border.all(
-                    color: _focused
-                        ? ZaplineColors.focusBorder
-                        : Colors.transparent,
+                    color: lit ? ZaplineColors.focusBorder : Colors.transparent,
                     width: 3,
                   ),
                 ),

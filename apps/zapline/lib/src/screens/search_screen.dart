@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../layout.dart';
+import '../mobile/mobile_widgets.dart';
 import '../theme.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_logo.dart';
@@ -53,7 +55,26 @@ class _SearchScreenState extends State<SearchScreen> {
       // Titles are matched anywhere in the text, so wait for a few letters.
       _programmes = q.trim().length < 3
           ? const []
-          : widget.state.searchProgrammes(q);
+          : _byRelevance(widget.state.searchProgrammes(q));
+    });
+  }
+
+  /// On now first, then coming up, then already aired (most recent first).
+  static List<(Channel, Programme)> _byRelevance(
+    List<(Channel, Programme)> found,
+  ) {
+    final now = DateTime.now();
+    int rank((Channel, Programme) e) {
+      final p = e.$2;
+      if (!p.start.isAfter(now) && p.stop.isAfter(now)) return 0;
+      return p.start.isAfter(now) ? 1 : 2;
+    }
+
+    return [...found]..sort((a, b) {
+      final r = rank(a).compareTo(rank(b));
+      if (r != 0) return r;
+      final byStart = a.$2.start.compareTo(b.$2.start);
+      return rank(a) == 2 ? -byStart : byStart;
     });
   }
 
@@ -84,68 +105,111 @@ class _SearchScreenState extends State<SearchScreen> {
         _query.text.trim().isNotEmpty &&
         _results.isEmpty &&
         _programmes.isEmpty;
+    final phone = context.isPhone;
     final items = <Widget Function()>[
       for (var i = 0; i < _results.length; i++)
-        () => SizedBox(
-          height: 86,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: ChannelTile(
+        if (phone)
+          () => SizedBox(
+            height: MobileChannelRow.height,
+            child: MobileChannelRow(
               state: widget.state,
               channel: _results[i],
               number: widget.state.channelNumber(_results[i], i),
-              onPressed: () => _play(_results, i),
+              onTap: () => _play(_results, i),
               onLongPress: () =>
                   showChannelActions(context, widget.state, _results[i]),
             ),
+          )
+        else
+          () => SizedBox(
+            height: 86,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ChannelTile(
+                state: widget.state,
+                channel: _results[i],
+                number: widget.state.channelNumber(_results[i], i),
+                onPressed: () => _play(_results, i),
+                onLongPress: () =>
+                    showChannelActions(context, widget.state, _results[i]),
+              ),
+            ),
           ),
-        ),
       if (_programmes.isNotEmpty)
-        () => const Padding(
-          padding: EdgeInsets.fromLTRB(4, 16, 0, 12),
+        () => Padding(
+          padding: phone
+              ? const EdgeInsets.fromLTRB(16, 16, 16, 4)
+              : const EdgeInsets.fromLTRB(4, 16, 0, 12),
           child: Text(
             'In the TV guide',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              fontSize: Metrics.of(context).section,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       for (final (c, p) in _programmes)
-        () => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _ProgrammeRow(
+        if (phone)
+          () => _PhoneProgrammeRow(
             state: widget.state,
             channel: c,
             programme: p,
-            onPressed: () => _openProgramme(c, p),
+            onTap: () => _openProgramme(c, p),
+          )
+        else
+          () => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _ProgrammeRow(
+              state: widget.state,
+              channel: c,
+              programme: p,
+              onPressed: () => _openProgramme(c, p),
+            ),
           ),
-        ),
     ];
 
+    final m = Metrics.of(context);
     return Scaffold(
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(64, 40, 64, 0),
+        padding: phone
+            ? EdgeInsets.zero
+            : const EdgeInsets.fromLTRB(64, 40, 64, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Search',
-              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 20),
-            TvTextField(
-              builder: (readOnly) => TextField(
-                readOnly: readOnly,
-                controller: _query,
-                autofocus: true,
-                autocorrect: false,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _run(),
-                decoration: const InputDecoration(
-                  labelText: 'Channel or programme',
-                  prefixIcon: Icon(Icons.search),
+            Padding(
+              padding: phone
+                  ? const EdgeInsets.fromLTRB(20, 12, 20, 0)
+                  : EdgeInsets.zero,
+              child: Text(
+                'Search',
+                style: TextStyle(
+                  fontSize: phone ? 24 : 34,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: m.gap * 1.5),
+            Padding(
+              padding: phone
+                  ? const EdgeInsets.symmetric(horizontal: 16)
+                  : EdgeInsets.zero,
+              child: TvTextField(
+                builder: (readOnly) => TextField(
+                  readOnly: readOnly,
+                  controller: _query,
+                  autofocus: !context.isPhone,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _run(),
+                  decoration: const InputDecoration(
+                    labelText: 'Channel or programme',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: m.gap),
             if (empty)
               const Padding(
                 padding: EdgeInsets.only(top: 24),
@@ -241,6 +305,73 @@ class _ProgrammeRow extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// A programme found by search, as a plain phone list row.
+class _PhoneProgrammeRow extends StatelessWidget {
+  const _PhoneProgrammeRow({
+    required this.state,
+    required this.channel,
+    required this.programme,
+    required this.onTap,
+  });
+
+  final AppState state;
+  final Channel channel;
+  final Programme programme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = programme;
+    final now = DateTime.now();
+    final onAir = !p.start.isAfter(now) && p.stop.isAfter(now);
+    final replay = !p.stop.isAfter(now) && state.catchupUrl(channel, p) != null;
+    final start = p.start.toLocal();
+    final today = DateUtils.isSameDay(start, now);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            ChannelLogo(channel: channel, width: 56, height: 40),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '${today ? '' : '${start.day}/${start.month} '}'
+                    '${state.time(p.start)}  ·  ${channel.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: ZaplineColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onAir)
+              const Icon(Icons.live_tv_rounded, color: ZaplineColors.live)
+            else if (replay)
+              const Icon(Icons.replay_rounded, color: ZaplineColors.focus),
+          ],
+        ),
       ),
     );
   }

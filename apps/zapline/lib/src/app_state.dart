@@ -402,6 +402,11 @@ class AppState extends ChangeNotifier {
     );
   }
 
+  /// Programmes of one channel overlapping [from]–[to], in order.
+  List<Programme> schedule(Channel c, DateTime from, DateTime to) =>
+      guide([c], from, to)[ZaplineDatabase.channelKey(c)] ??
+      const <Programme>[];
+
   (Programme?, Programme?) nowNext(Channel c) =>
       db.nowNext(c, DateTime.now().toUtc());
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zapline/main.dart';
 import 'package:zapline/src/app_state.dart';
+import 'package:zapline/src/layout.dart';
 
 import 'helpers.dart';
 
@@ -11,6 +12,9 @@ void _tvView(WidgetTester tester) {
   tester.view.physicalSize = const Size(1920, 1080);
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
+  // At 960x540 only the platform check tells a TV from a phone.
+  FormFactor.isTv = true;
+  addTearDown(() => FormFactor.isTv = false);
 }
 
 void main() {

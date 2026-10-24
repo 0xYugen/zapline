@@ -23,9 +23,14 @@ class InputMode extends ChangeNotifier {
   bool _pointer = false;
   bool get pointer => _pointer;
 
-  void _set(bool value) {
-    if (_pointer == value) return;
+  /// The last pointer was a finger: no hover, so no lasting highlight.
+  bool _touch = false;
+  bool get touch => _pointer && _touch;
+
+  void _set(bool value, {bool touch = false}) {
+    if (_pointer == value && _touch == touch) return;
     _pointer = value;
+    _touch = touch;
     notifyListeners();
   }
 
@@ -34,7 +39,7 @@ class InputMode extends ChangeNotifier {
     if (e.kind == PointerDeviceKind.mouse ||
         e.kind == PointerDeviceKind.touch ||
         e.kind == PointerDeviceKind.trackpad) {
-      _set(true);
+      _set(true, touch: e.kind == PointerDeviceKind.touch);
     }
   }
 

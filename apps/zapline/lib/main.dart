@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
 import 'src/input_mode.dart';
+import 'src/layout.dart';
+import 'src/mobile/mobile_home.dart';
 import 'src/secret_store.dart';
 import 'src/screens/add_source_screen.dart';
 import 'src/screens/channels_screen.dart';
@@ -25,6 +27,10 @@ const _devAutoplay = bool.fromEnvironment('ZAPLINE_DEV_AUTOPLAY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FormFactor.detectTv();
+  // Draw behind the system bars; screens keep content inside safe areas.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(systemBarsStyle);
   // libmpv is bundled only where MpvEngine is the default (desktop, iOS).
   if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
     MediaKit.ensureInitialized();
@@ -154,17 +160,31 @@ class _ZaplineAppState extends State<ZaplineApp> {
         ...WidgetsApp.defaultActions,
         BackIntent: CallbackAction<BackIntent>(onInvoke: (_) => _back()),
       },
-      builder: (context, child) => Stack(
-        children: [
-          child!,
-          _PointerBackButton(depth: _backStack.depth, onPressed: _back),
-        ],
+      // Content stays clear of status bar, navigation bar and cutouts; on
+      // TVs the insets are zero. Phones get app bars with their own back
+      // arrow instead of the floating one.
+      builder: (context, child) => ColoredBox(
+        color: ZaplineColors.ground,
+        child: SafeArea(
+          child: Stack(
+            children: [
+              child!,
+              if (!context.isPhone)
+                _PointerBackButton(depth: _backStack.depth, onPressed: _back),
+            ],
+          ),
+        ),
       ),
       home: ListenableBuilder(
         listenable: state,
-        builder: (context, _) => state.isEmpty
-            ? AddSourceScreen(state: state)
-            : ChannelsScreen(state: state, autoplayFirst: widget.autoplayFirst),
+        builder: (context, _) {
+          if (state.isEmpty) return AddSourceScreen(state: state);
+          if (context.isPhone) return MobileHome(state: state);
+          return ChannelsScreen(
+            state: state,
+            autoplayFirst: widget.autoplayFirst,
+          );
+        },
       ),
     );
   }

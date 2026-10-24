@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../pairing/backup_server.dart';
+import '../layout.dart';
 import '../theme.dart';
 import '../widgets/qr_panel.dart';
 
@@ -57,11 +58,14 @@ class _BackupScreenState extends State<BackupScreen> {
   @override
   Widget build(BuildContext context) {
     final server = _server;
+    final phone = context.isPhone;
     return Scaffold(
+      appBar: phone ? AppBar(title: const Text('Backup and restore')) : null,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(40),
-          child: Row(
+          padding: EdgeInsets.all(phone ? 20 : 40),
+          child: Flex(
+            direction: phone ? Axis.vertical : Axis.horizontal,
             mainAxisSize: MainAxisSize.min,
             children: [
               ConstrainedBox(
@@ -69,14 +73,16 @@ class _BackupScreenState extends State<BackupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Backup and restore',
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w800,
+                    if (!phone) ...[
+                      const Text(
+                        'Backup and restore',
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 12),
+                    ],
                     const Text(
                       'Save your sources, favourites and guide fixes to a '
                       'file, or bring them back on a new device. Open the '
@@ -95,6 +101,29 @@ class _BackupScreenState extends State<BackupScreen> {
                     ),
                     // A TV has no browser of its own: only desktops get the
                     // local address.
+                    // On a phone, the page is opened from a computer.
+                    if (server != null && phone) ...[
+                      const SizedBox(height: 20),
+                      const Text(
+                        'On a computer on the same Wi-Fi, open',
+                        style: TextStyle(color: ZaplineColors.textMuted),
+                      ),
+                      SelectableText(
+                        '${server.url}',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Code ${server.pin}',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: ZaplineColors.focus,
+                        ),
+                      ),
+                    ],
                     if (server != null && _isDesktop) ...[
                       const SizedBox(height: 20),
                       const Text(
@@ -126,6 +155,8 @@ class _BackupScreenState extends State<BackupScreen> {
                           builder: (context, _) => Text(
                             widget.state.isSyncing
                                 ? 'Restoring… ${widget.state.progress ?? ''}'
+                                : phone
+                                ? ''
                                 : 'Press Back when you are done.',
                             style: const TextStyle(
                               color: ZaplineColors.textMuted,
@@ -137,7 +168,7 @@ class _BackupScreenState extends State<BackupScreen> {
                   ],
                 ),
               ),
-              if (server != null) ...[
+              if (server != null && !phone) ...[
                 const SizedBox(width: 40),
                 QrPanel(
                   server: server,

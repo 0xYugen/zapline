@@ -35,6 +35,65 @@ ThemeData buildTheme() {
       bodyColor: ZaplineColors.text,
       displayColor: ZaplineColors.text,
     ),
+    appBarTheme: AppBarTheme(
+      titleTextStyle: base.textTheme.titleLarge!.copyWith(
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        color: ZaplineColors.text,
+      ),
+      backgroundColor: ZaplineColors.ground,
+      surfaceTintColor: Colors.transparent,
+      foregroundColor: ZaplineColors.text,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: ZaplineColors.rail,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: ZaplineColors.focus,
+      height: 64,
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected)
+              ? ZaplineColors.onFocus
+              : ZaplineColors.textMuted,
+        ),
+      ),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: states.contains(WidgetState.selected)
+              ? ZaplineColors.text
+              : ZaplineColors.textMuted,
+        ),
+      ),
+    ),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: ZaplineColors.rail,
+      indicatorColor: ZaplineColors.focus,
+      selectedIconTheme: const IconThemeData(color: ZaplineColors.onFocus),
+      unselectedIconTheme: const IconThemeData(color: ZaplineColors.textMuted),
+      selectedLabelTextStyle: base.textTheme.labelMedium!.copyWith(
+        fontWeight: FontWeight.w700,
+        color: ZaplineColors.text,
+      ),
+      unselectedLabelTextStyle: base.textTheme.labelMedium!.copyWith(
+        fontWeight: FontWeight.w700,
+        color: ZaplineColors.textMuted,
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: ZaplineColors.surface,
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
+      dragHandleColor: ZaplineColors.line,
+    ),
+    listTileTheme: const ListTileThemeData(
+      iconColor: ZaplineColors.textMuted,
+      textColor: ZaplineColors.text,
+    ),
+    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: ZaplineColors.surface,

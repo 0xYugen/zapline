@@ -29,12 +29,16 @@ abstract class PlaybackEngine {
   /// Human-readable playback errors.
   Stream<String> get errors;
 
-  /// The video surface. Rebuilds itself when the stream changes.
-  /// The picture, scaled to the screen as [fit] says.
+  /// The video surface, scaled to the screen as [fit] says. Rebuilds
+  /// itself when the stream changes.
   Widget buildView({BoxFit fit = BoxFit.contain});
 }
 
+/// Tests and screenshots substitute a fake engine here.
+PlaybackEngine Function()? debugEngineFactory;
+
 PlaybackEngine createDefaultEngine() {
+  if (debugEngineFactory case final make?) return make();
   if (kIsWeb) return NativeEngine();
   return switch (defaultTargetPlatform) {
     TargetPlatform.android => NativeEngine(),

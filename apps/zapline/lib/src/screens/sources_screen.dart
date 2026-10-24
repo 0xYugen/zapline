@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
+import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import 'add_source_screen.dart';
@@ -96,22 +97,33 @@ class _SourcesScreenState extends State<SourcesScreen> {
       listenable: widget.state,
       builder: (context, _) {
         final state = widget.state;
+        final phone = context.isPhone;
         return Scaffold(
+          appBar: phone ? AppBar(title: const Text('Sources')) : null,
           body: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 40),
+            padding: phone
+                ? Metrics.of(context).pagePadding
+                : const EdgeInsets.symmetric(horizontal: 64, vertical: 40),
             children: [
-              const Text(
-                'Sources',
-                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 24),
+              if (!phone) ...[
+                const Text(
+                  'Sources',
+                  style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 24),
+              ],
               Focus(
                 canRequestFocus: false,
                 skipTraversal: true,
                 onKeyEvent: _addKey,
-                child: Row(
+                child: Flex(
+                  direction: phone ? Axis.vertical : Axis.horizontal,
+                  crossAxisAlignment: phone
+                      ? CrossAxisAlignment.stretch
+                      : CrossAxisAlignment.center,
                   children: [
-                    Expanded(
+                    _Grow(
+                      grow: !phone,
                       child: FocusCard(
                         autofocus: true,
                         onPressed: () => Navigator.of(context).push(
@@ -123,33 +135,42 @@ class _SourcesScreenState extends State<SourcesScreen> {
                           children: [
                             Icon(Icons.add),
                             SizedBox(width: 12),
-                            Text(
-                              'Add a source',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
+                            Flexible(
+                              child: Text(
+                                'Add a source',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 16, height: 12),
                     FocusCard(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => BackupScreen(state: state),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
+                        mainAxisSize: phone
+                            ? MainAxisSize.max
+                            : MainAxisSize.min,
                         children: [
-                          Icon(Icons.save_alt_rounded),
-                          SizedBox(width: 12),
-                          Text(
-                            'Backup and restore',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
+                          const Icon(Icons.save_alt_rounded),
+                          const SizedBox(width: 12),
+                          // A row of unbounded width can't hold a Flexible.
+                          _Grow(
+                            grow: phone,
+                            child: const Text(
+                              'Backup and restore',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
@@ -186,7 +207,8 @@ class _SourcesScreenState extends State<SourcesScreen> {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: ZaplineColors.surface,
+        // Lighter than the buttons inside, so they stand out.
+        color: ZaplineColors.surfaceHigh,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -194,11 +216,15 @@ class _SourcesScreenState extends State<SourcesScreen> {
         children: [
           Row(
             children: [
-              Text(
-                s.name,
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
+              Flexible(
+                child: Text(
+                  s.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -216,7 +242,11 @@ class _SourcesScreenState extends State<SourcesScreen> {
                   ),
                 ),
               ),
-              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
               Text(
                 syncing
                     ? 'Syncing… ${state.progress ?? ''}'
@@ -245,7 +275,9 @@ class _SourcesScreenState extends State<SourcesScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
               FocusCard(
                 key: ValueKey('refresh-${s.id}'),
@@ -258,7 +290,6 @@ class _SourcesScreenState extends State<SourcesScreen> {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              const SizedBox(width: 12),
               FocusCard(
                 key: ValueKey('manage-${s.id}'),
                 onPressed: () => Navigator.of(context).push(
@@ -273,7 +304,6 @@ class _SourcesScreenState extends State<SourcesScreen> {
                 ),
               ),
               if (cov.matched < cov.channels) ...[
-                const SizedBox(width: 12),
                 FocusCard(
                   key: ValueKey('fix-${s.id}'),
                   onPressed: () => Navigator.of(context).push(
@@ -288,7 +318,6 @@ class _SourcesScreenState extends State<SourcesScreen> {
                   ),
                 ),
               ],
-              const SizedBox(width: 12),
               FocusCard(
                 key: ValueKey('remove-${s.id}'),
                 onPressed: () => _delete(s),
@@ -314,4 +343,15 @@ class _SourcesScreenState extends State<SourcesScreen> {
       ),
     );
   }
+}
+
+/// Expands in a row, sizes to its child in a column.
+class _Grow extends StatelessWidget {
+  const _Grow({required this.grow, required this.child});
+
+  final bool grow;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => grow ? Expanded(child: child) : child;
 }

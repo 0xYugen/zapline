@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../layout.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
@@ -74,17 +75,23 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
   @override
   Widget build(BuildContext context) {
     final selected = _selected;
+    final phone = context.isPhone;
     return Scaffold(
+      appBar: phone ? AppBar(title: const Text('Fix TV guide')) : null,
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(56, 40, 56, 0),
+        padding: phone
+            ? const EdgeInsets.fromLTRB(16, 4, 16, 0)
+            : const EdgeInsets.fromLTRB(56, 40, 56, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Fix TV guide',
-              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
+            if (!phone) ...[
+              const Text(
+                'Fix TV guide',
+                style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+            ],
             Text(
               _unmatched.isEmpty
                   ? (widget.only != null
@@ -106,74 +113,126 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
               ),
             const SizedBox(height: 20),
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 360,
-                    child: FocusTraversalGroup(
-                      child: ListView.builder(
-                        itemCount: _unmatched.length,
-                        itemBuilder: (context, i) {
-                          final c = _unmatched[i];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: FocusCard(
-                              autofocus: i == 0,
-                              selected: identical(c, selected),
-                              onFocused: () => setState(() {
-                                _selected = c;
-                                _query.clear();
-                              }),
-                              // Straight to the best suggestion; the search
-                              // field (and the TV keyboard) only if none.
-                              onPressed: () =>
-                                  (_firstOption.context != null
-                                          ? _firstOption
-                                          : _search)
-                                      .requestFocus(),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              child: Row(
-                                children: [
-                                  ChannelLogo(
-                                    channel: c,
-                                    width: 44,
-                                    height: 32,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      c.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
+              child: phone
+                  ? _phoneBody(selected)
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          width: 360,
+                          child: FocusTraversalGroup(
+                            child: ListView.builder(
+                              itemCount: _unmatched.length,
+                              itemBuilder: (context, i) {
+                                final c = _unmatched[i];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: FocusCard(
+                                    autofocus: i == 0,
+                                    selected: identical(c, selected),
+                                    onFocused: () => setState(() {
+                                      _selected = c;
+                                      _query.clear();
+                                    }),
+                                    // Straight to the best suggestion; the search
+                                    // field (and the TV keyboard) only if none.
+                                    onPressed: () =>
+                                        (_firstOption.context != null
+                                                ? _firstOption
+                                                : _search)
+                                            .requestFocus(),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        ChannelLogo(
+                                          channel: c,
+                                          width: 44,
+                                          height: 32,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            c.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ],
-                              ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                        const SizedBox(width: 32),
+                        Expanded(
+                          child: selected == null
+                              ? const SizedBox.shrink()
+                              : FocusTraversalGroup(
+                                  child: _candidates(selected),
+                                ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 32),
-                  Expanded(
-                    child: selected == null
-                        ? const SizedBox.shrink()
-                        : FocusTraversalGroup(child: _candidates(selected)),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Phones: the channel to fix is picked from a dropdown-like row above
+  /// its suggestions, since two columns don't fit.
+  Widget _phoneBody(Channel? selected) {
+    if (_unmatched.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _unmatched.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final c = _unmatched[i];
+              final on = identical(c, selected);
+              return ChoiceChip(
+                label: Text(c.name),
+                selected: on,
+                showCheckmark: false,
+                selectedColor: ZaplineColors.focus,
+                labelStyle: TextStyle(
+                  color: on ? ZaplineColors.onFocus : ZaplineColors.text,
+                  fontWeight: FontWeight.w700,
+                ),
+                onSelected: (_) => setState(() {
+                  _selected = c;
+                  _query.clear();
+                }),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: selected == null
+              ? const Center(
+                  child: Text(
+                    'Pick a channel above.',
+                    style: TextStyle(color: ZaplineColors.textMuted),
+                  ),
+                )
+              : _candidates(selected),
+        ),
+      ],
     );
   }
 

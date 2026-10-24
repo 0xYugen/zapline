@@ -4,6 +4,7 @@ import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../format.dart';
+import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/tv_text_field.dart';
@@ -189,19 +190,22 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
         final filterChanged = _draftFilter != _source.groupFilter;
 
         // One flat list so it stays lazy with thousands of groups.
+        final phone = context.isPhone;
         final items = <Widget Function()>[
-          () => Text(
-            'Manage ${_source.name}',
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
-          ),
-          () => Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              _message ?? '',
-              style: const TextStyle(color: ZaplineColors.ok),
+          if (!phone)
+            () => Text(
+              'Manage ${_source.name}',
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
             ),
-          ),
-          () => const _Section('Name'),
+          if (_message != null)
+            () => Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _message!,
+                style: const TextStyle(color: ZaplineColors.ok),
+              ),
+            ),
+          () => const PageSection('Name'),
           () => Row(
             children: [
               Expanded(
@@ -209,7 +213,7 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
                   builder: (readOnly) => TextField(
                     readOnly: readOnly,
                     controller: _name,
-                    autofocus: true,
+                    autofocus: !context.isPhone,
                     decoration: const InputDecoration(labelText: 'Name'),
                   ),
                 ),
@@ -224,7 +228,7 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
               ),
             ],
           ),
-          () => const _Section('TV guides'),
+          () => const PageSection('TV guides'),
           () => const Text(
             'The guide from the source itself is loaded automatically. Add '
             'more XMLTV links here; the first match per channel wins.',
@@ -276,16 +280,16 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
           ),
           () => Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: Row(
+            child: LabeledRow(
+              label: 'Guide time shift',
+              subtitle: 'For guides that show the wrong times.',
               children: [
-                const Text('Guide time shift'),
-                const SizedBox(width: 16),
                 FocusCard(
                   onPressed: () => _shiftGuide(-30),
                   child: const Text('−30 min'),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
                     formatShift(_source.guideOffset),
                     style: const TextStyle(
@@ -298,15 +302,24 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
                   onPressed: () => _shiftGuide(30),
                   child: const Text('+30 min'),
                 ),
-                const Spacer(),
-                FocusCard(
-                  onPressed: state.isSyncing ? () {} : _refresh,
-                  child: const Text('Refresh now'),
-                ),
               ],
             ),
           ),
-          () => const _Section('Show these groups'),
+          () => Align(
+            alignment: Alignment.centerLeft,
+            child: FocusCard(
+              onPressed: state.isSyncing ? () {} : _refresh,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.sync_rounded, size: 20),
+                  const SizedBox(width: 8),
+                  Text(state.isSyncing ? 'Refreshing…' : 'Refresh now'),
+                ],
+              ),
+            ),
+          ),
+          () => const PageSection('Show these groups'),
           () => const Text(
             'Words separated by commas. IT matches "IT | Sport" but not '
             '"Hits"; ital* matches Italia and Italy; IT| matches that exact '
@@ -388,7 +401,7 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
               ],
             ),
           ),
-          () => const _Section('Groups'),
+          () => const PageSection('Groups'),
           () => const Text(
             'OK shows or hides a group. Hold OK to lock it with the PIN or to '
             'make it follow the filter again.',
@@ -439,7 +452,7 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
               ),
             ),
           if (hidden.isNotEmpty) ...[
-            () => const _Section('Hidden channels'),
+            () => const PageSection('Hidden channels'),
             for (final c in hidden)
               () => Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -458,8 +471,9 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
         ];
 
         return Scaffold(
+          appBar: phone ? AppBar(title: Text(_source.name)) : null,
           body: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(64, 40, 64, 0),
+            padding: Metrics.of(context).pagePadding,
             itemCount: items.length,
             itemBuilder: (context, i) => items[i](),
           ),
@@ -467,19 +481,4 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
       },
     );
   }
-}
-
-class _Section extends StatelessWidget {
-  const _Section(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 32, bottom: 8),
-    child: Text(
-      title,
-      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-    ),
-  );
 }

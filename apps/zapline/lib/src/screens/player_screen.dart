@@ -7,6 +7,7 @@ import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
 import '../input_mode.dart';
+import '../layout.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -85,8 +86,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _open();
   }
 
+  /// Phones play full screen and sideways, like any video app.
+  bool _phoneChrome = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_phoneChrome && context.isPhone) {
+      _phoneChrome = true;
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
+  }
+
   @override
   void dispose() {
+    if (_phoneChrome) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      SystemChrome.setPreferredOrientations(const []);
+    }
     _hideTimer?.cancel();
     _digitTimer?.cancel();
     for (final s in _subs) {
@@ -284,7 +305,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
               }
             },
             child: GestureDetector(
-              onTap: _showOverlay,
+              onTap: () => context.isPhone && _overlay
+                  ? setState(() => _overlay = false)
+                  : _showOverlay(),
               onVerticalDragEnd: (d) =>
                   _zap((d.primaryVelocity ?? 0) < 0 ? 1 : -1),
               child: Stack(
@@ -307,23 +330,44 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         ),
                       ),
                     ),
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 180),
-                    left: 0,
-                    right: 0,
-                    bottom: _overlay ? 0 : -160,
-                    // Rebuild when switching between mouse and keys.
-                    child: ListenableBuilder(
-                      listenable: InputMode.instance,
-                      builder: (context, _) => _infoBar(c),
+                  if (context.isPhone)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        ignoring: !_overlay,
+                        child: AnimatedOpacity(
+                          opacity: _overlay ? 1 : 0,
+                          duration: const Duration(milliseconds: 180),
+                          child: _phoneControls(c),
+                        ),
+                      ),
+                    )
+                  else
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 180),
+                      left: 0,
+                      right: 0,
+                      bottom: _overlay ? 0 : -160,
+                      // Rebuild when switching between mouse and keys.
+                      child: ListenableBuilder(
+                        listenable: InputMode.instance,
+                        builder: (context, _) => _infoBar(c),
+                      ),
                     ),
-                  ),
+                  if (_list && context.isPhone)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: _closeList,
+                        child: const ColoredBox(color: Colors.black45),
+                      ),
+                    ),
                   if (_list)
                     Positioned(
                       top: 0,
                       bottom: 0,
                       left: 0,
-                      width: 400,
+                      width: MediaQuery.sizeOf(context).width < 480
+                          ? MediaQuery.sizeOf(context).width
+                          : 400,
                       child: _ChannelList(
                         state: widget.state,
                         channels: widget.channels,
@@ -337,6 +381,216 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _cycleFit() {
+    final s = widget.state.settings;
+    s.videoFit = switch (s.videoFit) {
+      BoxFit.contain => BoxFit.cover,
+      BoxFit.cover => BoxFit.fill,
+      _ => BoxFit.contain,
+    };
+    widget.state.settingsChanged();
+    _showOverlay();
+  }
+
+  /// Touch controls on phones: back, channel and programme on top; big
+  /// previous/next channel buttons in the middle; progress and catch-up
+  /// below. Tapping the picture shows or hides them.
+  Widget _phoneControls(Channel c) {
+    final replay = _replay;
+    final (now, _) = widget.state.nowNext(c);
+    final p = replay ?? now;
+    final t = DateTime.now();
+    final progress = p == null || replay != null
+        ? null
+        : (t.difference(p.start).inSeconds /
+                  p.stop.difference(p.start).inSeconds)
+              .clamp(0.0, 1.0);
+    const shadow = [Shadow(blurRadius: 8)];
+    Widget round(
+      IconData icon,
+      String tip,
+      VoidCallback onTap, {
+      double size = 36,
+    }) => Material(
+      color: Colors.black38,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: tip,
+        iconSize: size,
+        color: Colors.white,
+        onPressed: () {
+          onTap();
+          _showOverlay();
+        },
+        icon: Icon(icon),
+      ),
+    );
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.black87,
+            Colors.transparent,
+            Colors.transparent,
+            Colors.black87,
+          ],
+          stops: [0, 0.3, 0.65, 1],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Back',
+                    color: Colors.white,
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  ChannelLogo(channel: c, width: 48, height: 34),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${widget.state.channelNumber(c, _index)}  '
+                                '${c.name}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  shadows: shadow,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _Badge(live: replay == null),
+                          ],
+                        ),
+                        if (c.groupTitle != null)
+                          Text(
+                            c.groupTitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: ZaplineColors.textMuted,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Picture: fit, zoom, stretch',
+                    color: Colors.white,
+                    onPressed: _cycleFit,
+                    icon: const Icon(Icons.aspect_ratio_rounded),
+                  ),
+                  IconButton(
+                    tooltip: 'Channels',
+                    color: Colors.white,
+                    onPressed: _openList,
+                    icon: const Icon(Icons.format_list_bulleted_rounded),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    round(
+                      Icons.skip_previous_rounded,
+                      'Previous channel',
+                      () => _zap(-1),
+                    ),
+                    const SizedBox(width: 48),
+                    if (replay != null)
+                      round(
+                        Icons.live_tv_rounded,
+                        'Back to live',
+                        _goLive,
+                        size: 44,
+                      )
+                    else if (_restartable != null)
+                      round(
+                        Icons.replay_rounded,
+                        'Watch from the start',
+                        _restart,
+                        size: 44,
+                      )
+                    else
+                      const SizedBox(width: 68),
+                    const SizedBox(width: 48),
+                    round(
+                      Icons.skip_next_rounded,
+                      'Next channel',
+                      () => _zap(1),
+                    ),
+                  ],
+                ),
+              ),
+              if (p != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              p.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                shadows: shadow,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${_hm(p.start)}–${_hm(p.stop)}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              shadows: shadow,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (progress != null) ...[
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 3,
+                            color: ZaplineColors.focus,
+                            backgroundColor: Colors.white24,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
           ),
         ),
       ),

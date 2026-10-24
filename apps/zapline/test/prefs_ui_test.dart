@@ -33,6 +33,8 @@ Future<void> _typePin(WidgetTester tester, String pin) async {
     await tester.tap(find.text(d).last);
     await tester.pump();
   }
+  // The dialog closes itself shortly after the fourth digit.
+  await tester.pump(const Duration(milliseconds: 200));
   await tester.pumpAndSettle();
 }
 

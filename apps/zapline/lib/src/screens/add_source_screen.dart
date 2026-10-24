@@ -5,6 +5,7 @@ import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../pairing/pairing_server.dart';
+import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/qr_panel.dart';
@@ -39,7 +40,10 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
   void initState() {
     super.initState();
     _url.addListener(_detect);
-    if (!kIsWeb) _startPairing();
+    // A phone is the device you would pair with: no QR code on phones.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !kIsWeb && !context.isPhone) _startPairing();
+    });
   }
 
   Future<void> _startPairing() async {
@@ -148,10 +152,12 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
     final t = Theme.of(context).textTheme;
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final pairing = _pairing;
+    final phone = context.isPhone;
     return Scaffold(
+      appBar: phone && Navigator.of(context).canPop() ? AppBar() : null,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(48),
+          padding: EdgeInsets.all(phone ? 20 : 48),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -192,21 +198,24 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
             Navigator.of(context).canPop()
                 ? 'Add a source'
                 : 'Add your first source',
-            style: t.displaySmall?.copyWith(fontWeight: FontWeight.w800),
+            style: (context.isPhone ? t.headlineMedium : t.displaySmall)
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Text(
             'Paste a playlist link or your server address. '
             'Xtream links are recognised automatically and the TV guide '
             'is set up for you.',
-            style: t.titleMedium?.copyWith(color: ZaplineColors.textMuted),
+            style: (context.isPhone ? t.bodyLarge : t.titleMedium)?.copyWith(
+              color: ZaplineColors.textMuted,
+            ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: context.isPhone ? 24 : 32),
           TvTextField(
             builder: (readOnly) => TextField(
               readOnly: readOnly,
               controller: _url,
-              autofocus: true,
+              autofocus: !context.isPhone,
               keyboardType: TextInputType.url,
               autocorrect: false,
               enableSuggestions: false,
@@ -228,36 +237,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
             Text(_detected!, style: const TextStyle(color: ZaplineColors.ok)),
           ] else ...[
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TvTextField(
-                    builder: (readOnly) => TextField(
-                      readOnly: readOnly,
-                      controller: _user,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Username (Xtream only)',
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TvTextField(
-                    builder: (readOnly) => TextField(
-                      readOnly: readOnly,
-                      controller: _pass,
-                      obscureText: true,
-                      onSubmitted: (_) => _submit(),
-                      decoration: const InputDecoration(
-                        labelText: 'Password (Xtream only)',
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _credentials(context),
           ],
           const SizedBox(height: 28),
           FocusCard(
@@ -317,6 +297,40 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Username and password: side by side, or stacked on a phone.
+  Widget _credentials(BuildContext context) {
+    final user = TvTextField(
+      builder: (readOnly) => TextField(
+        readOnly: readOnly,
+        controller: _user,
+        textInputAction: TextInputAction.next,
+        decoration: const InputDecoration(labelText: 'Username (Xtream only)'),
+      ),
+    );
+    final pass = TvTextField(
+      builder: (readOnly) => TextField(
+        readOnly: readOnly,
+        controller: _pass,
+        obscureText: true,
+        onSubmitted: (_) => _submit(),
+        decoration: const InputDecoration(labelText: 'Password (Xtream only)'),
+      ),
+    );
+    if (context.isPhone) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [user, const SizedBox(height: 12), pass],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: user),
+        const SizedBox(width: 12),
+        Expanded(child: pass),
+      ],
     );
   }
 }
