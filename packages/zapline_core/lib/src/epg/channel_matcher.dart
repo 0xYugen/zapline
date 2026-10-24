@@ -15,9 +15,10 @@ class EpgMatch {
 /// Links source channels to XMLTV channels.
 ///
 /// Order: user overrides, then exact `tvg-id`/`epg_channel_id`
-/// (case-insensitive), then normalised display name. Fuzzier strategies are
-/// deliberately left out: a wrong guide is worse than no guide, and unmatched
-/// channels are offered to the user for manual mapping instead.
+/// (case-insensitive), then normalised display name, then a looser name
+/// ([looseChannelKey]: "Rai Uno" = "Rai 1") when only one guide channel has
+/// it. Fuzzier strategies are left out: a wrong guide is worse than no
+/// guide, and unmatched channels are offered for manual mapping instead.
 class ChannelMatcher {
   ChannelMatcher(Iterable<XmltvChannel> guideChannels,
       {Map<String, String> manualOverrides = const {}})
@@ -31,12 +32,22 @@ class ChannelMatcher {
       // Ids like "Canale5.it" double as names.
       final idName = normalizeChannelName(gc.id.split('.').first);
       if (idName.isNotEmpty) _byName.putIfAbsent(idName, () => gc.id);
+      for (final key in {
+        for (final n in [...gc.displayNames, gc.id.split('.').first])
+          looseChannelKey(n),
+      }) {
+        if (key.isEmpty) continue;
+        // Two guide channels with the same loose name: ambiguous, unused.
+        _byLoose[key] =
+            _byLoose.containsKey(key) && _byLoose[key] != gc.id ? null : gc.id;
+      }
     }
   }
 
   final Map<String, String> _manual;
   final _byId = <String, String>{};
   final _byName = <String, String>{};
+  final _byLoose = <String, String?>{};
 
   /// [channelKey] identifies the channel for manual overrides
   /// (e.g. `"$sourceId/$id"`).
@@ -52,6 +63,8 @@ class ChannelMatcher {
 
     final byName = _byName[normalizeChannelName(channel.name)];
     if (byName != null) return EpgMatch(byName, MatchKind.name);
+    final loose = _byLoose[looseChannelKey(channel.name)];
+    if (loose != null) return EpgMatch(loose, MatchKind.name);
     return null;
   }
 }
@@ -107,6 +120,47 @@ String normalizeChannelName(String name) {
   s = s.replaceAll(_quality, ' ');
   s = s.replaceAll(_nonAlnum, '');
   return s;
+}
+
+const _numberWords = {
+  'uno': '1',
+  'due': '2',
+  'tre': '3',
+  'quattro': '4',
+  'cinque': '5',
+  'sei': '6',
+  'sette': '7',
+  'otto': '8',
+  'dieci': '10',
+  'one': '1',
+  'two': '2',
+  'three': '3',
+  'four': '4',
+  'five': '5',
+};
+
+/// Words that tell nothing about which channel it is when they come last
+/// ("Discovery Italia", "Cielo TV").
+const _tailWords = {'italia', 'italy', 'it', 'tv', 'channel', 'hd'};
+
+final _wordSplit = RegExp(r'[^a-z0-9+]+');
+
+/// A looser comparison key than [normalizeChannelName]: number words become
+/// digits ("Rai Uno" = "Rai 1") and a trailing "Italia", "TV" or "Channel"
+/// goes. Matched only when a single guide channel has the key.
+String looseChannelKey(String name) {
+  var s = name.toLowerCase();
+  s = s.split('').map((c) => _diacritics[c] ?? c).join();
+  s = s.replaceFirst(_prefix, '');
+  s = s.replaceAll(_quality, ' ');
+  final words = [
+    for (final w in s.split(_wordSplit))
+      if (w.isNotEmpty) _numberWords[w] ?? w,
+  ];
+  while (words.length > 1 && _tailWords.contains(words.last)) {
+    words.removeLast();
+  }
+  return words.join();
 }
 
 /// Ranks guide channels as candidates for a channel the automatic matcher

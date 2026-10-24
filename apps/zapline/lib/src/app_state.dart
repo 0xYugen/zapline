@@ -748,6 +748,10 @@ class AppState extends ChangeNotifier {
 
   final _guideAsked = <String, DateTime>{};
   final _guideQueue = <(SourceRecord, Channel)>[];
+
+  /// Channels without a guide asked for after a sync, behind what's on
+  /// screen: what they air lets a full guide be found for them.
+  final _guideBackground = <(SourceRecord, Channel)>[];
   int _guideRunning = 0;
   Timer? _guideArrived;
 
@@ -774,10 +778,24 @@ class AppState extends ChangeNotifier {
     _pumpGuides();
   }
 
+  /// Queues [s]'s channels that have no guide at all.
+  void _askGuidesWithout(SourceRecord s) {
+    if (guideFetcher == null || !ChannelGuideFetcher.supports(s)) return;
+    _guideBackground
+      ..removeWhere((e) => e.$1.id == s.id)
+      ..addAll([for (final c in channelsNeedingGuide(s.id).take(400)) (s, c)]);
+    _pumpGuides();
+  }
+
   void _pumpGuides() {
     final fetcher = guideFetcher!;
-    while (_guideRunning < 4 && _guideQueue.isNotEmpty) {
-      final (source, c) = _guideQueue.removeLast();
+    while (_guideRunning < 4 &&
+        (_guideQueue.isNotEmpty ||
+            // Background work keeps a slot free for the screen.
+            (_guideRunning < 2 && _guideBackground.isNotEmpty))) {
+      final (source, c) = _guideQueue.isNotEmpty
+          ? _guideQueue.removeLast()
+          : _guideBackground.removeAt(0);
       _guideRunning++;
       fetcher
           .fetch(source, c)
@@ -1355,6 +1373,8 @@ class AppState extends ChangeNotifier {
       );
       // A new sync may have brought a guide: ask again where it didn't.
       _guideAsked.clear();
+      _reload();
+      _askGuidesWithout(s);
       return result;
     } finally {
       syncingSourceId = null;

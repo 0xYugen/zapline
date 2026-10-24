@@ -7,7 +7,7 @@ import 'source_record.dart';
 
 part 'vod_store.dart';
 
-const _schemaVersion = 4;
+const _schemaVersion = 5;
 
 /// Migrations from version N to N+1, applied in order.
 const _migrations = <List<String>>[
@@ -46,6 +46,8 @@ const _migrations = <List<String>>[
   ],
   // 3 -> 4: films and series (vod_store.dart).
   _vodMigration,
+  // 4 -> 5: finding the guide that airs a programme at a given time.
+  ['CREATE INDEX IF NOT EXISTS programmes_start ON programmes(start)'],
 ];
 
 /// A group of one source with the user's preferences, for the manage
@@ -761,11 +763,60 @@ class ZaplineDatabase {
       } finally {
         upsert.close();
       }
-      _db.execute("INSERT OR REPLACE INTO epg_map VALUES (?, ?, 'source')", [
-        key,
-        id,
-      ]);
+      // The same programmes at the same times in a full guide: that guide
+      // is the channel's, with days ahead instead of a few hours.
+      final twin = _guideAiring(programmes);
+      if (twin != null) {
+        _db.execute('INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)', [
+          key,
+          twin,
+        ]);
+        _db.execute("INSERT OR REPLACE INTO epg_map VALUES (?, ?, 'manual')", [
+          key,
+          twin,
+        ]);
+      } else {
+        _db.execute("INSERT OR REPLACE INTO epg_map VALUES (?, ?, 'source')", [
+          key,
+          id,
+        ]);
+      }
     });
+  }
+
+  static final _titleNoise = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+
+  static String _titleKey(String t) =>
+      t.toLowerCase().replaceAll(_titleNoise, '');
+
+  /// The XMLTV guide channel airing the same titles at the same times as
+  /// [programmes] (within five minutes), when at least two agree and no
+  /// other guide channel does as well.
+  String? _guideAiring(List<Programme> programmes) {
+    final votes = <String, int>{};
+    for (final p in programmes.take(8)) {
+      final title = _titleKey(p.title);
+      if (title.length < 3) continue;
+      final at = _secs(p.start);
+      final seen = <String>{};
+      for (final r in _db.select(
+        'SELECT guide_id, title FROM programmes WHERE start BETWEEN ? AND ? '
+        "AND guide_id NOT LIKE '$channelGuidePrefix%'",
+        [at - 300, at + 300],
+      )) {
+        final id = r['guide_id'] as String;
+        if (_titleKey(r['title'] as String) == title && seen.add(id)) {
+          votes[id] = (votes[id] ?? 0) + 1;
+        }
+      }
+    }
+    if (votes.isEmpty) return null;
+    final ranked = votes.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final best = ranked.first;
+    if (best.value < 2) return null;
+    if (ranked.length > 1 && ranked[1].value == best.value) return null;
+    return best.key;
   }
 
   /// Drops programmes that ended before [before].
