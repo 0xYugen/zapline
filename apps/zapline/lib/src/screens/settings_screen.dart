@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../theme.dart';
-import '../widgets/focus_card.dart';
 import '../widgets/brand.dart';
 import '../widgets/pin_pad.dart';
+import '../widgets/settings_widgets.dart';
+import 'add_source_screen.dart';
 import 'backup_screen.dart';
-import 'sources_screen.dart';
+import 'source_detail_screen.dart';
 
-/// App-wide preferences. Per-source options (guides, group filters, hidden
-/// channels) live in Sources → Manage.
 /// Set by release builds: `--dart-define=ZAPLINE_VERSION=0.1.0 (42)`.
 const appVersion = String.fromEnvironment(
   'ZAPLINE_VERSION',
   defaultValue: 'development build',
 );
 
+/// App-wide preferences as a grouped list: sources first, then watching,
+/// language, TV guide, privacy and about. Each row shows its current value
+/// and opens a choice; per-source options live in the source's details.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.state});
 
@@ -28,301 +31,299 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String? _message;
-
   AppState get _state => widget.state;
+
+  // A new message replaces the one on screen instead of queueing.
+  void _snack(String text) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
 
   /// Saves a preference and redraws every screen that shows it.
   void _set(void Function() change) {
     change();
     _state.settingsChanged();
-    setState(() => _message = null);
+    setState(() {});
   }
 
-  Future<void> _changePin() async {
-    final first = await askPin(context, title: 'Choose a 4-digit PIN');
+  Future<void> _pick<T>(
+    String title,
+    Map<T, String> options,
+    T current,
+    void Function(T) apply,
+  ) async {
+    final picked = await showChoice<T>(
+      context,
+      title: title,
+      options: options,
+      current: current,
+    );
+    if (picked != null) _set(() => apply(picked.value));
+  }
+
+  Future<void> _setPin() async {
+    final l = context.l10n;
+    final first = await askPin(context, title: l.choosePin);
     if (first == null || !mounted) return;
-    final again = await askPin(context, title: 'Enter it again');
+    final again = await askPin(context, title: l.enterItAgain);
     if (again == null || !mounted) return;
-    if (again != first) {
-      setState(() => _message = 'The two PINs differ. Nothing changed.');
-      return;
-    }
+    if (again != first) return _snack(l.pinsDiffer);
     _state.setPin(first);
-    setState(() => _message = 'PIN saved. Lock groups from Sources → Manage.');
+    setState(() {});
+    _snack(l.pinSaved);
   }
 
   Future<void> _removePin() async {
-    final pin = await askPin(context, title: 'Enter the current PIN');
+    final l = context.l10n;
+    final pin = await askPin(context, title: l.enterCurrentPin);
     if (pin == null || !mounted) return;
-    if (!_state.unlock(pin)) {
-      setState(() => _message = 'Wrong PIN.');
-      return;
-    }
+    if (!_state.unlock(pin)) return _snack(l.wrongPin);
     _state.setPin(null);
-    setState(() => _message = 'PIN removed and all groups unlocked.');
+    setState(() {});
+    _snack(l.pinRemoved);
   }
+
+  Future<void> _pinMenu() async {
+    final l = context.l10n;
+    if (!_state.hasPin) return _setPin();
+    final picked = await showChoice<String>(
+      context,
+      title: l.parentalPin,
+      options: {
+        'change': l.changePin,
+        'remove': l.removePin,
+        if (_state.unlocked) 'lock': l.lockNow,
+      },
+      current: '',
+    );
+    switch (picked?.value) {
+      case 'change':
+        await _setPin();
+      case 'remove':
+        await _removePin();
+      case 'lock':
+        _state.lock();
+        setState(() {});
+        _snack(l.lockedAgain);
+    }
+  }
+
+  void _open(Widget page) =>
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
   @override
   Widget build(BuildContext context) {
-    final s = _state.settings;
-    return AdaptivePage(
-      title: 'Settings',
-      children: [
-        if (_message != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              _message!,
-              style: const TextStyle(color: ZaplineColors.ok),
-            ),
-          ),
-        if (context.isPhone) ...[
-          const PageSection('Sources'),
-          FocusCard(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => SourcesScreen(state: _state),
-              ),
-            ),
-            child: Row(
+    final l = context.l10n;
+    return ListenableBuilder(
+      listenable: _state,
+      builder: (context, _) {
+        final s = _state.settings;
+        final fits = {
+          BoxFit.contain: l.fitFit,
+          BoxFit.cover: l.fitZoom,
+          BoxFit.fill: l.fitStretch,
+        };
+        final numbering = {false: l.numbersProvider, true: l.numbersSequential};
+        final days = {
+          for (final d in [2, 3, 7, 14]) d: l.daysCount(d),
+        };
+        final refresh = {
+          0: l.refreshNever,
+          6: l.everyHours(6),
+          12: l.everyHours(12),
+          24: l.everyHours(24),
+        };
+        final languages = <String?, String>{
+          null: l.languageDevice,
+          'it': 'Italiano',
+          'en': 'English',
+        };
+        return AdaptivePage(
+          title: l.settings,
+          children: [
+            SettingsGroup(
+              title: l.sources,
               children: [
-                const Icon(Icons.dns_outlined),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _Label(
-                    'Playlists and servers',
-                    '${_state.sources.length} added · guides, filters, '
-                        'hidden channels',
+                for (final (i, src) in _state.sources.indexed)
+                  SourceTile(
+                    state: _state,
+                    source: src,
+                    autofocus: i == 0 && !context.isPhone,
                   ),
+                SettingsTile(
+                  icon: Icons.add_rounded,
+                  title: l.addSource,
+                  accent: true,
+                  chevron: false,
+                  onTap: () => _open(AddSourceScreen(state: _state)),
                 ),
-                const Icon(Icons.chevron_right_rounded),
               ],
             ),
-          ),
-        ],
-        PageSection(context.l10n.language),
-        ValueListenableBuilder<String?>(
-          valueListenable: s.language,
-          builder: (context, language, _) => _Choice<String?>(
-            title: context.l10n.language,
-            value: language,
-            options: {
-              null: context.l10n.languageDevice,
-              'it': 'Italiano',
-              'en': 'English',
-            },
-            onChanged: s.setLanguage,
-          ),
-        ),
-        const PageSection('Channels'),
-        _Toggle(
-          autofocus: true,
-          title: 'Number channels 1, 2, 3…',
-          subtitle: 'Instead of the numbers your provider sends.',
-          value: s.sequentialNumbers,
-          onChanged: (v) => _set(() => s.sequentialNumbers = v),
-        ),
-        _Toggle(
-          title: 'Open the last channel at startup',
-          subtitle: 'Like turning on a TV.',
-          value: s.resumeLastChannel,
-          onChanged: (v) => _set(() => s.resumeLastChannel = v),
-        ),
-        _Choice<BoxFit>(
-          title: 'Picture',
-          value: s.videoFit,
-          options: const {
-            BoxFit.contain: 'Fit',
-            BoxFit.cover: 'Zoom',
-            BoxFit.fill: 'Stretch',
-          },
-          onChanged: (v) => _set(() => s.videoFit = v),
-        ),
-        const PageSection('TV guide'),
-        _Toggle(
-          title: '24-hour clock',
-          value: s.clock24h,
-          onChanged: (v) => _set(() => s.clock24h = v),
-        ),
-        _Choice<int>(
-          title: 'Days of guide to keep',
-          subtitle: 'Fewer days sync faster on small devices.',
-          value: s.guideDays,
-          options: const {2: '2', 3: '3', 7: '7', 14: '14'},
-          onChanged: (v) => _set(() => s.guideDays = v),
-        ),
-        _Choice<int>(
-          title: 'Refresh sources automatically',
-          value: s.refreshHours,
-          options: const {0: 'Never', 6: 'Every 6 h', 12: '12 h', 24: '24 h'},
-          onChanged: (v) => _set(() => s.refreshHours = v),
-        ),
-        const PageSection('Parental lock'),
-        const Text(
-          'Locked groups stay out of lists, search and the guide until the '
-          'PIN is entered. Lock groups from Sources → Manage.',
-          style: TextStyle(color: ZaplineColors.textMuted),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            FocusCard(
-              onPressed: _changePin,
-              child: Text(_state.hasPin ? 'Change PIN' : 'Set a PIN'),
+            SettingsGroup(
+              title: l.watching,
+              children: [
+                SettingsSwitchTile(
+                  title: l.openLastChannel,
+                  subtitle: l.openLastChannelHint,
+                  value: s.resumeLastChannel,
+                  onChanged: (v) => _set(() => s.resumeLastChannel = v),
+                ),
+                SettingsTile(
+                  title: l.pictureSizeSetting,
+                  value: fits[s.videoFit],
+                  onTap: () => _pick(
+                    l.pictureSizeSetting,
+                    fits,
+                    s.videoFit,
+                    (v) => s.videoFit = v,
+                  ),
+                ),
+                SettingsTile(
+                  title: l.channelNumbers,
+                  value: numbering[s.sequentialNumbers],
+                  onTap: () => _pick(
+                    l.channelNumbers,
+                    numbering,
+                    s.sequentialNumbers,
+                    (v) => s.sequentialNumbers = v,
+                  ),
+                ),
+              ],
             ),
-            if (_state.hasPin)
-              FocusCard(onPressed: _removePin, child: const Text('Remove PIN')),
-            if (_state.unlocked)
-              FocusCard(
-                onPressed: () {
-                  _state.lock();
-                  setState(() => _message = 'Locked groups hidden again.');
-                },
-                child: const Text('Lock now'),
-              ),
+            SettingsGroup(
+              title: l.language,
+              children: [
+                ValueListenableBuilder<String?>(
+                  valueListenable: s.language,
+                  builder: (context, language, _) => SettingsTile(
+                    icon: Icons.translate_rounded,
+                    title: l.language,
+                    value: languages[language],
+                    onTap: () =>
+                        _pick(l.language, languages, language, s.setLanguage),
+                  ),
+                ),
+              ],
+            ),
+            SettingsGroup(
+              title: l.tvGuide,
+              children: [
+                SettingsSwitchTile(
+                  title: l.clock24h,
+                  value: s.clock24h,
+                  onChanged: (v) => _set(() => s.clock24h = v),
+                ),
+                SettingsTile(
+                  title: l.daysToKeep,
+                  subtitle: l.daysToKeepHint,
+                  value: days[s.guideDays] ?? l.daysCount(s.guideDays),
+                  onTap: () => _pick(
+                    l.daysToKeep,
+                    days,
+                    s.guideDays,
+                    (v) => s.guideDays = v,
+                  ),
+                ),
+                SettingsTile(
+                  title: l.updateAutomatically,
+                  value:
+                      refresh[s.refreshHours] ?? l.everyHours(s.refreshHours),
+                  onTap: () => _pick(
+                    l.updateAutomatically,
+                    refresh,
+                    s.refreshHours,
+                    (v) => s.refreshHours = v,
+                  ),
+                ),
+              ],
+            ),
+            SettingsGroup(
+              title: l.privacyAndSafety,
+              children: [
+                SettingsTile(
+                  icon: Icons.lock_outline_rounded,
+                  title: l.parentalPin,
+                  subtitle: l.parentalPinHint,
+                  value: _state.hasPin ? l.on : l.off,
+                  onTap: _pinMenu,
+                ),
+                SettingsTile(
+                  icon: Icons.save_alt_rounded,
+                  title: l.backupTitle,
+                  onTap: () => _open(BackupScreen(state: _state)),
+                ),
+              ],
+            ),
+            SettingsGroup(
+              title: l.about,
+              children: [
+                SettingsTile(
+                  leading: const ZaplineMark(size: 26),
+                  title: 'Zapline · $appVersion',
+                  subtitle: l.aboutLine,
+                  chevron: false,
+                  onTap: () => showLicensePage(
+                    context: context,
+                    applicationName: 'Zapline',
+                    applicationVersion: appVersion,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
           ],
-        ),
-        const PageSection('Backup'),
-        FocusCard(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => BackupScreen(state: _state),
-            ),
-          ),
-          child: const Text('Back up or move to another device'),
-        ),
-        const PageSection('About'),
-        const Row(
-          children: [
-            ZaplineLockup(height: 26),
-            SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                appVersion,
-                style: TextStyle(color: ZaplineColors.textMuted),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Zapline is free and open source (MIT). It plays the sources you '
-          'add and includes no channels or content.',
-          style: TextStyle(color: ZaplineColors.textMuted),
-        ),
-      ],
+        );
+      },
     );
   }
 }
 
-class _Toggle extends StatelessWidget {
-  const _Toggle({
-    required this.title,
-    required this.value,
-    required this.onChanged,
-    this.subtitle,
+/// A source in a list: health dot, name, channels and guide coverage.
+class SourceTile extends StatelessWidget {
+  const SourceTile({
+    super.key,
+    required this.state,
+    required this.source,
     this.autofocus = false,
   });
 
-  final String title;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final AppState state;
+  final SourceRecord source;
   final bool autofocus;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: FocusCard(
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final cov = state.coverage(source.id);
+    final status = state.guideStatus(source.id);
+    final syncing = state.syncingSourceId == source.id;
+    final healthy =
+        cov.channels > 0 &&
+        cov.ratio >= 0.8 &&
+        (status == null || status.errors.isEmpty);
+    return SettingsTile(
       autofocus: autofocus,
-      padding: context.isPhone
-          ? const EdgeInsets.fromLTRB(16, 8, 8, 8)
-          : const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      onPressed: () => onChanged(!value),
-      child: Row(
-        children: [
-          Expanded(child: _Label(title, subtitle)),
-          // Display only: the card handles OK, clicks and taps.
-          ExcludeFocus(
-            child: IgnorePointer(
-              child: Switch(value: value, onChanged: (_) {}),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// A row of options; Left/Right moves between them like any other card.
-class _Choice<T> extends StatelessWidget {
-  const _Choice({
-    required this.title,
-    required this.value,
-    required this.options,
-    required this.onChanged,
-    this.subtitle,
-  });
-
-  final String title;
-  final String? subtitle;
-  final T value;
-  final Map<T, String> options;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) => LabeledRow(
-    label: title,
-    subtitle: subtitle,
-    children: [
-      for (final MapEntry(:key, value: label) in options.entries)
-        FocusCard(
-          selected: key == value,
-          padding: context.isPhone
-              ? const EdgeInsets.symmetric(horizontal: 14, vertical: 10)
-              : const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          onPressed: () => onChanged(key),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (key == value) ...[
-                const Icon(Icons.check_rounded, size: 20),
-                const SizedBox(width: 6),
-              ],
-              Text(label),
-            ],
-          ),
-        ),
-    ],
-  );
-}
-
-class _Label extends StatelessWidget {
-  const _Label(this.title, this.subtitle);
-
-  final String title;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: TextStyle(
-          fontSize: Metrics.of(context).body,
-          fontWeight: FontWeight.w700,
+      leading: Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: syncing
+              ? ZaplineColors.focus
+              : healthy
+              ? ZaplineColors.ok
+              : ZaplineColors.live,
         ),
       ),
-      if (subtitle != null)
-        // Inherits the card's colour so it stays readable when focused.
-        Opacity(
-          opacity: 0.7,
-          child: Text(subtitle!, style: const TextStyle(fontSize: 13)),
+      title: source.name,
+      subtitle: syncing
+          ? l.syncingProgress('${state.progress ?? ''}')
+          : '${l.channelCount(cov.channels)} · '
+                '${l.guidePercent((cov.ratio * 100).round())}',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SourceDetailScreen(state: state, sourceId: source.id),
         ),
-    ],
-  );
+      ),
+    );
+  }
 }

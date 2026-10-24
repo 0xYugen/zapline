@@ -157,7 +157,9 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
-    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.tap(find.text('Channel numbers'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1, 2, 3…'));
     await tester.pumpAndSettle();
     expect(state.settings.sequentialNumbers, isTrue);
     expect(state.channelNumber(first, 0), 1);
@@ -167,6 +169,8 @@ void main() {
     expect(state.settings.clock24h, isFalse);
     expect(state.time(DateTime(2026, 1, 1, 15, 5)), '3:05 PM');
 
+    await tester.tap(find.text('Picture size'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Zoom'));
     await tester.pumpAndSettle();
     expect(state.settings.videoFit, BoxFit.cover);

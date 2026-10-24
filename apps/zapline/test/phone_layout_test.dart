@@ -82,11 +82,9 @@ void main() {
         await tester.tap(find.text(tab).last);
         await tester.pumpAndSettle();
       }
-      await tester.tap(find.text('Playlists and servers'));
+      await tester.tap(find.text(state.sources.single.name));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Manage'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Manage'));
+      await tester.tap(find.text('Groups and filters'));
       await tester.pumpAndSettle();
       await tester.drag(find.byType(ListView).last, const Offset(0, -2000));
       await tester.pumpAndSettle();

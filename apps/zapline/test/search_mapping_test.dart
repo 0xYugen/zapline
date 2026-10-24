@@ -39,7 +39,9 @@ void main() {
 
     await tester.tap(find.text('Sources'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Fix TV guide (1)'));
+    await tester.tap(find.text(state.sources.single.name));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fix TV guide'));
     await tester.pumpAndSettle();
     expect(find.text('Suggestions for Channel 5 Extra'), findsOneWidget);
 

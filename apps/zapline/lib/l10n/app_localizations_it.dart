@@ -423,4 +423,429 @@ class AppLocalizationsIt extends AppLocalizations {
   String zapTime(int ms) {
     return 'zap $ms ms';
   }
+
+  @override
+  String get refreshing => 'Aggiornamento…';
+
+  @override
+  String get refreshed => 'Aggiornato.';
+
+  @override
+  String refreshFailed(String error) {
+    return 'Aggiornamento non riuscito: $error';
+  }
+
+  @override
+  String get enterFullLink => 'Inserisci un link completo, che inizi con http.';
+
+  @override
+  String get guideAdded => 'Guida aggiunta. Aggiorna per caricarla.';
+
+  @override
+  String loadingFreeEpg(String country) {
+    return 'Caricamento dell\'EPG gratuito per $country…';
+  }
+
+  @override
+  String freeEpgAdded(String country, int matched, int total) {
+    return 'EPG $country aggiunto: guida TV per $matched canali su $total.';
+  }
+
+  @override
+  String get shiftSaved => 'Spostamento salvato. Aggiorna per applicarlo.';
+
+  @override
+  String get noGroupChannels => 'Canali senza gruppo';
+
+  @override
+  String get setPinFirst =>
+      'Imposta un PIN nelle Impostazioni prima di bloccare i gruppi.';
+
+  @override
+  String get unlockGroup => 'Sblocca (senza PIN)';
+
+  @override
+  String get lockWithPin => 'Blocca con il PIN';
+
+  @override
+  String get followFilterAgain => 'Torna a seguire il filtro';
+
+  @override
+  String get sectionGuide => 'Guida TV (EPG)';
+
+  @override
+  String get sectionGroups => 'Gruppi e filtri';
+
+  @override
+  String get sectionHidden => 'Canali nascosti';
+
+  @override
+  String get sectionName => 'Nome e accesso';
+
+  @override
+  String get name => 'Nome';
+
+  @override
+  String get nameSaved => 'Nome salvato.';
+
+  @override
+  String get save => 'Salva';
+
+  @override
+  String get server => 'Server';
+
+  @override
+  String get username => 'Nome utente';
+
+  @override
+  String get tvGuidesEpg => 'Guide TV (EPG)';
+
+  @override
+  String get epgIntro =>
+      'L\'EPG della sorgente si carica da solo. Qui puoi aggiungere altri link EPG (XMLTV); per ogni canale vince il primo che lo contiene.';
+
+  @override
+  String get addFreeEpgByCountry => 'Aggiungi un EPG gratuito per paese';
+
+  @override
+  String freeEpgEntry(String country, String host) {
+    return 'EPG gratuito · $country ($host)';
+  }
+
+  @override
+  String get guideRemoved => 'Guida rimossa.';
+
+  @override
+  String get remove => 'Rimuovi';
+
+  @override
+  String get addEpgLink => 'Aggiungi un link EPG (XMLTV, .xml o .xml.gz)';
+
+  @override
+  String get add => 'Aggiungi';
+
+  @override
+  String get guideTimeShift => 'Spostamento orario della guida';
+
+  @override
+  String get guideTimeShiftHint => 'Per le guide con gli orari sbagliati.';
+
+  @override
+  String get refreshNow => 'Aggiorna ora';
+
+  @override
+  String get showTheseGroups => 'Mostra questi gruppi';
+
+  @override
+  String get filterHelp =>
+      'Parole separate da virgole. IT trova \"IT | Sport\" ma non \"Hits\"; ital* trova Italia e Italy; IT| trova esattamente quel testo. Nascondere vince sempre.';
+
+  @override
+  String get presetItalian => 'Solo italiani';
+
+  @override
+  String get presetAdult => 'Nascondi adulti';
+
+  @override
+  String get presetVod => 'Nascondi film e serie';
+
+  @override
+  String get clear => 'Svuota';
+
+  @override
+  String get showOnlyGroupsWith => 'Mostra solo i gruppi con (vuoto = tutti)';
+
+  @override
+  String get hideGroupsWith => 'Nascondi i gruppi con';
+
+  @override
+  String filterPreview(int groups, int all, int channels) {
+    return 'Mostra $groups gruppi su $all · $channels canali';
+  }
+
+  @override
+  String get filterApplied => 'Filtro applicato.';
+
+  @override
+  String get applyFilter => 'Applica il filtro';
+
+  @override
+  String get applied => 'Applicato';
+
+  @override
+  String get groupsHelp =>
+      'Tocca per mostrare o nascondere un gruppo. Tieni premuto per bloccarlo con il PIN o farlo tornare a seguire il filtro.';
+
+  @override
+  String groupState(int count, String state, String by) {
+    String _temp0 = intl.Intl.selectLogic(state, {
+      'hidden': 'nascosto',
+      'other': 'visibile',
+    });
+    String _temp1 = intl.Intl.selectLogic(by, {
+      'filter': ' dal filtro',
+      'other': '',
+    });
+    return '$count · $_temp0$_temp1';
+  }
+
+  @override
+  String get noHiddenChannels =>
+      'Nessun canale nascosto. Tieni premuto un canale e scegli “Nascondi questo canale”.';
+
+  @override
+  String get showAgain => 'Mostra di nuovo';
+
+  @override
+  String refreshResult(int channels, int programmes) {
+    return '$channels canali, $programmes programmi in guida';
+  }
+
+  @override
+  String refreshGuideFailed(String errors) {
+    return 'Canali aggiornati, guida non riuscita ($errors)';
+  }
+
+  @override
+  String removeSourceTitle(String name) {
+    return 'Rimuovere $name?';
+  }
+
+  @override
+  String get removeSourceMessage =>
+      'Spariscono anche i suoi canali, preferiti e abbinamenti della guida. Potrai riaggiungerla in seguito.';
+
+  @override
+  String get removeSource => 'Rimuovi questa sorgente';
+
+  @override
+  String channelsWithoutGuide(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count canali non hanno ancora la guida TV.',
+      one: '1 canale non ha ancora la guida TV.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String addFreeEpgFor(String country) {
+    return 'Aggiungi l\'EPG gratuito per $country';
+  }
+
+  @override
+  String get addFreeEpg => 'Aggiungi un EPG gratuito';
+
+  @override
+  String get matchThem => 'Abbinali';
+
+  @override
+  String get guideFromSource => 'Dalla sorgente';
+
+  @override
+  String freeEpgShort(String countries) {
+    return 'EPG gratuito $countries';
+  }
+
+  @override
+  String extraGuides(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count guide in più',
+      one: '1 guida in più',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String shiftedBy(String value) {
+    return 'spostata $value';
+  }
+
+  @override
+  String get filterOn => 'Filtro attivo';
+
+  @override
+  String groupsShown(int shown, int all) {
+    return '$shown gruppi visibili su $all';
+  }
+
+  @override
+  String hiddenCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nascosti',
+      one: '1 nascosto',
+      zero: 'Nessuno',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncingProgress(String progress) {
+    return 'Aggiornamento… $progress';
+  }
+
+  @override
+  String epgFailed(String errors) {
+    return 'Impossibile caricare l\'EPG: $errors';
+  }
+
+  @override
+  String get epgEmptyPerChannel =>
+      'La sorgente ha mandato un EPG vuoto; cosa c\'è in onda viene chiesto canale per canale.';
+
+  @override
+  String get epgEmpty =>
+      'La sorgente ha mandato un EPG vuoto. Aggiungi un EPG gratuito o un link.';
+
+  @override
+  String updatedAt(String day, String time) {
+    return 'Aggiornata $day alle $time';
+  }
+
+  @override
+  String get neverSynced => 'Mai aggiornata';
+
+  @override
+  String channelCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count canali',
+      one: '1 canale',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String guideFor(int count) {
+    return 'Guida TV per $count';
+  }
+
+  @override
+  String guidePercent(int percent) {
+    return 'guida $percent%';
+  }
+
+  @override
+  String get addSource => 'Aggiungi una sorgente';
+
+  @override
+  String get watching => 'Visione';
+
+  @override
+  String get openLastChannel => 'Apri l\'ultimo canale all\'avvio';
+
+  @override
+  String get openLastChannelHint => 'Come accendere la TV.';
+
+  @override
+  String get pictureSizeSetting => 'Formato immagine';
+
+  @override
+  String get fitFit => 'Adatta';
+
+  @override
+  String get fitZoom => 'Zoom';
+
+  @override
+  String get fitStretch => 'Estendi';
+
+  @override
+  String get channelNumbers => 'Numeri dei canali';
+
+  @override
+  String get numbersProvider => 'Del provider';
+
+  @override
+  String get numbersSequential => '1, 2, 3…';
+
+  @override
+  String get clock24h => 'Orologio a 24 ore';
+
+  @override
+  String get daysToKeep => 'Giorni di guida da tenere';
+
+  @override
+  String get daysToKeepHint =>
+      'Meno giorni aggiornano più in fretta sui dispositivi piccoli.';
+
+  @override
+  String daysCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count giorni',
+      one: '1 giorno',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get updateAutomatically => 'Aggiorna le sorgenti in automatico';
+
+  @override
+  String get refreshNever => 'Mai';
+
+  @override
+  String everyHours(int hours) {
+    return 'Ogni $hours h';
+  }
+
+  @override
+  String get privacyAndSafety => 'Privacy e sicurezza';
+
+  @override
+  String get parentalPin => 'PIN parentale';
+
+  @override
+  String get parentalPinHint => 'I gruppi bloccati chiedono il PIN.';
+
+  @override
+  String get on => 'Attivo';
+
+  @override
+  String get off => 'Disattivo';
+
+  @override
+  String get about => 'Informazioni';
+
+  @override
+  String get aboutLine =>
+      'Libero e open source · Nessun canale incluso · Licenze';
+
+  @override
+  String get choosePin => 'Scegli un PIN di 4 cifre';
+
+  @override
+  String get enterItAgain => 'Inseriscilo di nuovo';
+
+  @override
+  String get pinsDiffer => 'I due PIN sono diversi. Nessuna modifica.';
+
+  @override
+  String get pinSaved =>
+      'PIN salvato. Blocca i gruppi da Gruppi e filtri della sorgente.';
+
+  @override
+  String get enterCurrentPin => 'Inserisci il PIN attuale';
+
+  @override
+  String get pinRemoved => 'PIN rimosso e tutti i gruppi sbloccati.';
+
+  @override
+  String get changePin => 'Cambia PIN';
+
+  @override
+  String get removePin => 'Rimuovi PIN';
+
+  @override
+  String get lockNow => 'Blocca ora';
+
+  @override
+  String get lockedAgain => 'Gruppi bloccati di nuovo nascosti.';
 }

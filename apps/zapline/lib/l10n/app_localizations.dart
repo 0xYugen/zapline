@@ -829,6 +829,660 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'zap {ms} ms'**
   String zapTime(int ms);
+
+  /// No description provided for @refreshing.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing…'**
+  String get refreshing;
+
+  /// No description provided for @refreshed.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshed.'**
+  String get refreshed;
+
+  /// No description provided for @refreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh failed: {error}'**
+  String refreshFailed(String error);
+
+  /// No description provided for @enterFullLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a full link, starting with http.'**
+  String get enterFullLink;
+
+  /// No description provided for @guideAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide added. Refresh to load it.'**
+  String get guideAdded;
+
+  /// No description provided for @loadingFreeEpg.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the free EPG for {country}…'**
+  String loadingFreeEpg(String country);
+
+  /// No description provided for @freeEpgAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{country} EPG added: TV guide for {matched} of {total} channels.'**
+  String freeEpgAdded(String country, int matched, int total);
+
+  /// No description provided for @shiftSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide shift saved. Refresh to apply it.'**
+  String get shiftSaved;
+
+  /// No description provided for @noGroupChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels without a group'**
+  String get noGroupChannels;
+
+  /// No description provided for @setPinFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a PIN in Settings before locking groups.'**
+  String get setPinFirst;
+
+  /// No description provided for @unlockGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock (no PIN needed)'**
+  String get unlockGroup;
+
+  /// No description provided for @lockWithPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock with PIN'**
+  String get lockWithPin;
+
+  /// No description provided for @followFilterAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the filter again'**
+  String get followFilterAgain;
+
+  /// No description provided for @sectionGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'TV guide (EPG)'**
+  String get sectionGuide;
+
+  /// No description provided for @sectionGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups and filters'**
+  String get sectionGroups;
+
+  /// No description provided for @sectionHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden channels'**
+  String get sectionHidden;
+
+  /// No description provided for @sectionName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name and login'**
+  String get sectionName;
+
+  /// No description provided for @name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get name;
+
+  /// No description provided for @nameSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Name saved.'**
+  String get nameSaved;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @server.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get server;
+
+  /// No description provided for @username.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get username;
+
+  /// No description provided for @tvGuidesEpg.
+  ///
+  /// In en, this message translates to:
+  /// **'TV guides (EPG)'**
+  String get tvGuidesEpg;
+
+  /// No description provided for @epgIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The EPG from the source itself is loaded automatically. Add more EPG links (XMLTV) here; the first match per channel wins.'**
+  String get epgIntro;
+
+  /// No description provided for @addFreeEpgByCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a free EPG by country'**
+  String get addFreeEpgByCountry;
+
+  /// No description provided for @freeEpgEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Free EPG · {country} ({host})'**
+  String freeEpgEntry(String country, String host);
+
+  /// No description provided for @guideRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide removed.'**
+  String get guideRemoved;
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @addEpgLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an EPG link (XMLTV, .xml or .xml.gz)'**
+  String get addEpgLink;
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @guideTimeShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide time shift'**
+  String get guideTimeShift;
+
+  /// No description provided for @guideTimeShiftHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For guides that show the wrong times.'**
+  String get guideTimeShiftHint;
+
+  /// No description provided for @refreshNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh now'**
+  String get refreshNow;
+
+  /// No description provided for @showTheseGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Show these groups'**
+  String get showTheseGroups;
+
+  /// No description provided for @filterHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Words separated by commas. IT matches \"IT | Sport\" but not \"Hits\"; ital* matches Italia and Italy; IT| matches that exact text. Hiding always wins.'**
+  String get filterHelp;
+
+  /// No description provided for @presetItalian.
+  ///
+  /// In en, this message translates to:
+  /// **'Italian only'**
+  String get presetItalian;
+
+  /// No description provided for @presetAdult.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide adult'**
+  String get presetAdult;
+
+  /// No description provided for @presetVod.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide VOD and series'**
+  String get presetVod;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @showOnlyGroupsWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Show only groups with (empty = all)'**
+  String get showOnlyGroupsWith;
+
+  /// No description provided for @hideGroupsWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide groups with'**
+  String get hideGroupsWith;
+
+  /// No description provided for @filterPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows {groups} of {all} groups · {channels} channels'**
+  String filterPreview(int groups, int all, int channels);
+
+  /// No description provided for @filterApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter applied.'**
+  String get filterApplied;
+
+  /// No description provided for @applyFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply filter'**
+  String get applyFilter;
+
+  /// No description provided for @applied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied'**
+  String get applied;
+
+  /// No description provided for @groupsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap shows or hides a group. Hold to lock it with the PIN or to make it follow the filter again.'**
+  String get groupsHelp;
+
+  /// No description provided for @groupState.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} · {state, select, hidden{hidden} other{shown}}{by, select, filter{ by filter} other{}}'**
+  String groupState(int count, String state, String by);
+
+  /// No description provided for @noHiddenChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'No hidden channels. Hold a channel and choose “Hide this channel” to hide it.'**
+  String get noHiddenChannels;
+
+  /// No description provided for @showAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Show again'**
+  String get showAgain;
+
+  /// No description provided for @refreshResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{channels} channels, {programmes} guide entries'**
+  String refreshResult(int channels, int programmes);
+
+  /// No description provided for @refreshGuideFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels updated, guide failed ({errors})'**
+  String refreshGuideFailed(String errors);
+
+  /// No description provided for @removeSourceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}?'**
+  String removeSourceTitle(String name);
+
+  /// No description provided for @removeSourceMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Its channels, favourites and guide links go too. You can add it again later.'**
+  String get removeSourceMessage;
+
+  /// No description provided for @removeSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this source'**
+  String get removeSource;
+
+  /// No description provided for @channelsWithoutGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 channel still has no TV guide.} other{{count} channels still have no TV guide.}}'**
+  String channelsWithoutGuide(int count);
+
+  /// No description provided for @addFreeEpgFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the free EPG for {country}'**
+  String addFreeEpgFor(String country);
+
+  /// No description provided for @addFreeEpg.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a free EPG'**
+  String get addFreeEpg;
+
+  /// No description provided for @matchThem.
+  ///
+  /// In en, this message translates to:
+  /// **'Match them'**
+  String get matchThem;
+
+  /// No description provided for @guideFromSource.
+  ///
+  /// In en, this message translates to:
+  /// **'From the source'**
+  String get guideFromSource;
+
+  /// No description provided for @freeEpgShort.
+  ///
+  /// In en, this message translates to:
+  /// **'free EPG {countries}'**
+  String freeEpgShort(String countries);
+
+  /// No description provided for @extraGuides.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more guide} other{{count} more guides}}'**
+  String extraGuides(int count);
+
+  /// No description provided for @shiftedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'shifted {value}'**
+  String shiftedBy(String value);
+
+  /// No description provided for @filterOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter on'**
+  String get filterOn;
+
+  /// No description provided for @groupsShown.
+  ///
+  /// In en, this message translates to:
+  /// **'{shown} of {all} groups shown'**
+  String groupsShown(int shown, int all);
+
+  /// No description provided for @hiddenCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{None} =1{1 hidden} other{{count} hidden}}'**
+  String hiddenCount(int count);
+
+  /// No description provided for @syncingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating… {progress}'**
+  String syncingProgress(String progress);
+
+  /// No description provided for @epgFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'EPG could not be loaded: {errors}'**
+  String epgFailed(String errors);
+
+  /// No description provided for @epgEmptyPerChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'The source sent an empty EPG; what\'s on now is asked channel by channel.'**
+  String get epgEmptyPerChannel;
+
+  /// No description provided for @epgEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The source sent an empty EPG. Add a free EPG or a link.'**
+  String get epgEmpty;
+
+  /// No description provided for @updatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {day} at {time}'**
+  String updatedAt(String day, String time);
+
+  /// No description provided for @neverSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Never updated'**
+  String get neverSynced;
+
+  /// No description provided for @channelCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 channel} other{{count} channels}}'**
+  String channelCount(int count);
+
+  /// No description provided for @guideFor.
+  ///
+  /// In en, this message translates to:
+  /// **'TV guide for {count}'**
+  String guideFor(int count);
+
+  /// No description provided for @guidePercent.
+  ///
+  /// In en, this message translates to:
+  /// **'guide {percent}%'**
+  String guidePercent(int percent);
+
+  /// No description provided for @addSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a source'**
+  String get addSource;
+
+  /// No description provided for @watching.
+  ///
+  /// In en, this message translates to:
+  /// **'Watching'**
+  String get watching;
+
+  /// No description provided for @openLastChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the last channel at start'**
+  String get openLastChannel;
+
+  /// No description provided for @openLastChannelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Like turning on a TV.'**
+  String get openLastChannelHint;
+
+  /// No description provided for @pictureSizeSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture size'**
+  String get pictureSizeSetting;
+
+  /// No description provided for @fitFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit'**
+  String get fitFit;
+
+  /// No description provided for @fitZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom'**
+  String get fitZoom;
+
+  /// No description provided for @fitStretch.
+  ///
+  /// In en, this message translates to:
+  /// **'Stretch'**
+  String get fitStretch;
+
+  /// No description provided for @channelNumbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel numbers'**
+  String get channelNumbers;
+
+  /// No description provided for @numbersProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'From the provider'**
+  String get numbersProvider;
+
+  /// No description provided for @numbersSequential.
+  ///
+  /// In en, this message translates to:
+  /// **'1, 2, 3…'**
+  String get numbersSequential;
+
+  /// No description provided for @clock24h.
+  ///
+  /// In en, this message translates to:
+  /// **'24-hour clock'**
+  String get clock24h;
+
+  /// No description provided for @daysToKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Days of guide to keep'**
+  String get daysToKeep;
+
+  /// No description provided for @daysToKeepHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fewer days update faster on small devices.'**
+  String get daysToKeepHint;
+
+  /// No description provided for @daysCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day} other{{count} days}}'**
+  String daysCount(int count);
+
+  /// No description provided for @updateAutomatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Update sources automatically'**
+  String get updateAutomatically;
+
+  /// No description provided for @refreshNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get refreshNever;
+
+  /// No description provided for @everyHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {hours} h'**
+  String everyHours(int hours);
+
+  /// No description provided for @privacyAndSafety.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy and safety'**
+  String get privacyAndSafety;
+
+  /// No description provided for @parentalPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Parental PIN'**
+  String get parentalPin;
+
+  /// No description provided for @parentalPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked groups need the PIN.'**
+  String get parentalPinHint;
+
+  /// No description provided for @on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get on;
+
+  /// No description provided for @off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get off;
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// No description provided for @aboutLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Free and open source · No channels included · Licences'**
+  String get aboutLine;
+
+  /// No description provided for @choosePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a 4-digit PIN'**
+  String get choosePin;
+
+  /// No description provided for @enterItAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter it again'**
+  String get enterItAgain;
+
+  /// No description provided for @pinsDiffer.
+  ///
+  /// In en, this message translates to:
+  /// **'The two PINs differ. Nothing changed.'**
+  String get pinsDiffer;
+
+  /// No description provided for @pinSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN saved. Lock groups from the source\'s groups and filters.'**
+  String get pinSaved;
+
+  /// No description provided for @enterCurrentPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the current PIN'**
+  String get enterCurrentPin;
+
+  /// No description provided for @pinRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN removed and all groups unlocked.'**
+  String get pinRemoved;
+
+  /// No description provided for @changePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Change PIN'**
+  String get changePin;
+
+  /// No description provided for @removePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove PIN'**
+  String get removePin;
+
+  /// No description provided for @lockNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock now'**
+  String get lockNow;
+
+  /// No description provided for @lockedAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked groups hidden again.'**
+  String get lockedAgain;
 }
 
 class _AppLocalizationsDelegate

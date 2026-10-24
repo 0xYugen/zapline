@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zapline/main.dart';
 import 'package:zapline/src/app_state.dart';
 import 'package:zapline/src/free_epg.dart';
-import 'package:zapline/src/screens/sources_screen.dart';
+import 'package:zapline/src/screens/source_detail_screen.dart';
 import 'package:zapline_core/zapline_core.dart';
 import 'package:zapline_data/zapline_data.dart';
 
@@ -102,7 +102,10 @@ void main() {
     await tester.pumpAndSettle();
     final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
     nav.push(
-      MaterialPageRoute<void>(builder: (_) => SourcesScreen(state: state)),
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            SourceDetailScreen(state: state, sourceId: state.sources.single.id),
+      ),
     );
     await tester.pumpAndSettle();
 

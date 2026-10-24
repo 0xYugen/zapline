@@ -420,4 +420,427 @@ class AppLocalizationsEn extends AppLocalizations {
   String zapTime(int ms) {
     return 'zap $ms ms';
   }
+
+  @override
+  String get refreshing => 'Refreshing…';
+
+  @override
+  String get refreshed => 'Refreshed.';
+
+  @override
+  String refreshFailed(String error) {
+    return 'Refresh failed: $error';
+  }
+
+  @override
+  String get enterFullLink => 'Enter a full link, starting with http.';
+
+  @override
+  String get guideAdded => 'Guide added. Refresh to load it.';
+
+  @override
+  String loadingFreeEpg(String country) {
+    return 'Loading the free EPG for $country…';
+  }
+
+  @override
+  String freeEpgAdded(String country, int matched, int total) {
+    return '$country EPG added: TV guide for $matched of $total channels.';
+  }
+
+  @override
+  String get shiftSaved => 'Guide shift saved. Refresh to apply it.';
+
+  @override
+  String get noGroupChannels => 'Channels without a group';
+
+  @override
+  String get setPinFirst => 'Set a PIN in Settings before locking groups.';
+
+  @override
+  String get unlockGroup => 'Unlock (no PIN needed)';
+
+  @override
+  String get lockWithPin => 'Lock with PIN';
+
+  @override
+  String get followFilterAgain => 'Follow the filter again';
+
+  @override
+  String get sectionGuide => 'TV guide (EPG)';
+
+  @override
+  String get sectionGroups => 'Groups and filters';
+
+  @override
+  String get sectionHidden => 'Hidden channels';
+
+  @override
+  String get sectionName => 'Name and login';
+
+  @override
+  String get name => 'Name';
+
+  @override
+  String get nameSaved => 'Name saved.';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get server => 'Server';
+
+  @override
+  String get username => 'Username';
+
+  @override
+  String get tvGuidesEpg => 'TV guides (EPG)';
+
+  @override
+  String get epgIntro =>
+      'The EPG from the source itself is loaded automatically. Add more EPG links (XMLTV) here; the first match per channel wins.';
+
+  @override
+  String get addFreeEpgByCountry => 'Add a free EPG by country';
+
+  @override
+  String freeEpgEntry(String country, String host) {
+    return 'Free EPG · $country ($host)';
+  }
+
+  @override
+  String get guideRemoved => 'Guide removed.';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get addEpgLink => 'Add an EPG link (XMLTV, .xml or .xml.gz)';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get guideTimeShift => 'Guide time shift';
+
+  @override
+  String get guideTimeShiftHint => 'For guides that show the wrong times.';
+
+  @override
+  String get refreshNow => 'Refresh now';
+
+  @override
+  String get showTheseGroups => 'Show these groups';
+
+  @override
+  String get filterHelp =>
+      'Words separated by commas. IT matches \"IT | Sport\" but not \"Hits\"; ital* matches Italia and Italy; IT| matches that exact text. Hiding always wins.';
+
+  @override
+  String get presetItalian => 'Italian only';
+
+  @override
+  String get presetAdult => 'Hide adult';
+
+  @override
+  String get presetVod => 'Hide VOD and series';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get showOnlyGroupsWith => 'Show only groups with (empty = all)';
+
+  @override
+  String get hideGroupsWith => 'Hide groups with';
+
+  @override
+  String filterPreview(int groups, int all, int channels) {
+    return 'Shows $groups of $all groups · $channels channels';
+  }
+
+  @override
+  String get filterApplied => 'Filter applied.';
+
+  @override
+  String get applyFilter => 'Apply filter';
+
+  @override
+  String get applied => 'Applied';
+
+  @override
+  String get groupsHelp =>
+      'Tap shows or hides a group. Hold to lock it with the PIN or to make it follow the filter again.';
+
+  @override
+  String groupState(int count, String state, String by) {
+    String _temp0 = intl.Intl.selectLogic(state, {
+      'hidden': 'hidden',
+      'other': 'shown',
+    });
+    String _temp1 = intl.Intl.selectLogic(by, {
+      'filter': ' by filter',
+      'other': '',
+    });
+    return '$count · $_temp0$_temp1';
+  }
+
+  @override
+  String get noHiddenChannels =>
+      'No hidden channels. Hold a channel and choose “Hide this channel” to hide it.';
+
+  @override
+  String get showAgain => 'Show again';
+
+  @override
+  String refreshResult(int channels, int programmes) {
+    return '$channels channels, $programmes guide entries';
+  }
+
+  @override
+  String refreshGuideFailed(String errors) {
+    return 'Channels updated, guide failed ($errors)';
+  }
+
+  @override
+  String removeSourceTitle(String name) {
+    return 'Remove $name?';
+  }
+
+  @override
+  String get removeSourceMessage =>
+      'Its channels, favourites and guide links go too. You can add it again later.';
+
+  @override
+  String get removeSource => 'Remove this source';
+
+  @override
+  String channelsWithoutGuide(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count channels still have no TV guide.',
+      one: '1 channel still has no TV guide.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String addFreeEpgFor(String country) {
+    return 'Add the free EPG for $country';
+  }
+
+  @override
+  String get addFreeEpg => 'Add a free EPG';
+
+  @override
+  String get matchThem => 'Match them';
+
+  @override
+  String get guideFromSource => 'From the source';
+
+  @override
+  String freeEpgShort(String countries) {
+    return 'free EPG $countries';
+  }
+
+  @override
+  String extraGuides(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more guides',
+      one: '1 more guide',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String shiftedBy(String value) {
+    return 'shifted $value';
+  }
+
+  @override
+  String get filterOn => 'Filter on';
+
+  @override
+  String groupsShown(int shown, int all) {
+    return '$shown of $all groups shown';
+  }
+
+  @override
+  String hiddenCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hidden',
+      one: '1 hidden',
+      zero: 'None',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncingProgress(String progress) {
+    return 'Updating… $progress';
+  }
+
+  @override
+  String epgFailed(String errors) {
+    return 'EPG could not be loaded: $errors';
+  }
+
+  @override
+  String get epgEmptyPerChannel =>
+      'The source sent an empty EPG; what\'s on now is asked channel by channel.';
+
+  @override
+  String get epgEmpty =>
+      'The source sent an empty EPG. Add a free EPG or a link.';
+
+  @override
+  String updatedAt(String day, String time) {
+    return 'Updated $day at $time';
+  }
+
+  @override
+  String get neverSynced => 'Never updated';
+
+  @override
+  String channelCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count channels',
+      one: '1 channel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String guideFor(int count) {
+    return 'TV guide for $count';
+  }
+
+  @override
+  String guidePercent(int percent) {
+    return 'guide $percent%';
+  }
+
+  @override
+  String get addSource => 'Add a source';
+
+  @override
+  String get watching => 'Watching';
+
+  @override
+  String get openLastChannel => 'Open the last channel at start';
+
+  @override
+  String get openLastChannelHint => 'Like turning on a TV.';
+
+  @override
+  String get pictureSizeSetting => 'Picture size';
+
+  @override
+  String get fitFit => 'Fit';
+
+  @override
+  String get fitZoom => 'Zoom';
+
+  @override
+  String get fitStretch => 'Stretch';
+
+  @override
+  String get channelNumbers => 'Channel numbers';
+
+  @override
+  String get numbersProvider => 'From the provider';
+
+  @override
+  String get numbersSequential => '1, 2, 3…';
+
+  @override
+  String get clock24h => '24-hour clock';
+
+  @override
+  String get daysToKeep => 'Days of guide to keep';
+
+  @override
+  String get daysToKeepHint => 'Fewer days update faster on small devices.';
+
+  @override
+  String daysCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get updateAutomatically => 'Update sources automatically';
+
+  @override
+  String get refreshNever => 'Never';
+
+  @override
+  String everyHours(int hours) {
+    return 'Every $hours h';
+  }
+
+  @override
+  String get privacyAndSafety => 'Privacy and safety';
+
+  @override
+  String get parentalPin => 'Parental PIN';
+
+  @override
+  String get parentalPinHint => 'Locked groups need the PIN.';
+
+  @override
+  String get on => 'On';
+
+  @override
+  String get off => 'Off';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get aboutLine =>
+      'Free and open source · No channels included · Licences';
+
+  @override
+  String get choosePin => 'Choose a 4-digit PIN';
+
+  @override
+  String get enterItAgain => 'Enter it again';
+
+  @override
+  String get pinsDiffer => 'The two PINs differ. Nothing changed.';
+
+  @override
+  String get pinSaved =>
+      'PIN saved. Lock groups from the source\'s groups and filters.';
+
+  @override
+  String get enterCurrentPin => 'Enter the current PIN';
+
+  @override
+  String get pinRemoved => 'PIN removed and all groups unlocked.';
+
+  @override
+  String get changePin => 'Change PIN';
+
+  @override
+  String get removePin => 'Remove PIN';
+
+  @override
+  String get lockNow => 'Lock now';
+
+  @override
+  String get lockedAgain => 'Locked groups hidden again.';
 }

@@ -114,10 +114,14 @@ void main() {
       }
       if (await tapText(tester, 'Settings')) {
         await shot(tester, d, '05-settings');
-        if (await tapText(tester, 'Playlists and servers')) {
-          await shot(tester, d, '06-sources');
-          if (await tapText(tester, 'Manage')) {
-            await shot(tester, d, '07-manage');
+        if (await tapText(tester, state.sources.single.name)) {
+          await shot(tester, d, '06-source');
+          if (await tapText(tester, 'Groups and filters')) {
+            await shot(tester, d, '07-groups');
+            await back(tester);
+          }
+          if (await tapText(tester, 'TV guide (EPG)')) {
+            await shot(tester, d, '07b-epg');
             await back(tester);
           }
           await back(tester);
