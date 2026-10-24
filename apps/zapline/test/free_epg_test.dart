@@ -35,11 +35,37 @@ AppState _withChannels(List<(String, String?)> channels) {
 void main() {
   test('the catalogue has Italy with two guides', () {
     final it = FreeEpg.countries.singleWhere((c) => c.code == 'it');
-    expect(it.urls, hasLength(2));
+    expect(it.urls, hasLength(4));
     expect(FreeEpg.ofUrl(it.urls.last), it);
     expect(FreeEpg.forLocale(const Locale('it', 'IT')), it);
     expect(FreeEpg.forLocale(const Locale('it')), it);
     expect(FreeEpg.forLocale(const Locale('en', 'GB'))!.code, 'gb');
+  });
+
+  test('sources with an older free EPG get the newer guides', () {
+    final db = ZaplineDatabase.inMemory()
+      ..saveSource(
+        const SourceRecord(
+          id: 's',
+          kind: SourceKind.m3u,
+          name: 'S',
+          url: 'http://x.example/list.m3u',
+          extraGuideUrls: [
+            'https://my.example/guide.xml',
+            'https://iptv-epg.org/files/epg-it.xml.gz',
+          ],
+        ),
+      );
+    final state = AppState(
+      db,
+      syncRunner: (_, _) async => throw UnimplementedError(),
+    );
+    final urls = state.sources.single.extraGuideUrls;
+    expect(urls.first, 'https://my.example/guide.xml');
+    expect(
+      urls,
+      containsAll(FreeEpg.countries.singleWhere((c) => c.code == 'it').urls),
+    );
   });
 
   test('the source tells which country its channels are from', () {

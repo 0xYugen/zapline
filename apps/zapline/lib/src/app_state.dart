@@ -125,7 +125,25 @@ class AppState extends ChangeNotifier {
     SecretStore? secrets,
     this.guideFetcher,
   }) : secrets = secrets ?? MemorySecretStore() {
+    _upgradeFreeEpgs();
     _reload();
+  }
+
+  /// Sources using a country's free EPG get guides added to the catalogue
+  /// since, without asking again.
+  void _upgradeFreeEpgs() {
+    for (final s in db.sources()) {
+      final missing = [
+        for (final c in FreeEpg.countries)
+          if (c.urls.any(s.extraGuideUrls.contains))
+            for (final u in c.urls)
+              if (!s.extraGuideUrls.contains(u)) u,
+      ];
+      if (missing.isEmpty) continue;
+      db.saveSource(
+        s.copyWith(extraGuideUrls: [...s.extraGuideUrls, ...missing]),
+      );
+    }
   }
 
   final ZaplineDatabase db;

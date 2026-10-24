@@ -5,8 +5,9 @@ import 'dart:ui';
 /// are run by third parties for legal use with any player.
 ///
 /// iptv-epg.org publishes one guide per country under the same address
-/// pattern. Italy also gets epgshare01, which fills a few gaps (checked
-/// 2026-10-24: together they cover 59 of 60 common Italian channels).
+/// pattern. Italy also gets epgshare01 and two open-epg.com files (checked
+/// 2026-10-24: about 370 Italian channels, 59 of 60 common provider names
+/// matched).
 class FreeEpg {
   const FreeEpg(this.code, this.name);
 
@@ -20,7 +21,13 @@ class FreeEpg {
   ];
 
   static const _extra = {
-    'it': ['https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz'],
+    'it': [
+      'https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz',
+      // Small guides that add ~25 channels the others lack (Tgcom24,
+      // Rai 4K, Top Calcio 24, music and regional channels).
+      'https://www.open-epg.com/files/italy2.xml.gz',
+      'https://www.open-epg.com/files/italy3.xml.gz',
+    ],
   };
 
   /// The country whose free EPG [url] belongs to, if any.
