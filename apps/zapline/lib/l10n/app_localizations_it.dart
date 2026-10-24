@@ -1234,4 +1234,123 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get qualitySaver => 'Risparmio dati (HD)';
+
+  @override
+  String get filterSaved => 'Salvato';
+
+  @override
+  String get undo => 'Annulla';
+
+  @override
+  String get whatToSee => 'Cosa vuoi vedere?';
+
+  @override
+  String get italianOnlyTv => 'Solo canali italiani';
+
+  @override
+  String get italianOnlyMovies => 'Solo film italiani';
+
+  @override
+  String get italianOnlyShows => 'Solo serie italiane';
+
+  @override
+  String get everything => 'Tutto';
+
+  @override
+  String get pickByHand => 'Scelgo io paesi e gruppi';
+
+  @override
+  String get pickByHandHint => 'Accendi e spegni qui sotto';
+
+  @override
+  String get keywordFilterOn => 'Filtro con parole chiave attivo (Avanzate)';
+
+  @override
+  String tallyTv(int groups, int items) {
+    return '$groups gruppi · $items canali';
+  }
+
+  @override
+  String tallyMovies(int groups, int items) {
+    return '$groups categorie · $items film';
+  }
+
+  @override
+  String tallyShows(int groups, int items) {
+    return '$groups categorie · $items serie';
+  }
+
+  @override
+  String youWillSeeTv(int groups, int items) {
+    return 'Vedrai $items canali in $groups gruppi';
+  }
+
+  @override
+  String youWillSeeMovies(int groups, int items) {
+    return 'Vedrai $items film in $groups categorie';
+  }
+
+  @override
+  String youWillSeeShows(int groups, int items) {
+    return 'Vedrai $items serie in $groups categorie';
+  }
+
+  @override
+  String get hideAdult => 'Nascondi contenuti per adulti';
+
+  @override
+  String hiddenNumber(int count) {
+    return '$count nascosti';
+  }
+
+  @override
+  String get byCountry => 'Per paese';
+
+  @override
+  String get otherGroups => 'Altri gruppi';
+
+  @override
+  String allHidden(int total) {
+    return 'Nascosti · $total';
+  }
+
+  @override
+  String shownOf(int shown, int total) {
+    return '$shown di $total visibili';
+  }
+
+  @override
+  String get advancedKeywords => 'Avanzate: filtro con parole chiave';
+
+  @override
+  String allGroupsOf(String name) {
+    return 'Tutto $name';
+  }
+
+  @override
+  String get allShown => 'Tutti visibili';
+
+  @override
+  String get allHiddenDone => 'Tutti nascosti';
+
+  @override
+  String get groupSwitchHint =>
+      'L\'interruttore mostra o nasconde un gruppo. Il lucchetto chiede il PIN per aprirlo.';
+
+  @override
+  String get categorySwitchHint =>
+      'L\'interruttore mostra o nasconde una categoria.';
+
+  @override
+  String get asksForPin => 'chiede il PIN';
+
+  @override
+  String groupShownMsg(String name) {
+    return '$name visibile';
+  }
+
+  @override
+  String groupHiddenMsg(String name) {
+    return '$name nascosto';
+  }
 }

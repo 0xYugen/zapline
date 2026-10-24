@@ -449,6 +449,145 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ------------------------------------- categories of channels, films, series
+
+  SourceRecord _record(String sourceId) =>
+      sources.firstWhere((s) => s.id == sourceId);
+
+  /// [sourceId]'s channel groups, or film or series categories, with
+  /// whether each shows and why.
+  List<CategoryInfo> categoriesOf(String sourceId, ContentKind kind) {
+    if (kind == ContentKind.tv) {
+      return [
+        for (final g in db.groupInfo(sourceId))
+          CategoryInfo(
+            title: g.title,
+            count: g.channels,
+            hidden: g.hidden,
+            explicit: g.explicit,
+            locked: g.locked,
+          ),
+      ];
+    }
+    final s = _record(sourceId);
+    final filter = filterOf(s, kind);
+    final choices = kind == ContentKind.movies ? s.movieChoices : s.showChoices;
+    final all = kind == ContentKind.movies
+        ? db.movieCategories(sourceId: sourceId)
+        : db.showCategories(sourceId: sourceId);
+    return [
+      for (final c in all)
+        CategoryInfo(
+          title: c.title,
+          count: c.count,
+          hidden:
+              choices[c.title] ??
+              filter.hides(c.title.isEmpty ? null : c.title),
+          explicit: choices[c.title],
+          locked: false,
+        ),
+    ];
+  }
+
+  GroupFilter filterOf(SourceRecord s, ContentKind kind) => switch (kind) {
+    ContentKind.tv => s.groupFilter,
+    ContentKind.movies => s.movieFilter,
+    ContentKind.shows => s.showFilter,
+  };
+
+  /// Sets [kind]'s filter of [s]; with [resetChoices] hand-made choices go
+  /// so the filter decides everything.
+  void setFilter(
+    SourceRecord s,
+    ContentKind kind,
+    GroupFilter filter, {
+    bool resetChoices = false,
+  }) {
+    var record = switch (kind) {
+      ContentKind.tv => s.copyWith(groupFilter: filter),
+      ContentKind.movies => s.copyWith(movieFilter: filter),
+      ContentKind.shows => s.copyWith(showFilter: filter),
+    };
+    if (resetChoices) {
+      switch (kind) {
+        case ContentKind.tv:
+          for (final g in db.groupInfo(s.id)) {
+            if (g.explicit != null) db.setGroupHidden(s.id, g.title, null);
+          }
+        case ContentKind.movies:
+          record = record.copyWith(movieChoices: const {});
+        case ContentKind.shows:
+          record = record.copyWith(showChoices: const {});
+      }
+    }
+    updateSource(record);
+  }
+
+  /// Shows (`false`) or hides (`true`) [titles] by hand; `null` lets the
+  /// filter decide again.
+  void setCategoriesHidden(
+    String sourceId,
+    ContentKind kind,
+    Iterable<String> titles,
+    bool? hidden,
+  ) {
+    final s = _record(sourceId);
+    if (kind == ContentKind.tv) {
+      for (final t in titles) {
+        db.setGroupHidden(s.id, t, hidden);
+      }
+      db.applyGroupVisibility(s.id, s.groupFilter);
+      _reload();
+      notifyListeners();
+      return;
+    }
+    final choices = {
+      ...(kind == ContentKind.movies ? s.movieChoices : s.showChoices),
+    };
+    for (final t in titles) {
+      if (hidden == null) {
+        choices.remove(t);
+      } else {
+        choices[t] = hidden;
+      }
+    }
+    updateSource(
+      kind == ContentKind.movies
+          ? s.copyWith(movieChoices: choices)
+          : s.copyWith(showChoices: choices),
+    );
+  }
+
+  /// [kind]'s filter and choices of [sourceId], to put back with [restore].
+  CategorySnapshot snapshot(String sourceId, ContentKind kind) =>
+      CategorySnapshot(
+        sourceId: sourceId,
+        kind: kind,
+        filter: filterOf(_record(sourceId), kind),
+        choices: {
+          for (final c in categoriesOf(sourceId, kind)) c.title: c.explicit,
+        },
+      );
+
+  void restore(CategorySnapshot snap) {
+    final s = _record(snap.sourceId);
+    if (snap.kind == ContentKind.tv) {
+      for (final MapEntry(:key, :value) in snap.choices.entries) {
+        db.setGroupHidden(s.id, key, value);
+      }
+      updateSource(s.copyWith(groupFilter: snap.filter));
+      return;
+    }
+    final choices = {
+      for (final MapEntry(:key, :value) in snap.choices.entries) key: ?value,
+    };
+    updateSource(
+      snap.kind == ContentKind.movies
+          ? s.copyWith(movieFilter: snap.filter, movieChoices: choices)
+          : s.copyWith(showFilter: snap.filter, showChoices: choices),
+    );
+  }
+
   void setGroupLocked(SourceRecord s, String group, bool locked) {
     db.setGroupLocked(s.id, group, locked);
     _reload();
@@ -775,13 +914,15 @@ class AppState extends ChangeNotifier {
     _VodVisibility work(
       List<VodCategory> Function(String sourceId) categoriesOf,
       GroupFilter Function(SourceRecord) filterOf,
+      Map<String, bool> Function(SourceRecord) choicesOf,
     ) {
       final hidden = <(String, String)>{};
       final shown = <String, int>{};
       for (final s in sources) {
         final filter = filterOf(s);
+        final choices = choicesOf(s);
         for (final c in categoriesOf(s.id)) {
-          if (!filter.isEmpty &&
+          if (choices[c.title] ??
               filter.hides(c.title.isEmpty ? null : c.title)) {
             hidden.add((s.id, c.title));
           } else {
@@ -800,10 +941,12 @@ class AppState extends ChangeNotifier {
     final movies = work(
       (id) => db.movieCategories(sourceId: id),
       (s) => s.movieFilter,
+      (s) => s.movieChoices,
     );
     final shows = work(
       (id) => db.showCategories(sourceId: id),
       (s) => s.showFilter,
+      (s) => s.showChoices,
     );
     _vodCache = (version, movies, shows);
     return (movies, shows);
@@ -1222,3 +1365,44 @@ typedef _VodVisibility = ({
   Set<(String, String)> hidden,
   List<VodCategory> categories,
 });
+
+/// Channels, films or series: what a filter or category applies to.
+enum ContentKind { tv, movies, shows }
+
+/// A channel group or a film or series category, as the filters see it.
+class CategoryInfo {
+  const CategoryInfo({
+    required this.title,
+    required this.count,
+    required this.hidden,
+    required this.explicit,
+    required this.locked,
+  });
+
+  final String title;
+
+  /// Channels or titles in it.
+  final int count;
+  final bool hidden;
+
+  /// Shown or hidden by hand; `null` when the filter decides.
+  final bool? explicit;
+
+  /// Asks for the PIN (channel groups only).
+  final bool locked;
+}
+
+/// Filters and choices as they were, for "Undo".
+class CategorySnapshot {
+  const CategorySnapshot({
+    required this.sourceId,
+    required this.kind,
+    required this.filter,
+    required this.choices,
+  });
+
+  final String sourceId;
+  final ContentKind kind;
+  final GroupFilter filter;
+  final Map<String, bool?> choices;
+}

@@ -15,6 +15,7 @@ AppState fakeState({
   ChannelGuideFetcher? guideFetcher,
   bool vod = false,
   List<String>? names,
+  List<String>? groups,
 }) {
   final db = database ?? ZaplineDatabase.inMemory();
   return AppState(
@@ -33,7 +34,11 @@ AppState fakeState({
                 ? 'Channel $i Extra'
                 : 'Channel $i',
             number: i,
-            groupTitle: i.isEven ? 'Even' : 'Odd',
+            groupTitle: groups != null
+                ? groups[(i - 1) % groups.length]
+                : i.isEven
+                ? 'Even'
+                : 'Odd',
             epgChannelId: unmatched.contains(i) ? null : 'g$i',
             streamUrl: Uri.parse('http://x.example/live/u/p/$i.ts'),
             catchup: const CatchupInfo(mode: CatchupMode.xtream, days: 2),

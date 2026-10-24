@@ -23,6 +23,8 @@ class SourceRecord {
     this.groupFilter = GroupFilter.none,
     this.movieFilter = GroupFilter.none,
     this.showFilter = GroupFilter.none,
+    this.movieChoices = const {},
+    this.showChoices = const {},
   });
 
   final String id;
@@ -52,6 +54,11 @@ class SourceRecord {
   final GroupFilter movieFilter;
   final GroupFilter showFilter;
 
+  /// Categories the user showed (`false`) or hid (`true`) by hand; they
+  /// win over the filters.
+  final Map<String, bool> movieChoices;
+  final Map<String, bool> showChoices;
+
   SourceRecord copyWith({
     String? name,
     String? password,
@@ -62,6 +69,8 @@ class SourceRecord {
     GroupFilter? groupFilter,
     GroupFilter? movieFilter,
     GroupFilter? showFilter,
+    Map<String, bool>? movieChoices,
+    Map<String, bool>? showChoices,
   }) => SourceRecord(
     id: id,
     kind: kind,
@@ -76,6 +85,8 @@ class SourceRecord {
     groupFilter: groupFilter ?? this.groupFilter,
     movieFilter: movieFilter ?? this.movieFilter,
     showFilter: showFilter ?? this.showFilter,
+    movieChoices: movieChoices ?? this.movieChoices,
+    showChoices: showChoices ?? this.showChoices,
   );
 
   Map<String, Object?> toConfigJson() => {
@@ -88,6 +99,8 @@ class SourceRecord {
     'groupFilter': groupFilter.toJson(),
     'movieFilter': movieFilter.toJson(),
     'showFilter': showFilter.toJson(),
+    if (movieChoices.isNotEmpty) 'movieChoices': movieChoices,
+    if (showChoices.isNotEmpty) 'showChoices': showChoices,
   };
 
   static SourceRecord fromRow({
@@ -114,6 +127,16 @@ class SourceRecord {
       groupFilter: GroupFilter.fromJson(c['groupFilter']),
       movieFilter: GroupFilter.fromJson(c['movieFilter']),
       showFilter: GroupFilter.fromJson(c['showFilter']),
+      movieChoices: readChoices(c['movieChoices']),
+      showChoices: readChoices(c['showChoices']),
     );
   }
 }
+
+/// Category choices as stored: title → hidden.
+Map<String, bool> readChoices(Object? json) => json is Map
+    ? {
+        for (final e in json.entries)
+          if (e.value is bool) '${e.key}': e.value as bool,
+      }
+    : const {};

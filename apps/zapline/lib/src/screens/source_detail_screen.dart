@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/free_epg_picker.dart';
 import '../widgets/settings_widgets.dart';
+import 'filters_screen.dart';
 import 'guide_mapping_screen.dart';
 import 'manage_source_screen.dart';
 
@@ -174,29 +175,15 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                 iconColor: ZaplineColors.focus,
                 title: l.sectionGroups,
                 subtitle: [
-                  if (!s.groupFilter.isEmpty) l.filterOn,
+                  if (_same(s.groupFilter.include, italianTerms))
+                    l.italianOnlyTv
+                  else if (!s.groupFilter.isEmpty)
+                    l.filterOn,
                   l.groupsShown(shown, groups.length),
+                  if (hidden > 0) l.hiddenCount(hidden),
                 ].join(' · '),
-                onTap: () => _open(
-                  ManageSourceScreen(
-                    state: _state,
-                    sourceId: s.id,
-                    section: SourceSection.groups,
-                  ),
-                ),
-              ),
-              SettingsTile(
-                icon: Icons.visibility_off_outlined,
-                iconColor: ZaplineColors.focus,
-                title: l.sectionHidden,
-                subtitle: l.hiddenCount(hidden),
-                onTap: () => _open(
-                  ManageSourceScreen(
-                    state: _state,
-                    sourceId: s.id,
-                    section: SourceSection.hidden,
-                  ),
-                ),
+                onTap: () =>
+                    _open(FiltersScreen(state: _state, sourceId: s.id)),
               ),
               if (missing > 0)
                 SettingsTile(
@@ -445,3 +432,7 @@ class _Suggestion extends StatelessWidget {
     ),
   );
 }
+
+bool _same(List<String> a, List<String> b) =>
+    a.length == b.length &&
+    a.map((e) => e.toLowerCase()).toSet().containsAll(b);

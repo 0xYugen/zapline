@@ -2107,6 +2107,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save data (HD)'**
   String get qualitySaver;
+
+  /// No description provided for @filterSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get filterSaved;
+
+  /// No description provided for @undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// No description provided for @whatToSee.
+  ///
+  /// In en, this message translates to:
+  /// **'What do you want to see?'**
+  String get whatToSee;
+
+  /// No description provided for @italianOnlyTv.
+  ///
+  /// In en, this message translates to:
+  /// **'Italian channels only'**
+  String get italianOnlyTv;
+
+  /// No description provided for @italianOnlyMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Italian movies only'**
+  String get italianOnlyMovies;
+
+  /// No description provided for @italianOnlyShows.
+  ///
+  /// In en, this message translates to:
+  /// **'Italian series only'**
+  String get italianOnlyShows;
+
+  /// No description provided for @everything.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything'**
+  String get everything;
+
+  /// No description provided for @pickByHand.
+  ///
+  /// In en, this message translates to:
+  /// **'I pick countries and groups'**
+  String get pickByHand;
+
+  /// No description provided for @pickByHandHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch them on and off below'**
+  String get pickByHandHint;
+
+  /// No description provided for @keywordFilterOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyword filter on (Advanced)'**
+  String get keywordFilterOn;
+
+  /// No description provided for @tallyTv.
+  ///
+  /// In en, this message translates to:
+  /// **'{groups} groups · {items} channels'**
+  String tallyTv(int groups, int items);
+
+  /// No description provided for @tallyMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'{groups} categories · {items} movies'**
+  String tallyMovies(int groups, int items);
+
+  /// No description provided for @tallyShows.
+  ///
+  /// In en, this message translates to:
+  /// **'{groups} categories · {items} series'**
+  String tallyShows(int groups, int items);
+
+  /// No description provided for @youWillSeeTv.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll see {items} channels in {groups} groups'**
+  String youWillSeeTv(int groups, int items);
+
+  /// No description provided for @youWillSeeMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll see {items} movies in {groups} categories'**
+  String youWillSeeMovies(int groups, int items);
+
+  /// No description provided for @youWillSeeShows.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll see {items} series in {groups} categories'**
+  String youWillSeeShows(int groups, int items);
+
+  /// No description provided for @hideAdult.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide adult content'**
+  String get hideAdult;
+
+  /// No description provided for @hiddenNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} hidden'**
+  String hiddenNumber(int count);
+
+  /// No description provided for @byCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'By country'**
+  String get byCountry;
+
+  /// No description provided for @otherGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Other groups'**
+  String get otherGroups;
+
+  /// No description provided for @allHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden · {total}'**
+  String allHidden(int total);
+
+  /// No description provided for @shownOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{shown} of {total} shown'**
+  String shownOf(int shown, int total);
+
+  /// No description provided for @advancedKeywords.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced: keyword filter'**
+  String get advancedKeywords;
+
+  /// No description provided for @allGroupsOf.
+  ///
+  /// In en, this message translates to:
+  /// **'All of {name}'**
+  String allGroupsOf(String name);
+
+  /// No description provided for @allShown.
+  ///
+  /// In en, this message translates to:
+  /// **'All shown'**
+  String get allShown;
+
+  /// No description provided for @allHiddenDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All hidden'**
+  String get allHiddenDone;
+
+  /// No description provided for @groupSwitchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The switch shows or hides a group. The lock asks for the PIN to open it.'**
+  String get groupSwitchHint;
+
+  /// No description provided for @categorySwitchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The switch shows or hides a category.'**
+  String get categorySwitchHint;
+
+  /// No description provided for @asksForPin.
+  ///
+  /// In en, this message translates to:
+  /// **'asks for the PIN'**
+  String get asksForPin;
+
+  /// No description provided for @groupShownMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} shown'**
+  String groupShownMsg(String name);
+
+  /// No description provided for @groupHiddenMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} hidden'**
+  String groupHiddenMsg(String name);
 }
 
 class _AppLocalizationsDelegate

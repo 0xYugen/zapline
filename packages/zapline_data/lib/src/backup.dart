@@ -81,6 +81,8 @@ abstract final class Backup {
             'groupFilter': s.groupFilter.toJson(),
             'movieFilter': s.movieFilter.toJson(),
             'showFilter': s.showFilter.toJson(),
+            'movieChoices': s.movieChoices,
+            'showChoices': s.showChoices,
           },
       ],
       'groupPrefs': [
@@ -155,6 +157,8 @@ abstract final class Backup {
           groupFilter: GroupFilter.fromJson(s['groupFilter']),
           movieFilter: GroupFilter.fromJson(s['movieFilter']),
           showFilter: GroupFilter.fromJson(s['showFilter']),
+          movieChoices: readChoices(s['movieChoices']),
+          showChoices: readChoices(s['showChoices']),
         ),
       );
     }

@@ -1230,4 +1230,122 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qualitySaver => 'Save data (HD)';
+
+  @override
+  String get filterSaved => 'Saved';
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String get whatToSee => 'What do you want to see?';
+
+  @override
+  String get italianOnlyTv => 'Italian channels only';
+
+  @override
+  String get italianOnlyMovies => 'Italian movies only';
+
+  @override
+  String get italianOnlyShows => 'Italian series only';
+
+  @override
+  String get everything => 'Everything';
+
+  @override
+  String get pickByHand => 'I pick countries and groups';
+
+  @override
+  String get pickByHandHint => 'Switch them on and off below';
+
+  @override
+  String get keywordFilterOn => 'Keyword filter on (Advanced)';
+
+  @override
+  String tallyTv(int groups, int items) {
+    return '$groups groups · $items channels';
+  }
+
+  @override
+  String tallyMovies(int groups, int items) {
+    return '$groups categories · $items movies';
+  }
+
+  @override
+  String tallyShows(int groups, int items) {
+    return '$groups categories · $items series';
+  }
+
+  @override
+  String youWillSeeTv(int groups, int items) {
+    return 'You\'ll see $items channels in $groups groups';
+  }
+
+  @override
+  String youWillSeeMovies(int groups, int items) {
+    return 'You\'ll see $items movies in $groups categories';
+  }
+
+  @override
+  String youWillSeeShows(int groups, int items) {
+    return 'You\'ll see $items series in $groups categories';
+  }
+
+  @override
+  String get hideAdult => 'Hide adult content';
+
+  @override
+  String hiddenNumber(int count) {
+    return '$count hidden';
+  }
+
+  @override
+  String get byCountry => 'By country';
+
+  @override
+  String get otherGroups => 'Other groups';
+
+  @override
+  String allHidden(int total) {
+    return 'Hidden · $total';
+  }
+
+  @override
+  String shownOf(int shown, int total) {
+    return '$shown of $total shown';
+  }
+
+  @override
+  String get advancedKeywords => 'Advanced: keyword filter';
+
+  @override
+  String allGroupsOf(String name) {
+    return 'All of $name';
+  }
+
+  @override
+  String get allShown => 'All shown';
+
+  @override
+  String get allHiddenDone => 'All hidden';
+
+  @override
+  String get groupSwitchHint =>
+      'The switch shows or hides a group. The lock asks for the PIN to open it.';
+
+  @override
+  String get categorySwitchHint => 'The switch shows or hides a category.';
+
+  @override
+  String get asksForPin => 'asks for the PIN';
+
+  @override
+  String groupShownMsg(String name) {
+    return '$name shown';
+  }
+
+  @override
+  String groupHiddenMsg(String name) {
+    return '$name hidden';
+  }
 }
