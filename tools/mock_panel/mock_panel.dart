@@ -117,7 +117,7 @@ Object? _api(String? action, Map<String, String> q, HttpRequest req) {
           'is_trial': '0',
           'active_cons': '0',
           'max_connections': '2',
-          'allowed_output_formats': ['m3u8', 'ts'],
+          'allowed_output_formats': ['m3u8'], // HLS-only panel
         },
         'server_info': {
           'url': req.requestedUri.host,

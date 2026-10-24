@@ -13,14 +13,19 @@ bugs. Part-time (20 h/week) roughly doubles them.
       Xtream link detection, channel list, player with zapping and zap-time
       readout; Android TV/Fire TV manifest (leanback, banner placeholder)
 - [x] Windows release build verified
-- [ ] Player abstraction; Media3 on Android (the prototype currently uses
-      media_kit/libmpv on every platform)
-- [ ] Verify whether media_kit's prebuilt libmpv/FFmpeg binaries are LGPL;
-      otherwise build our own
+- [x] Player abstraction (`PlaybackEngine`): Media3/ExoPlayer on Android and
+      web via the official `video_player` plugin, libmpv on desktop and iOS.
+      Verified on the Android TV emulator: playback, zapping (1.5–2.6 s to
+      remote test CDNs), error screen, ~107 MB PSS while playing HD.
+      Android APK no longer ships libmpv (17 MB instead of 29 MB)
+- [ ] AC-3/E-AC-3/MP2 on Android: Media3 relies on the device's decoders;
+      `video_player` cannot load the Media3 FFmpeg extension. If real devices
+      lack them, write our own thin Media3 plugin
+- [ ] Verify whether media_kit's prebuilt libmpv/FFmpeg binaries (desktop,
+      iOS) are LGPL; otherwise build our own
 - [x] Android release APKs (arm64, armv7, x86_64) built; tested on an
       Android TV emulator (API 36): onboarding, D-pad focus, channel list,
-      zapping. Video shows black there because media_kit forces software
-      rendering on emulators: verify on real hardware
+      zapping, playback
 - [x] Playback verified on Windows against the mock panel (HLS)
 - [x] Dev flags: `LINEUP_DEV_SOURCE`, `LINEUP_DEV_AUTOPLAY` (`--dart-define`)
 - [ ] LGPL builds of libmpv/FFmpeg, licences of all binaries documented

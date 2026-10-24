@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
@@ -16,7 +17,10 @@ const _devAutoplay = bool.fromEnvironment('LINEUP_DEV_AUTOPLAY');
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
+  // libmpv is bundled only where MpvEngine is the default (desktop, iOS).
+  if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+    MediaKit.ensureInitialized();
+  }
   final library = Library();
   if (_devSource.isNotEmpty) {
     library

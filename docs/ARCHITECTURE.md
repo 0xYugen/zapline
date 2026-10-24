@@ -15,7 +15,7 @@
 ┌───────────────────────────────────────────────────────────┐
 │ apps/lineup (Flutter)                                     │
 │  UI: TV (D-pad focus) · mobile · desktop                  │
-│  Player abstraction ──► Media3 (Android) | libmpv (desktop/iOS) │
+│  PlaybackEngine ──► Media3 (Android, web) | libmpv (desktop/iOS) │
 │  Pairing server (QR onboarding over the LAN)              │
 ├───────────────────────────────────────────────────────────┤
 │ Data layer: SQLite (FTS5 search) + background sync jobs   │
@@ -31,7 +31,7 @@
 | Topic | Decision | Why |
 |---|---|---|
 | UI framework | Flutter | Covers 7 targets from one codebase; official Tizen/webOS ports exist for later |
-| Video, Android family | Media3/ExoPlayer (Apache-2.0) + FFmpeg audio extension (LGPL build) | Best hardware decoding on cheap TV boxes; plays MPEG-TS and HLS; AC-3/E-AC-3/MP2 via extension |
+| Video, Android family | Media3/ExoPlayer (Apache-2.0) through the official `video_player` plugin (BSD), platform-view surface | Best hardware decoding on cheap TV boxes; plays MPEG-TS and HLS; small APK. AC-3/E-AC-3/MP2 depend on device decoders until we ship the FFmpeg extension in an own plugin |
 | Video, desktop and iOS | libmpv, LGPL build only | Plays raw MPEG-TS and every codec; GPL builds are banned (App Store, MIT) |
 | Video, web | hls.js + mpegts.js (Apache-2.0) | Browsers cannot play raw TS; AC-3 is still unreliable in Chrome |
 | Storage | SQLite everywhere (FTS5 for search) | Handles 100k+ rows; same schema on all platforms |

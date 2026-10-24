@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lineup_core/lineup_core.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 
+import '../playback/playback_engine.dart';
 import '../theme.dart';
 
 /// Full-screen live player with channel zapping.
@@ -28,14 +27,7 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
-  late final Player _player = Player(
-    configuration: const PlayerConfiguration(
-      // Live IPTV: start fast, keep the demuxer cache modest on low-RAM
-      // devices.
-      bufferSize: 16 * 1024 * 1024,
-    ),
-  );
-  late final VideoController _video = VideoController(_player);
+  final PlaybackEngine _engine = createDefaultEngine();
   late int _index = widget.initialIndex;
 
   final _zapWatch = Stopwatch();
@@ -54,7 +46,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ..add(
         // Zap ends when playback position first advances on the new stream.
         // (Resolution events are not enough: two channels often share it.)
-        _player.stream.position.listen((p) {
+        _engine.position.listen((p) {
           if (p > Duration.zero && _zapWatch.isRunning) {
             _zapWatch.stop();
             setState(() => _lastZap = _zapWatch.elapsed);
@@ -62,7 +54,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }),
       )
       ..add(
-        _player.stream.error.listen((e) {
+        _engine.errors.listen((e) {
           if (mounted) setState(() => _error = e);
         }),
       );
@@ -75,7 +67,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (final s in _subs) {
       s.cancel();
     }
-    _player.dispose();
+    _engine.dispose();
     super.dispose();
   }
 
@@ -88,13 +80,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // Stop first so a late position event from the old channel cannot end
     // the measurement early.
     _zapWatch.stop();
-    await _player.stop();
+    await _engine.stop();
     _zapWatch
       ..reset()
       ..start();
-    await _player.open(
-      Media(_channel.streamUrl.toString(), httpHeaders: _channel.httpHeaders),
-    );
+    await _engine.open(_channel.streamUrl, headers: _channel.httpHeaders);
   }
 
   void _zap(int delta) {
@@ -146,12 +136,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Video(controller: _video, controls: NoVideoControls),
+              _engine.buildView(),
               if (_error != null)
                 Center(
-                  child: Text(
-                    'Playback error: $_error',
-                    style: const TextStyle(color: LineupColors.live),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'This channel is not available right now',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Press Up or Down to try another channel.',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: LineupColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: LineupColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               AnimatedPositioned(
@@ -201,8 +215,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                       Text(
                         _lastZap == null
-                            ? 'Tuning…'
-                            : 'Zap ${_lastZap!.inMilliseconds} ms',
+                            ? '${_engine.name} · tuning…'
+                            : '${_engine.name} · zap '
+                                  '${_lastZap!.inMilliseconds} ms',
                         style: const TextStyle(
                           fontSize: 16,
                           color: LineupColors.textMuted,
