@@ -10,21 +10,47 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 const _user = 'demo';
 const _pass = 'demo';
 
 const _channels = [
-  (1, 'Big Buck Bunny', '1', 'bbb.test',
-      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'),
-  (2, 'Bip Bop 4:3', '1', 'bipbop.test',
-      'https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8'),
-  (3, 'Bip Bop Advanced', '1', 'bipbopadv.test',
-      'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8'),
-  (4, 'Live Test Clock', '2', 'live.test',
-      'https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8'),
-  (5, 'Tears of Steel', '2', 'tos.test',
-      'https://test-streams.mux.dev/tos_ismc/main.m3u8'),
+  (
+    1,
+    'Big Buck Bunny',
+    '1',
+    'bbb.test',
+    'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
+  ),
+  (
+    2,
+    'Bip Bop 4:3',
+    '1',
+    'bipbop.test',
+    'https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8'
+  ),
+  (
+    3,
+    'Bip Bop Advanced',
+    '1',
+    'bipbopadv.test',
+    'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8'
+  ),
+  (
+    4,
+    'Live Test Clock',
+    '2',
+    'live.test',
+    'https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8'
+  ),
+  (
+    5,
+    'Tears of Steel',
+    '2',
+    'tos.test',
+    'https://test-streams.mux.dev/tos_ismc/main.m3u8'
+  ),
   (6, 'Broken Stream', '2', 'broken.test', 'http://127.0.0.1:9/nothing.ts'),
 ];
 
@@ -33,8 +59,10 @@ const _categories = {'1': 'Test Patterns', '2': 'Demo Channels'};
 Future<void> main(List<String> args) async {
   final port = args.isEmpty ? 8099 : int.parse(args.first);
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
-  stdout.writeln('Mock panel on http://localhost:$port  (user/pass: demo/demo)');
-  stdout.writeln('M3U: http://localhost:$port/get.php?username=demo&password=demo&type=m3u_plus');
+  stdout
+      .writeln('Mock panel on http://localhost:$port  (user/pass: demo/demo)');
+  stdout.writeln(
+      'M3U: http://localhost:$port/get.php?username=demo&password=demo&type=m3u_plus');
   await for (final req in server) {
     try {
       await _handle(req);
@@ -56,7 +84,9 @@ Future<void> _handle(HttpRequest req) async {
   if (path == '/player_api.php') {
     res.headers.contentType = ContentType.json;
     if (!authed) {
-      res.write(jsonEncode({'user_info': {'auth': 0}}));
+      res.write(jsonEncode({
+        'user_info': {'auth': 0}
+      }));
       return;
     }
     res.write(jsonEncode(_api(q['action'], q, req)));
@@ -78,7 +108,8 @@ Future<void> _handle(HttpRequest req) async {
   }
 
   if (path == '/xmltv.php' && authed) {
-    res.headers.contentType = ContentType('application', 'xml', charset: 'utf-8');
+    res.headers.contentType =
+        ContentType('application', 'xml', charset: 'utf-8');
     res.write(_xmltv());
     return;
   }
@@ -99,6 +130,18 @@ Future<void> _handle(HttpRequest req) async {
       HttpHeaders.locationHeader,
       'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
     );
+    return;
+  }
+
+  final logo = RegExp(r'^/logo/(\d+)\.png$').firstMatch(path);
+  if (logo != null) {
+    final id = int.parse(logo.group(1)!);
+    if (id > _channels.length) {
+      res.statusCode = HttpStatus.notFound;
+      return;
+    }
+    res.headers.contentType = ContentType('image', 'png');
+    res.add(_png(120, 80, _logoColors[(id - 1) % _logoColors.length]));
     return;
   }
 
@@ -132,7 +175,8 @@ Object? _api(String? action, Map<String, String> q, HttpRequest req) {
           'auth': 1,
           'status': 'Active',
           // Deliberately a string, as many panels send it.
-          'exp_date': '${now.add(const Duration(days: 365)).millisecondsSinceEpoch ~/ 1000}',
+          'exp_date':
+              '${now.add(const Duration(days: 365)).millisecondsSinceEpoch ~/ 1000}',
           'is_trial': '0',
           'active_cons': '0',
           'max_connections': '2',
@@ -145,7 +189,8 @@ Object? _api(String? action, Map<String, String> q, HttpRequest req) {
           'server_protocol': 'http',
           'timezone': 'UTC',
           'timestamp_now': now.millisecondsSinceEpoch ~/ 1000,
-          'time_now': now.toIso8601String().substring(0, 19).replaceFirst('T', ' '),
+          'time_now':
+              now.toIso8601String().substring(0, 19).replaceFirst('T', ' '),
         },
       };
     case 'get_live_categories':
@@ -162,7 +207,8 @@ Object? _api(String? action, Map<String, String> q, HttpRequest req) {
               'name': c.$2,
               'stream_type': 'live',
               'stream_id': '${c.$1}', // string on purpose
-              'stream_icon': '',
+              // Channel 3 points at a missing logo to exercise fallbacks.
+              'stream_icon': '${_base(req)}/logo/${c.$1 == 3 ? 404 : c.$1}.png',
               'epg_channel_id': c.$4,
               'category_id': c.$3,
               'tv_archive': c.$1 == 4 ? 1 : 0,
@@ -179,7 +225,8 @@ Object? _api(String? action, Map<String, String> q, HttpRequest req) {
       if (ch == null) return {'epg_listings': <Object>[]};
       return {
         'epg_listings': [
-          for (final p in _programmes(ch).take(int.tryParse(q['limit'] ?? '') ?? 4))
+          for (final p
+              in _programmes(ch).take(int.tryParse(q['limit'] ?? '') ?? 4))
             {
               'title': base64.encode(utf8.encode(p.$2)),
               'description': base64.encode(utf8.encode(p.$3)),
@@ -214,12 +261,15 @@ String _xmltv() {
     return '${t.year}${two(t.month)}${two(t.day)}${two(t.hour)}${two(t.minute)}00 +0000';
   }
 
-  String esc(String s) =>
-      s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  String esc(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
 
   final b = StringBuffer('<?xml version="1.0" encoding="UTF-8"?>\n<tv>\n');
   for (final c in _channels) {
-    b.writeln('  <channel id="${c.$4}"><display-name>${esc(c.$2)}</display-name></channel>');
+    b.writeln(
+        '  <channel id="${c.$4}"><display-name>${esc(c.$2)}</display-name></channel>');
   }
   for (final c in _channels) {
     for (final p in _programmes(c)) {
@@ -234,3 +284,56 @@ String _xmltv() {
 
 String _base(HttpRequest req) =>
     'http://${req.requestedUri.host}:${req.requestedUri.port}';
+
+const _logoColors = [
+  [0x6F, 0xA8, 0xFF],
+  [0xFF, 0x8A, 0x7A],
+  [0x7F, 0xD6, 0xA4],
+  [0xF5, 0xB8, 0x41],
+  [0xC9, 0xA7, 0xFF],
+  [0xFF, 0xB3, 0xD1],
+];
+
+/// Minimal PNG encoder: a solid colour with a white band, enough to test
+/// logo loading without shipping image files.
+List<int> _png(int w, int h, List<int> rgb) {
+  final raw = BytesBuilder();
+  for (var y = 0; y < h; y++) {
+    raw.addByte(0); // filter: none
+    final band = y > h * 0.4 && y < h * 0.6;
+    for (var x = 0; x < w; x++) {
+      raw.add(band && x > w * 0.2 && x < w * 0.8 ? const [255, 255, 255] : rgb);
+    }
+  }
+  List<int> chunk(String type, List<int> data) {
+    final body = [...ascii.encode(type), ...data];
+    return [..._u32(data.length), ...body, ..._u32(_crc32(body))];
+  }
+
+  return [
+    0x89,
+    0x50,
+    0x4E,
+    0x47,
+    0x0D,
+    0x0A,
+    0x1A,
+    0x0A,
+    ...chunk('IHDR', [..._u32(w), ..._u32(h), 8, 2, 0, 0, 0]),
+    ...chunk('IDAT', zlib.encode(raw.takeBytes())),
+    ...chunk('IEND', const []),
+  ];
+}
+
+List<int> _u32(int v) => [v >> 24 & 255, v >> 16 & 255, v >> 8 & 255, v & 255];
+
+int _crc32(List<int> bytes) {
+  var c = 0xFFFFFFFF;
+  for (final b in bytes) {
+    c ^= b;
+    for (var k = 0; k < 8; k++) {
+      c = (c & 1) != 0 ? 0xEDB88320 ^ (c >> 1) : c >> 1;
+    }
+  }
+  return c ^ 0xFFFFFFFF;
+}

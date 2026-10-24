@@ -7,6 +7,7 @@ import 'package:lineup_core/lineup_core.dart';
 import '../app_state.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
+import '../widgets/channel_logo.dart';
 
 /// Full-screen player for live channels and catch-up.
 ///
@@ -303,7 +304,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
             color: LineupColors.focus,
           ),
         ),
-        const SizedBox(width: 32),
+        const SizedBox(width: 24),
+        ChannelLogo(channel: c, width: 84, height: 60),
+        const SizedBox(width: 24),
         Expanded(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

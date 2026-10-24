@@ -4,6 +4,7 @@ import 'package:lineup_core/lineup_core.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
+import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
 import 'guide_screen.dart';
 import 'player_screen.dart';
@@ -316,8 +317,10 @@ class _ChannelRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: Row(
         children: [
+          ChannelLogo(channel: c),
+          const SizedBox(width: 16),
           SizedBox(
-            width: 56,
+            width: 48,
             child: Text(
               '${c.number ?? fallbackNumber}',
               style: const TextStyle(

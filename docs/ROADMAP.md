@@ -69,7 +69,9 @@ documented.
 - [x] Duplicate sources are refused
 - [ ] JSON backup/restore
 - [ ] Store credentials in the platform keystore instead of SQLite
-- [ ] Logos (cached, decoded at display size)
+- [x] Logos: disk cache, in-flight dedup, decoded at display size, bounded
+      image memory (48 MB), initials badge as fallback; in list, guide and
+      player
 - [ ] Packaging: GitHub releases, F-Droid, Flathub, winget
 
 SQLite data layer and sync · Xtream + M3U sources · automatic Xtream guide via

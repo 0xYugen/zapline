@@ -11,6 +11,7 @@ import 'src/app_state.dart';
 import 'src/screens/add_source_screen.dart';
 import 'src/screens/channels_screen.dart';
 import 'src/theme.dart';
+import 'src/widgets/channel_logo.dart';
 
 /// Development only: add this source at startup when none exists, e.g.
 /// `--dart-define=LINEUP_DEV_SOURCE=http://localhost:8099/live/demo/demo/1.ts`
@@ -25,6 +26,11 @@ Future<void> main() async {
   if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
     MediaKit.ensureInitialized();
   }
+  // Bounded image memory: logo-heavy lists on 1-2 GB TV sticks.
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 400
+    ..maximumSizeBytes = 48 << 20;
+  await LogoCache.init(await getApplicationCacheDirectory());
   final dir = await getApplicationSupportDirectory();
   final dbPath = '${dir.path}${Platform.pathSeparator}lineup.db';
   final state = AppState(

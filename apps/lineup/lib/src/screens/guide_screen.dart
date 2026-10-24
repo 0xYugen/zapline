@@ -5,6 +5,7 @@ import 'package:lineup_data/lineup_data.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
+import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
 import 'player_screen.dart';
 
@@ -262,8 +263,10 @@ class _GuideScreenState extends State<GuideScreen> {
             width: _labelWidth,
             child: Row(
               children: [
+                ChannelLogo(channel: c, width: 44, height: 32),
+                const SizedBox(width: 10),
                 SizedBox(
-                  width: 48,
+                  width: 36,
                   child: Text(
                     '${c.number ?? i + 1}',
                     style: const TextStyle(
