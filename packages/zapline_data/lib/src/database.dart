@@ -5,7 +5,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import 'source_record.dart';
 
-const _schemaVersion = 2;
+const _schemaVersion = 3;
 
 /// Migrations from version N to N+1, applied in order.
 const _migrations = <List<String>>[
@@ -17,7 +17,69 @@ const _migrations = <List<String>>[
       added_at INTEGER NOT NULL
     ) WITHOUT ROWID''',
   ],
+  // 2 -> 3: group and channel preferences, recents, settings.
+  [
+    // hidden: NULL follows the source's filter, 0/1 is the user's choice.
+    // effective_hidden is the resolved value, kept for fast queries.
+    '''
+    CREATE TABLE group_prefs(
+      source_id TEXT NOT NULL,
+      group_title TEXT NOT NULL,
+      hidden INTEGER,
+      locked INTEGER NOT NULL DEFAULT 0,
+      effective_hidden INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY(source_id, group_title)
+    ) WITHOUT ROWID''',
+    'CREATE TABLE hidden_channels(channel_key TEXT PRIMARY KEY) WITHOUT ROWID',
+    '''
+    CREATE TABLE recents(
+      channel_key TEXT PRIMARY KEY,
+      watched_at INTEGER NOT NULL
+    ) WITHOUT ROWID''',
+    '''
+    CREATE TABLE settings(
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    ) WITHOUT ROWID''',
+  ],
 ];
+
+/// A group of one source with the user's preferences, for the manage
+/// screen.
+class GroupInfo {
+  const GroupInfo({
+    required this.title,
+    required this.channels,
+    required this.hidden,
+    required this.explicit,
+    required this.locked,
+  });
+
+  final String title;
+  final int channels;
+
+  /// Whether the group is currently hidden (by the user or the filter).
+  final bool hidden;
+
+  /// The user's own choice, `null` when the filter decides.
+  final bool? explicit;
+  final bool locked;
+}
+
+/// Which channels a query returns.
+class ChannelVisibility {
+  const ChannelVisibility({this.hidden = false, this.locked = false});
+
+  /// Include channels in hidden groups and hidden channels.
+  final bool hidden;
+
+  /// Include channels in locked groups (after the parental PIN).
+  final bool locked;
+
+  static const visible = ChannelVisibility();
+  static const unlocked = ChannelVisibility(locked: true);
+  static const all = ChannelVisibility(hidden: true, locked: true);
+}
 
 /// Version 1 schema; later versions are reached through [_migrations].
 const _schema = [
@@ -234,6 +296,10 @@ class ZaplineDatabase {
     _db.execute("DELETE FROM favourites WHERE channel_key LIKE ? || '/%'", [
       id,
     ]);
+    for (final table in ['hidden_channels', 'recents']) {
+      _db.execute("DELETE FROM $table WHERE channel_key LIKE ? || '/%'", [id]);
+    }
+    _db.execute('DELETE FROM group_prefs WHERE source_id = ?', [id]);
     _db.execute('DELETE FROM sources WHERE id = ?', [id]);
   });
 
@@ -305,46 +371,227 @@ class ZaplineDatabase {
     );
   }
 
-  /// Channels in source order, optionally filtered by group.
-  List<Channel> channels({String? sourceId, String? group}) {
-    final where = <String>[];
+  /// SQL condition keeping only channels allowed by [v]; `c` is the
+  /// channels alias.
+  static String _visibleSql(ChannelVisibility v) => [
+    if (!v.hidden) ...[
+      'NOT EXISTS (SELECT 1 FROM group_prefs g WHERE g.source_id = c.source_id '
+          "AND g.group_title = coalesce(c.group_title, '') "
+          'AND g.effective_hidden = 1)',
+      "c.source_id || '/' || c.id NOT IN (SELECT channel_key FROM hidden_channels)",
+    ],
+    if (!v.locked)
+      'NOT EXISTS (SELECT 1 FROM group_prefs g WHERE g.source_id = c.source_id '
+          "AND g.group_title = coalesce(c.group_title, '') AND g.locked = 1)",
+    '1',
+  ].join(' AND ');
+
+  static final _cols = _channelCols.split(', ').map((c) => 'c.$c').join(', ');
+
+  /// Channels in source order, optionally filtered by source and group.
+  List<Channel> channels({
+    String? sourceId,
+    String? group,
+    ChannelVisibility visibility = ChannelVisibility.visible,
+  }) {
+    final where = <String>[_visibleSql(visibility)];
     final args = <Object?>[];
     if (sourceId != null) {
-      where.add('source_id = ?');
+      where.add('c.source_id = ?');
       args.add(sourceId);
     }
     if (group != null) {
-      where.add('group_title = ?');
+      where.add('c.group_title = ?');
       args.add(group);
     }
     final sql =
-        'SELECT $_channelCols FROM channels '
-        '${where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}'} '
-        'ORDER BY (SELECT created_at FROM sources s WHERE s.id = source_id), sort';
+        'SELECT $_cols FROM channels c WHERE ${where.join(' AND ')} '
+        'ORDER BY (SELECT created_at FROM sources s WHERE s.id = c.source_id), '
+        'c.sort';
     return [for (final r in _db.select(sql, args)) _channel(r)];
   }
 
-  int channelCount({String? sourceId}) =>
+  int channelCount({
+    String? sourceId,
+    ChannelVisibility visibility = ChannelVisibility.all,
+  }) =>
       _db.select(
-            'SELECT count(*) AS n FROM channels'
-            '${sourceId == null ? '' : ' WHERE source_id = ?'}',
+            'SELECT count(*) AS n FROM channels c '
+            'WHERE ${_visibleSql(visibility)}'
+            '${sourceId == null ? '' : ' AND c.source_id = ?'}',
             [?sourceId],
           ).first['n']
           as int;
 
-  /// Distinct groups in first-seen order.
-  List<String> groups({String? sourceId}) => [
+  /// Groups in first-seen order. By default hidden groups are left out and
+  /// locked ones are listed (the app shows them with a lock).
+  List<String> groups({
+    String? sourceId,
+    ChannelVisibility visibility = ChannelVisibility.unlocked,
+  }) => [
     for (final r in _db.select(
-      'SELECT group_title FROM channels WHERE group_title IS NOT NULL'
-      '${sourceId == null ? '' : ' AND source_id = ?'} '
-      'GROUP BY group_title ORDER BY min(sort)',
+      'SELECT c.group_title FROM channels c WHERE c.group_title IS NOT NULL '
+      'AND ${_visibleSql(visibility)}'
+      '${sourceId == null ? '' : ' AND c.source_id = ?'} '
+      'GROUP BY c.group_title ORDER BY min(c.sort)',
       [?sourceId],
     ))
       r['group_title'] as String,
   ];
 
+  /// Every group of [sourceId] with counts and preferences.
+  List<GroupInfo> groupInfo(String sourceId) => [
+    for (final r in _db.select(
+      "SELECT coalesce(c.group_title, '') AS t, count(*) AS n, "
+      'g.hidden AS h, coalesce(g.locked, 0) AS l, '
+      'coalesce(g.effective_hidden, 0) AS e '
+      'FROM channels c LEFT JOIN group_prefs g ON g.source_id = c.source_id '
+      "AND g.group_title = coalesce(c.group_title, '') "
+      'WHERE c.source_id = ? GROUP BY t ORDER BY min(c.sort)',
+      [sourceId],
+    ))
+      GroupInfo(
+        title: r['t'] as String,
+        channels: r['n'] as int,
+        hidden: (r['e'] as int) == 1,
+        explicit: switch (r['h'] as int?) {
+          null => null,
+          final h => h == 1,
+        },
+        locked: (r['l'] as int) == 1,
+      ),
+  ];
+
+  /// Recomputes which groups of [sourceId] are hidden: the user's explicit
+  /// choice when there is one, otherwise [filter]. Call after a sync (new
+  /// groups) and whenever the filter changes.
+  void applyGroupVisibility(String sourceId, GroupFilter filter) {
+    _transaction(() {
+      final titles = [
+        for (final r in _db.select(
+          "SELECT DISTINCT coalesce(group_title, '') AS t FROM channels "
+          'WHERE source_id = ?',
+          [sourceId],
+        ))
+          r['t'] as String,
+      ];
+      final upsert = _db.prepare(
+        'INSERT INTO group_prefs(source_id, group_title, effective_hidden) '
+        'VALUES (?, ?, ?) ON CONFLICT(source_id, group_title) DO UPDATE SET '
+        'effective_hidden = coalesce(group_prefs.hidden, '
+        'excluded.effective_hidden)',
+      );
+      try {
+        for (final t in titles) {
+          final hide = filter.hides(t.isEmpty ? null : t);
+          upsert.execute([sourceId, t, hide ? 1 : 0]);
+        }
+      } finally {
+        upsert.close();
+      }
+    });
+  }
+
+  /// The user's choice for one group: `true` hide, `false` show, `null`
+  /// follow the filter. Call [applyGroupVisibility] afterwards.
+  void setGroupHidden(String sourceId, String group, bool? hidden) =>
+      _db.execute(
+        'INSERT INTO group_prefs(source_id, group_title, hidden) '
+        'VALUES (?, ?, ?) ON CONFLICT(source_id, group_title) '
+        'DO UPDATE SET hidden = excluded.hidden',
+        [sourceId, group, hidden == null ? null : (hidden ? 1 : 0)],
+      );
+
+  void setGroupLocked(String sourceId, String group, bool locked) =>
+      _db.execute(
+        'INSERT INTO group_prefs(source_id, group_title, locked) '
+        'VALUES (?, ?, ?) ON CONFLICT(source_id, group_title) '
+        'DO UPDATE SET locked = excluded.locked',
+        [sourceId, group, locked ? 1 : 0],
+      );
+
+  /// Locked group titles across sources.
+  Set<String> lockedGroups() => {
+    for (final r in _db.select(
+      'SELECT DISTINCT group_title FROM group_prefs WHERE locked = 1',
+    ))
+      r['group_title'] as String,
+  };
+
+  // ------------------------------------------------------- hidden channels
+
+  /// Hides a channel by key, e.g. while restoring a backup.
+  void hideChannelKey(String channelKey) => _db.execute(
+    'INSERT OR IGNORE INTO hidden_channels VALUES (?)',
+    [channelKey],
+  );
+
+  void setChannelHidden(Channel c, bool hidden) => hidden
+      ? _db.execute('INSERT OR IGNORE INTO hidden_channels VALUES (?)', [
+          channelKey(c),
+        ])
+      : _db.execute('DELETE FROM hidden_channels WHERE channel_key = ?', [
+          channelKey(c),
+        ]);
+
+  List<Channel> hiddenChannels({String? sourceId}) => [
+    for (final r in _db.select(
+      'SELECT $_cols FROM hidden_channels h JOIN channels c '
+      "ON h.channel_key = c.source_id || '/' || c.id"
+      '${sourceId == null ? '' : ' WHERE c.source_id = ?'} ORDER BY c.sort',
+      [?sourceId],
+    ))
+      _channel(r),
+  ];
+
+  // ---------------------------------------------------------------- recents
+
+  void markWatched(Channel c, {DateTime? at}) {
+    _db.execute('INSERT OR REPLACE INTO recents VALUES (?, ?)', [
+      channelKey(c),
+      (at ?? DateTime.now()).microsecondsSinceEpoch,
+    ]);
+    // Keep the list short.
+    _db.execute(
+      'DELETE FROM recents WHERE channel_key NOT IN '
+      '(SELECT channel_key FROM recents ORDER BY watched_at DESC LIMIT 50)',
+    );
+  }
+
+  /// Most recently watched first.
+  List<Channel> recents({
+    int limit = 30,
+    ChannelVisibility visibility = ChannelVisibility.visible,
+  }) => [
+    for (final r in _db.select(
+      'SELECT $_cols FROM recents r JOIN channels c '
+      "ON r.channel_key = c.source_id || '/' || c.id "
+      'WHERE ${_visibleSql(visibility)} ORDER BY r.watched_at DESC LIMIT ?',
+      [limit],
+    ))
+      _channel(r),
+  ];
+
+  // --------------------------------------------------------------- settings
+
+  String? setting(String key) {
+    final r = _db.select('SELECT value FROM settings WHERE key = ?', [key]);
+    return r.isEmpty ? null : r.first['value'] as String;
+  }
+
+  void setSetting(String key, String? value) => value == null
+      ? _db.execute('DELETE FROM settings WHERE key = ?', [key])
+      : _db.execute('INSERT OR REPLACE INTO settings VALUES (?, ?)', [
+          key,
+          value,
+        ]);
+
   /// Prefix search on channel names, accent-insensitive.
-  List<Channel> search(String query, {int limit = 50}) {
+  List<Channel> search(
+    String query, {
+    int limit = 50,
+    ChannelVisibility visibility = ChannelVisibility.visible,
+  }) {
     final terms = query
         .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty)
@@ -355,7 +602,8 @@ class ZaplineDatabase {
       for (final r in _db.select(
         'SELECT ${_channelCols.split(', ').map((c) => 'c.$c').join(', ')} '
         'FROM channels_fts f JOIN channels c ON c.rowid = f.rowid '
-        'WHERE channels_fts MATCH ? ORDER BY rank LIMIT ?',
+        'WHERE channels_fts MATCH ? AND ${_visibleSql(visibility)} '
+        'ORDER BY rank LIMIT ?',
         [terms, limit],
       ))
         _channel(r),
@@ -366,11 +614,15 @@ class ZaplineDatabase {
 
   /// Favourite channels in the order they were added. Favourites survive a
   /// re-sync as long as the source keeps the same channel ids.
-  List<Channel> favourites() => [
+  /// Favourites stay visible even in hidden groups (the user chose them),
+  /// but respect parental locks.
+  List<Channel> favourites({
+    ChannelVisibility visibility = const ChannelVisibility(hidden: true),
+  }) => [
     for (final r in _db.select(
-      'SELECT ${_channelCols.split(', ').map((c) => 'c.$c').join(', ')} '
-      'FROM favourites f JOIN channels c '
-      "ON f.channel_key = c.source_id || '/' || c.id ORDER BY f.added_at",
+      'SELECT $_cols FROM favourites f JOIN channels c '
+      "ON f.channel_key = c.source_id || '/' || c.id "
+      'WHERE ${_visibleSql(visibility)} ORDER BY f.added_at',
     ))
       _channel(r),
   ];
@@ -531,7 +783,7 @@ class ZaplineDatabase {
         r['channel_key'] as String: r['guide_id'] as String,
     };
     final matcher = ChannelMatcher(guideChannels(), manualOverrides: overrides);
-    final all = channels();
+    final all = channels(visibility: ChannelVisibility.all);
     var matched = 0;
     _transaction(() {
       _db.execute('DELETE FROM epg_map');

@@ -72,6 +72,21 @@ class Programme {
 
   bool isAiringAt(DateTime t) => !t.isBefore(start) && t.isBefore(stop);
 
+  /// The same programme moved by [offset], for guides published in the
+  /// wrong time zone.
+  Programme shifted(Duration offset) => offset == Duration.zero
+      ? this
+      : Programme(
+          channelId: channelId,
+          start: start.add(offset),
+          stop: stop.add(offset),
+          title: title,
+          description: description,
+          category: category,
+          episode: episode,
+          iconUrl: iconUrl,
+        );
+
   @override
   String toString() => 'Programme($channelId, $start, $title)';
 }

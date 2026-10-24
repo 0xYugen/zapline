@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:zapline_core/zapline_core.dart';
+
 import 'database.dart';
 import 'source_record.dart';
 
@@ -11,6 +13,8 @@ class BackupContents {
     required this.sources,
     required this.favourites,
     required this.guideOverrides,
+    this.groupPrefs = const [],
+    this.hiddenChannels = const [],
   });
 
   final List<SourceRecord> sources;
@@ -20,6 +24,12 @@ class BackupContents {
 
   /// (index into [sources], channel id, guide channel id).
   final List<(int, String, String)> guideOverrides;
+
+  /// (index into [sources], group title, explicit hidden or null, locked).
+  final List<(int, String, bool?, bool)> groupPrefs;
+
+  /// (index into [sources], channel id).
+  final List<(int, String)> hiddenChannels;
 }
 
 class BackupFormatException implements Exception {
@@ -67,7 +77,24 @@ abstract final class Backup {
             'username': s.username,
             'password': passwordOf?.call(s) ?? s.password,
             'guides': s.extraGuideUrls,
+            'guideOffsetMinutes': s.guideOffset.inMinutes,
+            'groupFilter': s.groupFilter.toJson(),
           },
+      ],
+      'groupPrefs': [
+        for (final (i, s) in sources.indexed)
+          for (final g in db.groupInfo(s.id))
+            if (g.explicit != null || g.locked)
+              {
+                'source': i,
+                'group': g.title,
+                'hidden': g.explicit,
+                'locked': g.locked,
+              },
+      ],
+      'hiddenChannels': [
+        for (final c in db.hiddenChannels())
+          if (index[c.sourceId] case final i?) {'source': i, 'channel': c.id},
       ],
       'favourites': [
         for (final k in db.favouriteKeysInOrder())
@@ -120,6 +147,10 @@ abstract final class Backup {
           extraGuideUrls: [
             for (final g in (s['guides'] as List?) ?? const []) '$g',
           ],
+          guideOffset: Duration(
+            minutes: (s['guideOffsetMinutes'] as int?) ?? 0,
+          ),
+          groupFilter: GroupFilter.fromJson(s['groupFilter']),
         ),
       );
     }
@@ -138,6 +169,21 @@ abstract final class Backup {
               o['channel'] is String &&
               o['guide'] is String)
             (o['source'] as int, o['channel'] as String, o['guide'] as String),
+      ],
+      groupPrefs: [
+        for (final g in (json['groupPrefs'] as List?) ?? const [])
+          if (g is Map && valid(g['source']) && g['group'] is String)
+            (
+              g['source'] as int,
+              g['group'] as String,
+              g['hidden'] as bool?,
+              g['locked'] == true,
+            ),
+      ],
+      hiddenChannels: [
+        for (final h in (json['hiddenChannels'] as List?) ?? const [])
+          if (h is Map && valid(h['source']) && h['channel'] is String)
+            (h['source'] as int, h['channel'] as String),
       ],
     );
   }

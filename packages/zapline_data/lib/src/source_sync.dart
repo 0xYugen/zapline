@@ -81,6 +81,7 @@ class SourceSync {
       ),
     };
     db.replaceChannels(source.id, channels);
+    db.applyGroupVisibility(source.id, source.groupFilter);
     onProgress?.call(SyncProgress(SyncStage.channels, count: channels.length));
 
     var guide = const GuideImportResult(channels: 0, programmes: 0);
@@ -90,7 +91,13 @@ class SourceSync {
       final urls = {...guideUrls, ...source.extraGuideUrls.map(Uri.parse)};
       for (final url in urls) {
         try {
-          final r = await _importGuide(url, now, onProgress, guide.programmes);
+          final r = await _importGuide(
+            url,
+            now,
+            onProgress,
+            guide.programmes,
+            source.guideOffset,
+          );
           guide = GuideImportResult(
             channels: guide.channels + r.channels,
             programmes: guide.programmes + r.programmes,
@@ -224,6 +231,7 @@ class SourceSync {
     DateTime now,
     void Function(SyncProgress)? onProgress,
     int offset,
+    Duration shift,
   ) async {
     onProgress?.call(
       SyncProgress(SyncStage.guide, count: offset, message: url.host),
@@ -232,15 +240,19 @@ class SourceSync {
     var count = offset;
     final items =
         XmltvParser(
-          from: now.subtract(guidePast),
-          to: now.add(guideAhead),
+          // Widen the window by the shift so no programme is lost to it.
+          from: now.subtract(guidePast).subtract(shift),
+          to: now.add(guideAhead).subtract(shift),
         ).parseBytes(_maybeGunzip(res.stream)).map((item) {
-          if (item is XmltvProgramme && ++count % 2000 == 0) {
+          if (item is! XmltvProgramme) return item;
+          if (++count % 2000 == 0) {
             onProgress?.call(
               SyncProgress(SyncStage.guide, count: count, message: url.host),
             );
           }
-          return item;
+          return shift == Duration.zero
+              ? item
+              : XmltvProgramme(item.programme.shifted(shift));
         });
     return db.importGuide(items);
   }

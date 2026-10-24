@@ -37,6 +37,15 @@ void main() {
     db.setFavourite(_ch('b', '9/x'), true);
     db.setFavourite(_ch('a', '2'), true);
     db.setGuideOverride(_ch('a', '1'), 'news.example');
+    db.setGroupHidden('a', '', true);
+    db.setGroupLocked('b', '', true);
+    db.setChannelHidden(_ch('a', '1'), true);
+    db.saveSource(
+      db.sources().first.copyWith(
+        guideOffset: const Duration(minutes: -60),
+        groupFilter: const GroupFilter(exclude: ['xxx']),
+      ),
+    );
 
     final json = Backup.export(
       db,
@@ -52,6 +61,10 @@ void main() {
     expect(c.sources[1].password, 'secret');
     expect(c.favourites, [(1, '9/x'), (0, '2')]);
     expect(c.guideOverrides, [(0, '1', 'news.example')]);
+    expect(c.sources[0].guideOffset, const Duration(minutes: -60));
+    expect(c.sources[0].groupFilter, const GroupFilter(exclude: ['xxx']));
+    expect(c.groupPrefs, [(0, '', true, false), (1, '', null, true)]);
+    expect(c.hiddenChannels, [(0, '1')]);
   });
 
   test('rejects foreign or newer files with readable messages', () {

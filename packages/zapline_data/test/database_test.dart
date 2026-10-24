@@ -172,6 +172,10 @@ void main() {
     // Roll the file back to version 1.
     final raw = sqlite3.open(path)
       ..execute('DROP TABLE favourites')
+      ..execute('DROP TABLE group_prefs')
+      ..execute('DROP TABLE hidden_channels')
+      ..execute('DROP TABLE recents')
+      ..execute('DROP TABLE settings')
       ..userVersion = 1;
     raw.close();
 

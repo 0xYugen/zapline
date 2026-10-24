@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:zapline_core/zapline_core.dart';
+
 enum SourceKind { xtream, m3u, stalker }
 
 /// A user-added source as persisted. Zapline never ships sources.
@@ -17,6 +19,8 @@ class SourceRecord {
     this.extraGuideUrls = const [],
     this.syncedAt,
     this.serverOffset = Duration.zero,
+    this.guideOffset = Duration.zero,
+    this.groupFilter = GroupFilter.none,
   });
 
   final String id;
@@ -35,11 +39,21 @@ class SourceRecord {
   /// Xtream panels read catch-up start times in their own local time.
   final Duration serverOffset;
 
+  /// Shift applied to this source's guides, for XMLTV files published in the
+  /// wrong time zone.
+  final Duration guideOffset;
+
+  /// Which groups to show; see [GroupFilter].
+  final GroupFilter groupFilter;
+
   SourceRecord copyWith({
     String? name,
     String? password,
+    List<String>? extraGuideUrls,
     DateTime? syncedAt,
     Duration? serverOffset,
+    Duration? guideOffset,
+    GroupFilter? groupFilter,
   }) => SourceRecord(
     id: id,
     kind: kind,
@@ -47,9 +61,11 @@ class SourceRecord {
     url: url,
     username: username,
     password: password ?? this.password,
-    extraGuideUrls: extraGuideUrls,
+    extraGuideUrls: extraGuideUrls ?? this.extraGuideUrls,
     syncedAt: syncedAt ?? this.syncedAt,
     serverOffset: serverOffset ?? this.serverOffset,
+    guideOffset: guideOffset ?? this.guideOffset,
+    groupFilter: groupFilter ?? this.groupFilter,
   );
 
   Map<String, Object?> toConfigJson() => {
@@ -58,6 +74,8 @@ class SourceRecord {
     'password': password,
     'guides': extraGuideUrls,
     'offsetMinutes': serverOffset.inMinutes,
+    'guideOffsetMinutes': guideOffset.inMinutes,
+    'groupFilter': groupFilter.toJson(),
   };
 
   static SourceRecord fromRow({
@@ -80,6 +98,8 @@ class SourceRecord {
           ? null
           : DateTime.fromMillisecondsSinceEpoch(syncedAt * 1000, isUtc: true),
       serverOffset: Duration(minutes: (c['offsetMinutes'] as int?) ?? 0),
+      guideOffset: Duration(minutes: (c['guideOffsetMinutes'] as int?) ?? 0),
+      groupFilter: GroupFilter.fromJson(c['groupFilter']),
     );
   }
 }
