@@ -10,11 +10,18 @@ class SourceInput {
     required this.url,
     this.username = '',
     this.password = '',
+    this.guideUrl = '',
   });
 
   final String url;
   final String username;
   final String password;
+
+  /// Optional extra XMLTV guide.
+  final String guideUrl;
+
+  List<String> get _guides =>
+      guideUrl.trim().isEmpty ? const [] : [guideUrl.trim()];
 
   /// Builds the record to persist: explicit credentials or credentials found
   /// in the URL mean Xtream, anything else is an M3U playlist.
@@ -31,6 +38,7 @@ class SourceInput {
         url: trimmed,
         username: username.trim(),
         password: password,
+        extraGuideUrls: _guides,
       );
     }
     final creds = detectXtreamCredentials(trimmed);
@@ -42,6 +50,7 @@ class SourceInput {
         url: creds.baseUrl.toString(),
         username: creds.username,
         password: creds.password,
+        extraGuideUrls: _guides,
       );
     }
     return SourceRecord(
@@ -49,6 +58,7 @@ class SourceInput {
       kind: SourceKind.m3u,
       name: Uri.tryParse(trimmed)?.host ?? trimmed,
       url: trimmed,
+      extraGuideUrls: _guides,
     );
   }
 }
@@ -167,6 +177,13 @@ class AppState extends ChangeNotifier {
     final record = input.toRecord(
       DateTime.now().microsecondsSinceEpoch.toRadixString(36),
     );
+    final duplicate = sources.any(
+      (s) =>
+          s.kind == record.kind &&
+          s.url == record.url &&
+          s.username == record.username,
+    );
+    if (duplicate) throw Exception('This source is already added');
     db.saveSource(record);
     try {
       return await _sync(record);

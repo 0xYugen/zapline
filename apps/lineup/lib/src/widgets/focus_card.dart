@@ -102,11 +102,26 @@ class _FocusCardState extends State<FocusCard> {
           setState(() => _focused = v);
           if (v) {
             widget.onFocused?.call();
-            Scrollable.ensureVisible(
-              context,
-              alignment: 0.5,
-              duration: const Duration(milliseconds: 120),
-            );
+            // Scroll just enough to show the whole card: centring it pushed
+            // the first rows half off screen, which also broke D-pad Left
+            // (no menu item at the same height to move to).
+            // On a cold start focus can arrive before the window has a size;
+            // scrolling into a zero-height viewport would shift the list.
+            final viewport = Scrollable.maybeOf(context)?.position;
+            if (viewport != null &&
+                viewport.hasViewportDimension &&
+                viewport.viewportDimension > 0) {
+              for (final policy in const [
+                ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+                ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+              ]) {
+                Scrollable.ensureVisible(
+                  context,
+                  alignmentPolicy: policy,
+                  duration: const Duration(milliseconds: 120),
+                );
+              }
+            }
           }
         },
         // In long-press mode activation happens on key release (_onKey).

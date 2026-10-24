@@ -23,10 +23,14 @@ dependencies:
   path_provider: ^2.1.6
   lineup_data:
     path: ../../packages/lineup_data
+  qr_flutter: ^4.1.0
+  crypto: ^3.0.7
+  flutter_secure_storage: ^11.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  test: ^1.31.1
 
 flutter:
   uses-material-design: true

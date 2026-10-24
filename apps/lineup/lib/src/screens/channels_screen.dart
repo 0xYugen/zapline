@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lineup_core/lineup_core.dart';
 
 import '../app_state.dart';
@@ -34,6 +35,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   String? _group;
 
   final _firstChannel = FocusNode(debugLabel: 'first channel');
+  final _menuFirst = FocusNode(debugLabel: 'menu');
 
   (String?, int)? _cacheKey;
   List<Channel> _cache = const [];
@@ -53,7 +55,22 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   @override
   void dispose() {
     _firstChannel.dispose();
+    _menuFirst.dispose();
     super.dispose();
+  }
+
+  /// Left from the channel list always reaches the menu, even when no menu
+  /// item lines up with the focused row.
+  KeyEventResult _listKey(FocusNode _, KeyEvent e) {
+    if (e is! KeyDownEvent || e.logicalKey != LogicalKeyboardKey.arrowLeft) {
+      return KeyEventResult.ignored;
+    }
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary != null && primary.focusInDirection(TraversalDirection.left)) {
+      return KeyEventResult.handled;
+    }
+    _menuFirst.requestFocus();
+    return KeyEventResult.handled;
   }
 
   List<Channel> get _visible {
@@ -136,6 +153,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                   ),
                   const SizedBox(height: 20),
                   _MenuItem(
+                    focusNode: _menuFirst,
                     icon: Icons.grid_view_rounded,
                     label: 'TV guide',
                     onPressed: () =>
@@ -206,20 +224,25 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
             ),
           ),
           Expanded(
-            child: FocusTraversalGroup(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),
-                itemCount: visible.length,
-                itemExtent: 86,
-                itemBuilder: (context, i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _ChannelRow(
-                    state: state,
-                    channel: visible[i],
-                    fallbackNumber: i + 1,
-                    focusNode: i == 0 ? _firstChannel : null,
-                    onPressed: () => _play(visible, i),
-                    onLongPress: () => state.toggleFavourite(visible[i]),
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onKeyEvent: _listKey,
+              child: FocusTraversalGroup(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),
+                  itemCount: visible.length,
+                  itemExtent: 86,
+                  itemBuilder: (context, i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _ChannelRow(
+                      state: state,
+                      channel: visible[i],
+                      fallbackNumber: i + 1,
+                      focusNode: i == 0 ? _firstChannel : null,
+                      onPressed: () => _play(visible, i),
+                      onLongPress: () => state.toggleFavourite(visible[i]),
+                    ),
                   ),
                 ),
               ),
@@ -236,16 +259,19 @@ class _MenuItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.focusNode,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
     child: FocusCard(
+      focusNode: focusNode,
       onPressed: onPressed,
       child: Row(
         children: [

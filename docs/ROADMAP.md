@@ -63,7 +63,10 @@ documented.
       group; kept across re-syncs (database migration v1 → v2)
 - [x] Number-key zapping in the player
 - [ ] Channel search UI
-- [ ] QR onboarding from a phone
+- [x] QR onboarding: while "Add a source" is open the TV serves a small
+      form on the LAN (PIN required, locks after 5 wrong codes, no cloud);
+      verified on the emulator through a forwarded port
+- [x] Duplicate sources are refused
 - [ ] JSON backup/restore
 - [ ] Store credentials in the platform keystore instead of SQLite
 - [ ] Logos (cached, decoded at display size)
