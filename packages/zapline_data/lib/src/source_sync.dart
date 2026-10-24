@@ -28,9 +28,15 @@ class SyncResult {
     required this.guide,
     required this.coverage,
     this.guideErrors = const [],
+    this.movies = 0,
+    this.shows = 0,
   });
 
   final int channels;
+
+  /// Films and series in the source's catalogue.
+  final int movies;
+  final int shows;
   final GuideImportResult guide;
   final GuideCoverage coverage;
 
@@ -73,14 +79,26 @@ class SourceSync {
     void Function(SyncProgress)? onProgress,
   }) async {
     onProgress?.call(const SyncProgress(SyncStage.channels));
-    final (channels, guideUrls, offset) = switch (source.kind) {
+    final fetched = switch (source.kind) {
       SourceKind.xtream => await _xtream(source),
       SourceKind.m3u => await _m3u(source),
       SourceKind.stalker => throw SyncException(
         'Stalker portals are not supported yet',
       ),
     };
+    final _Fetched(:channels, :guideUrls, :offset) = fetched;
     db.replaceChannels(source.id, channels);
+    // A catalogue that failed to load keeps the previous one.
+    if (fetched.movies case final movies?) {
+      db.replaceMovies(source.id, movies);
+    }
+    if (fetched.shows case final shows?) {
+      db.replaceShows(
+        source.id,
+        shows,
+        playlistEpisodes: fetched.playlistEpisodes,
+      );
+    }
     db.applyGroupVisibility(source.id, source.groupFilter);
     onProgress?.call(SyncProgress(SyncStage.channels, count: channels.length));
 
@@ -118,10 +136,12 @@ class SourceSync {
       guide: guide,
       coverage: coverage,
       guideErrors: errors,
+      movies: db.movieCount(sourceId: source.id),
+      shows: db.showCount(sourceId: source.id),
     );
   }
 
-  Future<(List<Channel>, List<Uri>, Duration?)> _xtream(SourceRecord s) async {
+  Future<_Fetched> _xtream(SourceRecord s) async {
     final client = XtreamClient(credentialsOf(s), httpClient: _http);
     final XtreamAccount account;
     try {
@@ -156,7 +176,71 @@ class SourceSync {
             httpHeaders: const {'User-Agent': userAgent},
           ),
     ];
-    return (channels, [client.xmltvUrl], account.serverUtcOffset);
+    final (movies, shows) = await _xtreamCatalogue(client, s.id);
+    return _Fetched(
+      channels: channels,
+      guideUrls: [client.xmltvUrl],
+      offset: account.serverUtcOffset,
+      movies: movies,
+      shows: shows,
+    );
+  }
+
+  /// Films and series; `null` for a list the panel failed to send, so a
+  /// flaky panel doesn't wipe the catalogue.
+  Future<(List<Movie>?, List<Show>?)> _xtreamCatalogue(
+    XtreamClient client,
+    String sourceId,
+  ) async {
+    Uri? url(String? s) => s == null || s.isEmpty ? null : Uri.tryParse(s);
+    List<Movie>? movies;
+    List<Show>? shows;
+    try {
+      final categories = {
+        for (final c in await client.vodCategories()) c.id: c.name,
+      };
+      movies = [
+        for (final v in await client.vodStreams())
+          if (v.streamId >= 0)
+            Movie(
+              sourceId: sourceId,
+              id: '${v.streamId}',
+              name: v.name,
+              category: categories[v.categoryId],
+              posterUrl: url(v.iconUrl),
+              rating: readRating(v.rating),
+              addedAt: v.addedAt,
+              containerExtension: v.containerExtension,
+            ),
+      ];
+    } on Exception {
+      movies = null;
+    }
+    try {
+      final categories = {
+        for (final c in await client.seriesCategories()) c.id: c.name,
+      };
+      shows = [
+        for (final v in await client.series())
+          if (v.seriesId >= 0)
+            Show(
+              sourceId: sourceId,
+              id: '${v.seriesId}',
+              name: v.name,
+              category: categories[v.categoryId],
+              coverUrl: url(v.coverUrl),
+              backdropUrl: url(v.backdropUrl),
+              rating: readRating(v.rating),
+              plot: v.plot,
+              genre: v.genre,
+              releaseDate: v.releaseDate,
+              updatedAt: v.lastModified,
+            ),
+      ];
+    } on Exception {
+      shows = null;
+    }
+    return (movies, shows);
   }
 
   /// Where and how to log in to an Xtream source.
@@ -173,17 +257,61 @@ class SourceSync {
     );
   }
 
-  Future<(List<Channel>, List<Uri>, Duration?)> _m3u(SourceRecord s) async {
+  Future<_Fetched> _m3u(SourceRecord s) async {
     final uri = Uri.tryParse(s.url);
     if (uri == null || !uri.hasScheme) throw SyncException('Not a valid URL');
     final res = await _send(uri);
     final parser = M3uParser();
     final channels = <Channel>[];
+    final movies = <Movie>[];
+    final shows = <String, Show>{};
+    final episodes = <(String, Episode)>[];
     var i = 0;
     await for (final e in parser.parseBytes(res.stream)) {
       final stream = Uri.tryParse(e.url);
       if (stream == null) continue;
       i++;
+      final logo = e.tvgLogo == null ? null : Uri.tryParse(e.tvgLogo!);
+      // Films and episodes are not channels.
+      final kind = classifyM3uEntry(e);
+      final ep = kind == M3uKind.episode ? parseEpisodeName(e.title) : null;
+      if (ep != null) {
+        final id = ep.show.toLowerCase();
+        shows.putIfAbsent(
+          id,
+          () => Show(
+            sourceId: s.id,
+            id: id,
+            name: ep.show,
+            category: e.group,
+            coverUrl: logo,
+          ),
+        );
+        episodes.add((
+          id,
+          Episode(
+            id: '${ep.season}x${ep.episode}',
+            season: ep.season,
+            number: ep.episode,
+            title: e.title,
+            streamUrl: stream,
+          ),
+        ));
+        continue;
+      }
+      if (kind != M3uKind.live) {
+        movies.add(
+          Movie(
+            sourceId: s.id,
+            id: '$i',
+            name: e.title,
+            category: e.group,
+            posterUrl: logo,
+            streamUrl: stream,
+          ),
+        );
+        continue;
+      }
       channels.add(
         Channel(
           sourceId: s.id,
@@ -199,10 +327,16 @@ class SourceSync {
         ),
       );
     }
-    if (channels.isEmpty) {
+    if (channels.isEmpty && movies.isEmpty && shows.isEmpty) {
       throw SyncException('The playlist contains no channels');
     }
-    return (channels, parser.header.epgUrls, null);
+    return _Fetched(
+      channels: channels,
+      guideUrls: parser.header.epgUrls,
+      movies: movies,
+      shows: shows.values.toList(),
+      playlistEpisodes: episodes,
+    );
   }
 
   static CatchupInfo? _m3uCatchup(M3uEntry e) {
@@ -296,4 +430,23 @@ class SourceSync {
     final isGzip = head.length >= 2 && head[0] == 0x1f && head[1] == 0x8b;
     yield* isGzip ? gzip.decoder.bind(all()) : all();
   }
+}
+
+/// What a source sent: channels, guide links and its catalogue.
+class _Fetched {
+  const _Fetched({
+    required this.channels,
+    required this.guideUrls,
+    this.offset,
+    this.movies,
+    this.shows,
+    this.playlistEpisodes = const [],
+  });
+
+  final List<Channel> channels;
+  final List<Uri> guideUrls;
+  final Duration? offset;
+  final List<Movie>? movies;
+  final List<Show>? shows;
+  final List<(String, Episode)> playlistEpisodes;
 }

@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/source.dart';
+import '../models/vod.dart';
 import 'xtream_models.dart';
+import 'xtream_vod.dart';
 
 class XtreamException implements Exception {
   XtreamException(this.message, {this.statusCode});
@@ -118,6 +120,18 @@ class XtreamClient {
       }))
           .map(XtreamSeries.fromJson)
           .toList();
+
+  /// A film's plot, cast, duration, artwork and trailer.
+  Future<MovieDetails> vodInfo(int vodId) async => parseVodInfo(
+        await _getJson(_api({'action': 'get_vod_info', 'vod_id': '$vodId'})),
+      );
+
+  /// A series' information, seasons and episodes.
+  Future<ShowDetails> seriesInfo(int seriesId) async => parseSeriesInfo(
+        await _getJson(
+          _api({'action': 'get_series_info', 'series_id': '$seriesId'}),
+        ),
+      );
 
   /// Small per-channel guide. For the full grid use [xmltvUrl] instead:
   /// one bulk download beats thousands of per-channel requests.

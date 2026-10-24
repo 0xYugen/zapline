@@ -5,7 +5,9 @@ import 'package:sqlite3/sqlite3.dart';
 
 import 'source_record.dart';
 
-const _schemaVersion = 3;
+part 'vod_store.dart';
+
+const _schemaVersion = 4;
 
 /// Migrations from version N to N+1, applied in order.
 const _migrations = <List<String>>[
@@ -42,6 +44,8 @@ const _migrations = <List<String>>[
       value TEXT NOT NULL
     ) WITHOUT ROWID''',
   ],
+  // 3 -> 4: films and series (vod_store.dart).
+  _vodMigration,
 ];
 
 /// A group of one source with the user's preferences, for the manage
@@ -300,6 +304,7 @@ class ZaplineDatabase {
       _db.execute("DELETE FROM $table WHERE channel_key LIKE ? || '/%'", [id]);
     }
     _db.execute('DELETE FROM group_prefs WHERE source_id = ?', [id]);
+    _deleteVod(id);
     _db.execute('DELETE FROM sources WHERE id = ?', [id]);
   });
 

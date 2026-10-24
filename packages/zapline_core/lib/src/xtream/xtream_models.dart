@@ -189,6 +189,11 @@ class XtreamSeries {
     this.coverUrl,
     this.categoryId,
     this.plot,
+    this.rating,
+    this.genre,
+    this.releaseDate,
+    this.backdropUrl,
+    this.lastModified,
   });
 
   factory XtreamSeries.fromJson(Map<String, Object?> json) => XtreamSeries(
@@ -197,6 +202,14 @@ class XtreamSeries {
         coverUrl: readString(json['cover']),
         categoryId: readString(json['category_id']),
         plot: readString(json['plot']),
+        rating: readString(json['rating']),
+        genre: readString(json['genre']),
+        releaseDate: readString(json['releaseDate'] ?? json['release_date']),
+        backdropUrl: switch (json['backdrop_path']) {
+          List<Object?> l when l.isNotEmpty => readString(l.first),
+          final v => readString(v),
+        },
+        lastModified: readUnixSeconds(json['last_modified']),
       );
 
   final int seriesId;
@@ -204,6 +217,11 @@ class XtreamSeries {
   final String? coverUrl;
   final String? categoryId;
   final String? plot;
+  final String? rating;
+  final String? genre;
+  final String? releaseDate;
+  final String? backdropUrl;
+  final DateTime? lastModified;
 }
 
 class XtreamShortEpgEntry {

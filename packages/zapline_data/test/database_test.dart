@@ -180,6 +180,12 @@ void main() {
       ..execute('DROP TABLE hidden_channels')
       ..execute('DROP TABLE recents')
       ..execute('DROP TABLE settings')
+      ..execute('DROP TABLE movies')
+      ..execute('DROP TABLE shows')
+      ..execute('DROP TABLE playlist_episodes')
+      ..execute('DROP TABLE vod_details')
+      ..execute('DROP TABLE positions')
+      ..execute('DROP TABLE my_list')
       ..userVersion = 1;
     raw.close();
 

@@ -131,6 +131,51 @@ void main() {
     },
   );
 
+  test(
+    'playlist films and episodes go to the catalogue, not channels',
+    () async {
+      final client = MockClient(
+        (req) async => http.Response(
+          '#EXTM3U\n'
+          '#EXTINF:-1 group-title="TV",Rai 1\n'
+          'http://p.example/live/u/p/1.ts\n'
+          '#EXTINF:-1 group-title="IT Film" tvg-logo="http://img/f.jpg",'
+          'Un film (2020)\n'
+          'http://p.example/movie/u/p/9.mkv\n'
+          '#EXTINF:-1 group-title="IT Serie",La casa S01 E02\n'
+          'http://p.example/series/u/p/12.mp4\n'
+          '#EXTINF:-1 group-title="IT Serie",La casa S01 E01\n'
+          'http://p.example/series/u/p/11.mp4\n',
+          200,
+        ),
+      );
+      const src = SourceRecord(
+        id: 'v',
+        kind: SourceKind.m3u,
+        name: 'V',
+        url: 'http://p.example/list.m3u',
+      );
+      db.saveSource(src);
+      final r = await SourceSync(
+        db,
+        httpClient: client,
+      ).sync(src, includeGuide: false);
+      expect(r.channels, 1);
+      expect(r.movies, 1);
+      expect(r.shows, 1);
+      expect(db.movies().single.name, 'Un film (2020)');
+      expect(db.movies().single.year, 2020);
+      expect(db.shows().single.name, 'La casa');
+      expect(
+        db.playlistEpisodes('v', 'la casa').map((e) => e.streamUrl.toString()),
+        [
+          'http://p.example/series/u/p/11.mp4',
+          'http://p.example/series/u/p/12.mp4',
+        ],
+      );
+    },
+  );
+
   test('bad login surfaces a readable error', () async {
     final client = MockClient(
       (_) async => http.Response(
