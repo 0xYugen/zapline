@@ -11,10 +11,14 @@ class BackupServer extends PinServer {
     super.address,
     this._export,
     this._restore,
+    this._name,
   );
 
   final String Function() _export;
   final Future<String> Function(String json) _restore;
+
+  /// What a phone sending its setup calls this device.
+  final String _name;
 
   static const _maxBackupBytes = 5 << 20;
 
@@ -23,11 +27,19 @@ class BackupServer extends PinServer {
     required Future<String> Function(String json) restore,
     String? pin,
     InternetAddress? bindTo,
+    String? name,
   }) async {
     final b = await PinServer.bind(pin: pin, bindTo: bindTo);
     if (b == null) return null;
     final (server, address, p) = b;
-    return BackupServer._(server, p, address, export, restore);
+    return BackupServer._(
+      server,
+      p,
+      address,
+      export,
+      restore,
+      name ?? Platform.localHostname,
+    );
   }
 
   @override
@@ -38,6 +50,10 @@ class BackupServer extends PinServer {
       case ('GET', '/'):
         res.headers.contentType = ContentType.html;
         res.write(_page(pin ?? ''));
+      case ('GET', '/hello'):
+        // A Zapline app checking it found the right device.
+        if (!checkPin(pin, res)) return;
+        PinServer.writeJson(res, HttpStatus.ok, true, _name);
       case ('GET', '/backup.json'):
         if (!checkPin(pin, res)) return;
         final now = DateTime.now();

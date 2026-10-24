@@ -15,6 +15,10 @@ class BackupContents {
     required this.guideOverrides,
     this.groupPrefs = const [],
     this.hiddenChannels = const [],
+    this.sourceIds = const [],
+    this.settings = const {},
+    this.myList = const [],
+    this.positions = const [],
   });
 
   final List<SourceRecord> sources;
@@ -30,6 +34,37 @@ class BackupContents {
 
   /// (index into [sources], channel id).
   final List<(int, String)> hiddenChannels;
+
+  /// The sources' ids on the device the backup came from, by index, so
+  /// keys that hold them (`movie:ID/42`) can be moved to the new ids
+  /// (see [Backup.remapKey]).
+  final List<String> sourceIds;
+
+  /// App preferences, as stored.
+  final Map<String, String> settings;
+
+  /// "La mia lista" keys, with the old source ids.
+  final List<String> myList;
+
+  /// Where films and episodes were left: (key, position ms, duration ms),
+  /// with the old source ids.
+  final List<(String, int, int)> positions;
+}
+
+/// What to put in a backup or a transfer; sources always go.
+enum BackupPart {
+  /// Filters, groups shown or hidden by hand, hidden channels.
+  filters,
+  favourites,
+
+  /// Extra guides, their time shift and channels matched by hand.
+  guide,
+
+  /// My list and where films and episodes were left.
+  watching,
+
+  /// App preferences ([Backup.export]'s settings).
+  settings,
 }
 
 class BackupFormatException implements Exception {
@@ -46,14 +81,21 @@ class BackupFormatException implements Exception {
 /// are downloaded again from the sources.
 abstract final class Backup {
   static const format = 'zapline-backup';
-  static const version = 1;
+  static const version = 2;
 
-  /// [passwordOf] supplies credentials kept outside the database.
+  /// [passwordOf] supplies credentials kept outside the database. [parts]
+  /// says what goes besides the sources; [settings] are the preferences to
+  /// include when [BackupPart.settings] is among them.
   static String export(
     ZaplineDatabase db, {
     String Function(SourceRecord source)? passwordOf,
     DateTime? now,
+    Set<BackupPart> parts = const {...BackupPart.values},
+    Map<String, String> settings = const {},
   }) {
+    final filters = parts.contains(BackupPart.filters);
+    final guide = parts.contains(BackupPart.guide);
+    final watching = parts.contains(BackupPart.watching);
     final sources = db.sources();
     final index = {for (final (i, s) in sources.indexed) s.id: i};
 
@@ -68,6 +110,7 @@ abstract final class Backup {
       'format': format,
       'version': version,
       'exportedAt': (now ?? DateTime.now()).toUtc().toIso8601String(),
+      'sourceIds': [for (final s in sources) s.id],
       'sources': [
         for (final s in sources)
           {
@@ -76,39 +119,55 @@ abstract final class Backup {
             'url': s.url,
             'username': s.username,
             'password': passwordOf?.call(s) ?? s.password,
-            'guides': s.extraGuideUrls,
-            'guideOffsetMinutes': s.guideOffset.inMinutes,
-            'groupFilter': s.groupFilter.toJson(),
-            'movieFilter': s.movieFilter.toJson(),
-            'showFilter': s.showFilter.toJson(),
-            'movieChoices': s.movieChoices,
-            'showChoices': s.showChoices,
+            if (guide) 'guides': s.extraGuideUrls,
+            if (guide) 'guideOffsetMinutes': s.guideOffset.inMinutes,
+            if (filters) 'groupFilter': s.groupFilter.toJson(),
+            if (filters) 'movieFilter': s.movieFilter.toJson(),
+            if (filters) 'showFilter': s.showFilter.toJson(),
+            if (filters) 'movieChoices': s.movieChoices,
+            if (filters) 'showChoices': s.showChoices,
           },
       ],
-      'groupPrefs': [
-        for (final (i, s) in sources.indexed)
-          for (final g in db.groupInfo(s.id))
-            if (g.explicit != null || g.locked)
-              {
-                'source': i,
-                'group': g.title,
-                'hidden': g.explicit,
-                'locked': g.locked,
-              },
-      ],
-      'hiddenChannels': [
-        for (final c in db.hiddenChannels())
-          if (index[c.sourceId] case final i?) {'source': i, 'channel': c.id},
-      ],
-      'favourites': [
-        for (final k in db.favouriteKeysInOrder())
-          if (split(k) case (final i, final id)) {'source': i, 'channel': id},
-      ],
-      'guideOverrides': [
-        for (final MapEntry(:key, :value) in db.guideOverrides().entries)
-          if (split(key) case (final i, final id))
-            {'source': i, 'channel': id, 'guide': value},
-      ],
+      if (parts.contains(BackupPart.settings) && settings.isNotEmpty)
+        'settings': settings,
+      if (watching) 'myList': db.myList(),
+      if (watching)
+        'positions': [
+          for (final p in db.positions(limit: 2000))
+            {
+              'key': p.key,
+              'position': p.position.inMilliseconds,
+              'duration': p.duration.inMilliseconds,
+            },
+        ],
+      if (filters)
+        'groupPrefs': [
+          for (final (i, s) in sources.indexed)
+            for (final g in db.groupInfo(s.id))
+              if (g.explicit != null || g.locked)
+                {
+                  'source': i,
+                  'group': g.title,
+                  'hidden': g.explicit,
+                  'locked': g.locked,
+                },
+        ],
+      if (filters)
+        'hiddenChannels': [
+          for (final c in db.hiddenChannels())
+            if (index[c.sourceId] case final i?) {'source': i, 'channel': c.id},
+        ],
+      if (parts.contains(BackupPart.favourites))
+        'favourites': [
+          for (final k in db.favouriteKeysInOrder())
+            if (split(k) case (final i, final id)) {'source': i, 'channel': id},
+        ],
+      if (guide)
+        'guideOverrides': [
+          for (final MapEntry(:key, :value) in db.guideOverrides().entries)
+            if (split(key) case (final i, final id))
+              {'source': i, 'channel': id, 'guide': value},
+        ],
     });
   }
 
@@ -193,6 +252,41 @@ abstract final class Backup {
           if (h is Map && valid(h['source']) && h['channel'] is String)
             (h['source'] as int, h['channel'] as String),
       ],
+      sourceIds: [
+        for (final id in (json['sourceIds'] as List?) ?? const []) '$id',
+      ],
+      settings: {
+        for (final MapEntry(:key, :value)
+            in ((json['settings'] as Map?) ?? const {}).entries)
+          if (value is String) '$key': value,
+      },
+      myList: [
+        for (final k in (json['myList'] as List?) ?? const [])
+          if (k is String) k,
+      ],
+      positions: [
+        for (final p in (json['positions'] as List?) ?? const [])
+          if (p is Map &&
+              p['key'] is String &&
+              p['position'] is int &&
+              p['duration'] is int)
+            (p['key'] as String, p['position'] as int, p['duration'] as int),
+      ],
     );
+  }
+
+  static final _keyWithSource = RegExp(
+    r'^([a-z]+:)?([^/\u0000]+)([/\u0000].*)$',
+  );
+
+  /// [key] with the source id it holds (`movie:ID/42`, `ID/7`,
+  /// `ID\u0000rai1`) moved to the new device's; `null` when that source
+  /// did not come along.
+  static String? remapKey(String key, Map<String, String> ids) {
+    final m = _keyWithSource.firstMatch(key);
+    if (m == null) return null;
+    final id = ids[m.group(2)];
+    if (id == null) return null;
+    return '${m.group(1) ?? ''}$id${m.group(3)}';
   }
 }

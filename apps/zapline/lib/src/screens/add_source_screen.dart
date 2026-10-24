@@ -14,6 +14,7 @@ import '../widgets/focus_card.dart';
 import '../widgets/qr_panel.dart';
 import '../widgets/tv_text_field.dart';
 import 'backup_screen.dart';
+import 'transfer_screens.dart';
 
 /// What the user says they have; `null` means one field that recognises
 /// either (TV and desktop, where a phone can also fill it via QR code).
@@ -152,7 +153,7 @@ class WelcomeScreen extends StatelessWidget {
                   Icons.settings_backup_restore_rounded,
                   l.restoreChoice,
                   l.restoreChoiceHint,
-                  () => open(BackupScreen(state: state)),
+                  () => open(TransferReceiveScreen(state: state)),
                   primary: false,
                 ),
                 const SizedBox(height: 24),

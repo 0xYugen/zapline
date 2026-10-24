@@ -14,6 +14,7 @@ void main() {
       pin: '1234',
       bindTo: InternetAddress.loopbackIPv4,
       export: () => '{"format":"zapline-backup"}',
+      name: 'Soggiorno',
       restore: (json) async {
         restored = json;
         return '1 sources restored';
@@ -55,5 +56,12 @@ void main() {
     expect(code, 200);
     expect(jsonDecode(body)['message'], 'Done: 1 sources restored.');
     expect(restored, contains('zapline-backup'));
+  });
+
+  test('another Zapline can check it found the right device', () async {
+    expect((await call('GET', '/hello?pin=9999')).$1, 403);
+    final (code, body, _) = await call('GET', '/hello?pin=1234');
+    expect(code, 200);
+    expect(jsonDecode(body)['message'], 'Soggiorno');
   });
 }

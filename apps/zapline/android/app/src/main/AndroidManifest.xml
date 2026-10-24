@@ -3,6 +3,10 @@
     <!-- Android TV / Fire TV: no touchscreen required, leanback supported. -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
     <uses-feature android:name="android.software.leanback" android:required="false"/>
+    <!-- The camera only scans a code to send settings; TVs have none. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <application
         android:label="Zapline"
         android:banner="@drawable/banner"

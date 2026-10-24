@@ -1534,4 +1534,139 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get keepScreenOnHint => 'Finché Zapline è aperta';
+
+  @override
+  String get otherDevices => 'Altri dispositivi';
+
+  @override
+  String get receiveTitle => 'Ricevi da un altro dispositivo';
+
+  @override
+  String get receiveHint =>
+      'Sorgenti, filtri, preferiti e impostazioni dal telefono';
+
+  @override
+  String get sendTitle => 'Invia a un altro dispositivo';
+
+  @override
+  String get sendHint =>
+      'Tutta la configurazione a una TV o un PC, inquadrando il codice';
+
+  @override
+  String get receiveIntro =>
+      'Porta qui sorgenti, filtri, preferiti, la tua lista e le impostazioni del telefono. Niente da scrivere col telecomando.';
+
+  @override
+  String get receiveStep1 => 'Apri Zapline sul telefono';
+
+  @override
+  String get receiveStep2 => 'Impostazioni → Invia a un altro dispositivo';
+
+  @override
+  String get receiveStep3 => 'Inquadra questo codice';
+
+  @override
+  String get scanWithZapline => 'Inquadra con Zapline';
+
+  @override
+  String get sameWifi => 'Tutti e due sulla stessa rete Wi-Fi.';
+
+  @override
+  String get receivedTitle => 'Ricevuto';
+
+  @override
+  String get downloadingChannels => 'Scarico canali e guida…';
+
+  @override
+  String get startWatching => 'Inizia a guardare';
+
+  @override
+  String get deviceNotFound =>
+      'Non raggiungo quel dispositivo. Siete sulla stessa rete Wi-Fi, con il codice sullo schermo?';
+
+  @override
+  String get notAZaplineCode => 'Questo non è un codice di Zapline.';
+
+  @override
+  String get typeCode => 'Scrivi il codice a mano';
+
+  @override
+  String get deviceAddress => 'Indirizzo mostrato sulla TV';
+
+  @override
+  String get sendFailed => 'L\'invio non è riuscito. Riprova.';
+
+  @override
+  String sendTo(String name) {
+    return 'Invia a $name';
+  }
+
+  @override
+  String get scanTheCode => 'Inquadra il codice sulla TV o sul PC';
+
+  @override
+  String get scanTheCodeHint =>
+      'Su TV o PC apri Zapline → Ricevi da un altro dispositivo. Stessa rete Wi-Fi.';
+
+  @override
+  String get connectedTo => 'Collegato. I dati restano dentro la rete di casa.';
+
+  @override
+  String get sendSources => 'Sorgenti e password';
+
+  @override
+  String sourcesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count liste',
+      one: '1 lista',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sendFilters => 'Filtri, gruppi e canali nascosti';
+
+  @override
+  String get sendFiltersHint => 'Cosa mostra ogni lista';
+
+  @override
+  String get sendFavouritesHint => 'I tuoi canali preferiti';
+
+  @override
+  String get sendGuideHint => 'Guide aggiunte e canali abbinati a mano';
+
+  @override
+  String get sendWatching => 'La mia lista e titoli iniziati';
+
+  @override
+  String get sendWatchingHint => 'Riprendi da dove eri rimasto';
+
+  @override
+  String get sendSettings => 'Impostazioni dell\'app';
+
+  @override
+  String get sendSettingsHint => 'Lingua, qualità, numeri dei canali…';
+
+  @override
+  String get sendPinHint => 'Spento: lì potrai sceglierne un altro';
+
+  @override
+  String get sendReplaces =>
+      'Quello che c\'è già sull\'altro dispositivo viene sostituito.';
+
+  @override
+  String get send => 'Invia';
+
+  @override
+  String get sentTitle => 'Inviato';
+
+  @override
+  String sentHint(String name) {
+    return '$name sta scaricando i canali adesso.';
+  }
+
+  @override
+  String get done => 'Fatto';
 }

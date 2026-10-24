@@ -1265,17 +1265,43 @@ class AppState extends ChangeNotifier {
   // ------------------------------------------------------------- backup
 
   /// The user's setup as JSON, passwords included.
-  String exportBackup() =>
-      Backup.export(db, passwordOf: (s) => _passwords[s.id] ?? s.password);
+  /// Preferences a backup or transfer carries; the PIN only when asked.
+  static const _portableSettings = [
+    'language',
+    'clock24h',
+    'sequentialNumbers',
+    'resumeLastChannel',
+    'guideDays',
+    'refreshHours',
+    'videoFit',
+    'mergeVersions',
+    'saveData',
+    'keepScreenOn',
+    'versionChoices',
+    'noGuideChannels',
+  ];
 
-  /// Adds the backup's sources (skipping ones already present), downloads
-  /// them, then restores favourites and manual guide links. Returns a
-  /// summary for display; sources that fail to connect are reported, not
-  /// fatal.
+  String exportBackup({
+    Set<BackupPart> parts = const {...BackupPart.values},
+    bool includePin = false,
+  }) => Backup.export(
+    db,
+    passwordOf: (s) => _passwords[s.id] ?? s.password,
+    parts: parts,
+    settings: {
+      for (final k in [..._portableSettings, if (includePin) 'pinHash'])
+        k: ?db.setting(k),
+    },
+  );
+
+  /// Adds the backup's sources (a source already here takes the backup's
+  /// filters and guides), downloads them, then restores everything else
+  /// that came along. Returns a summary for display; sources that fail to
+  /// connect are reported, not fatal.
   Future<String> restoreBackup(String json) async {
     final contents = Backup.parse(json);
     final ids = <int, String>{};
-    var added = 0, skipped = 0;
+    var added = 0, updated = 0;
     final failed = <String>[];
     for (final (i, s) in contents.sources.indexed) {
       final existing = sources
@@ -1286,7 +1312,18 @@ class AppState extends ChangeNotifier {
           .firstOrNull;
       if (existing != null) {
         ids[i] = existing.id;
-        skipped++;
+        db.saveSource(
+          existing.copyWith(
+            extraGuideUrls: s.extraGuideUrls,
+            guideOffset: s.guideOffset,
+            groupFilter: s.groupFilter,
+            movieFilter: s.movieFilter,
+            showFilter: s.showFilter,
+            movieChoices: s.movieChoices,
+            showChoices: s.showChoices,
+          ),
+        );
+        updated++;
         continue;
       }
       final record = SourceRecord(
@@ -1297,6 +1334,12 @@ class AppState extends ChangeNotifier {
         username: s.username,
         password: s.password,
         extraGuideUrls: s.extraGuideUrls,
+        guideOffset: s.guideOffset,
+        groupFilter: s.groupFilter,
+        movieFilter: s.movieFilter,
+        showFilter: s.showFilter,
+        movieChoices: s.movieChoices,
+        showChoices: s.showChoices,
       );
       try {
         await _addRecord(record);
@@ -1314,15 +1357,81 @@ class AppState extends ChangeNotifier {
       final id = ids[i];
       if (id != null) db.setGuideOverrideKey('$id/$channel', guide);
     }
+    for (final (i, channel) in contents.hiddenChannels) {
+      final id = ids[i];
+      if (id != null) db.hideChannelKey('$id/$channel');
+    }
+    for (final (i, group, hidden, locked) in contents.groupPrefs) {
+      final id = ids[i];
+      if (id == null) continue;
+      if (hidden != null) db.setGroupHidden(id, group, hidden);
+      if (locked) db.setGroupLocked(id, group, true);
+    }
+    for (final s in sources) {
+      if (ids.containsValue(s.id)) {
+        db.applyGroupVisibility(s.id, _recordFromDb(s.id).groupFilter);
+      }
+    }
+
+    // Keys holding the old device's source ids move to this device's.
+    final moved = {
+      for (final (i, old) in contents.sourceIds.indexed) old: ?ids[i],
+    };
+    String? remap(String key) => Backup.remapKey(key, moved);
+    for (final k in contents.myList) {
+      if (remap(k) case final key?) db.setInMyList(key, true);
+    }
+    for (final (k, pos, dur) in contents.positions) {
+      if (remap(k) case final key?) {
+        db.savePosition(
+          key,
+          Duration(milliseconds: pos),
+          Duration(milliseconds: dur),
+        );
+      }
+    }
+    for (final MapEntry(:key, :value) in contents.settings.entries) {
+      switch (key) {
+        case 'versionChoices':
+          final choices = <String, String>{};
+          try {
+            for (final MapEntry(key: k, value: v)
+                in (jsonDecode(value) as Map).entries) {
+              if (remap('$k') case final nk?) {
+                if (remap('$v') case final nv?) choices[nk] = nv;
+              }
+            }
+          } on Object {
+            continue;
+          }
+          settings.versionChoices = {...settings.versionChoices, ...choices};
+        case 'noGuideChannels':
+          try {
+            settings.noGuideChannels = {
+              ...settings.noGuideChannels,
+              for (final k in jsonDecode(value) as List) ?remap('$k'),
+            };
+          } on Object {
+            continue;
+          }
+        case 'language':
+          settings.setLanguage(value);
+        case _ when key == 'pinHash' || _portableSettings.contains(key):
+          db.setSetting(key, value);
+      }
+    }
     db.rebuildGuideLinks();
     _reload();
     notifyListeners();
     return [
       '$added sources restored',
-      if (skipped > 0) '$skipped already present',
+      if (updated > 0) '$updated updated',
       if (failed.isNotEmpty) 'could not connect to ${failed.join(', ')}',
     ].join(', ');
   }
+
+  SourceRecord _recordFromDb(String id) =>
+      db.sources().firstWhere((s) => s.id == id);
 
   Future<SyncResult> refresh(SourceRecord source) => _sync(source);
 

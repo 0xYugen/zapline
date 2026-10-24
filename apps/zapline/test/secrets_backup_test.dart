@@ -68,7 +68,7 @@ void main() {
     );
 
     // Restoring again changes nothing.
-    expect(await b.restoreBackup(json), contains('1 already present'));
+    expect(await b.restoreBackup(json), contains('1 updated'));
     expect(b.sources, hasLength(1));
   });
 }

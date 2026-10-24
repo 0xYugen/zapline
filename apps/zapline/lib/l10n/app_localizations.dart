@@ -2539,6 +2539,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'While Zapline is open'**
   String get keepScreenOnHint;
+
+  /// No description provided for @otherDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Other devices'**
+  String get otherDevices;
+
+  /// No description provided for @receiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive from another device'**
+  String get receiveTitle;
+
+  /// No description provided for @receiveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources, filters, favourites and settings from your phone'**
+  String get receiveHint;
+
+  /// No description provided for @sendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to another device'**
+  String get sendTitle;
+
+  /// No description provided for @sendHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your whole setup to a TV or PC, scanning its code'**
+  String get sendHint;
+
+  /// No description provided for @receiveIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring sources, filters, favourites, your list and settings here from your phone. Nothing to type with the remote.'**
+  String get receiveIntro;
+
+  /// No description provided for @receiveStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Zapline on your phone'**
+  String get receiveStep1;
+
+  /// No description provided for @receiveStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings → Send to another device'**
+  String get receiveStep2;
+
+  /// No description provided for @receiveStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan this code'**
+  String get receiveStep3;
+
+  /// No description provided for @scanWithZapline.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan with Zapline'**
+  String get scanWithZapline;
+
+  /// No description provided for @sameWifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Both on the same Wi-Fi network.'**
+  String get sameWifi;
+
+  /// No description provided for @receivedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get receivedTitle;
+
+  /// No description provided for @downloadingChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading channels and guide…'**
+  String get downloadingChannels;
+
+  /// No description provided for @startWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Start watching'**
+  String get startWatching;
+
+  /// No description provided for @deviceNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach that device. Are both on the same Wi-Fi, with its code on screen?'**
+  String get deviceNotFound;
+
+  /// No description provided for @notAZaplineCode.
+  ///
+  /// In en, this message translates to:
+  /// **'That isn\'t a Zapline code.'**
+  String get notAZaplineCode;
+
+  /// No description provided for @typeCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the code'**
+  String get typeCode;
+
+  /// No description provided for @deviceAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address shown on the TV'**
+  String get deviceAddress;
+
+  /// No description provided for @sendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending didn\'t work. Try again.'**
+  String get sendFailed;
+
+  /// No description provided for @sendTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to {name}'**
+  String sendTo(String name);
+
+  /// No description provided for @scanTheCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the code on the TV or PC'**
+  String get scanTheCode;
+
+  /// No description provided for @scanTheCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'On the TV or PC open Zapline → Receive from another device. Same Wi-Fi network.'**
+  String get scanTheCodeHint;
+
+  /// No description provided for @connectedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected. Data stays inside your home network.'**
+  String get connectedTo;
+
+  /// No description provided for @sendSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources and passwords'**
+  String get sendSources;
+
+  /// No description provided for @sourcesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 list} other{{count} lists}}'**
+  String sourcesCount(int count);
+
+  /// No description provided for @sendFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Filters, groups and hidden channels'**
+  String get sendFilters;
+
+  /// No description provided for @sendFiltersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What each list shows'**
+  String get sendFiltersHint;
+
+  /// No description provided for @sendFavouritesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your favourite channels'**
+  String get sendFavouritesHint;
+
+  /// No description provided for @sendGuideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Added guides and channels matched by hand'**
+  String get sendGuideHint;
+
+  /// No description provided for @sendWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'My list and started titles'**
+  String get sendWatching;
+
+  /// No description provided for @sendWatchingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume where you left off'**
+  String get sendWatchingHint;
+
+  /// No description provided for @sendSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'App settings'**
+  String get sendSettings;
+
+  /// No description provided for @sendSettingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Language, quality, channel numbers…'**
+  String get sendSettingsHint;
+
+  /// No description provided for @sendPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off: you can choose another one there'**
+  String get sendPinHint;
+
+  /// No description provided for @sendReplaces.
+  ///
+  /// In en, this message translates to:
+  /// **'What is already there gets replaced.'**
+  String get sendReplaces;
+
+  /// No description provided for @send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get send;
+
+  /// No description provided for @sentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get sentTitle;
+
+  /// No description provided for @sentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is downloading the channels now.'**
+  String sentHint(String name);
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
 }
 
 class _AppLocalizationsDelegate

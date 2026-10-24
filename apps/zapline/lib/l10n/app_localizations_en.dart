@@ -1531,4 +1531,137 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get keepScreenOnHint => 'While Zapline is open';
+
+  @override
+  String get otherDevices => 'Other devices';
+
+  @override
+  String get receiveTitle => 'Receive from another device';
+
+  @override
+  String get receiveHint =>
+      'Sources, filters, favourites and settings from your phone';
+
+  @override
+  String get sendTitle => 'Send to another device';
+
+  @override
+  String get sendHint => 'Your whole setup to a TV or PC, scanning its code';
+
+  @override
+  String get receiveIntro =>
+      'Bring sources, filters, favourites, your list and settings here from your phone. Nothing to type with the remote.';
+
+  @override
+  String get receiveStep1 => 'Open Zapline on your phone';
+
+  @override
+  String get receiveStep2 => 'Settings → Send to another device';
+
+  @override
+  String get receiveStep3 => 'Scan this code';
+
+  @override
+  String get scanWithZapline => 'Scan with Zapline';
+
+  @override
+  String get sameWifi => 'Both on the same Wi-Fi network.';
+
+  @override
+  String get receivedTitle => 'Received';
+
+  @override
+  String get downloadingChannels => 'Downloading channels and guide…';
+
+  @override
+  String get startWatching => 'Start watching';
+
+  @override
+  String get deviceNotFound =>
+      'Can\'t reach that device. Are both on the same Wi-Fi, with its code on screen?';
+
+  @override
+  String get notAZaplineCode => 'That isn\'t a Zapline code.';
+
+  @override
+  String get typeCode => 'Type the code';
+
+  @override
+  String get deviceAddress => 'Address shown on the TV';
+
+  @override
+  String get sendFailed => 'Sending didn\'t work. Try again.';
+
+  @override
+  String sendTo(String name) {
+    return 'Send to $name';
+  }
+
+  @override
+  String get scanTheCode => 'Scan the code on the TV or PC';
+
+  @override
+  String get scanTheCodeHint =>
+      'On the TV or PC open Zapline → Receive from another device. Same Wi-Fi network.';
+
+  @override
+  String get connectedTo => 'Connected. Data stays inside your home network.';
+
+  @override
+  String get sendSources => 'Sources and passwords';
+
+  @override
+  String sourcesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lists',
+      one: '1 list',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sendFilters => 'Filters, groups and hidden channels';
+
+  @override
+  String get sendFiltersHint => 'What each list shows';
+
+  @override
+  String get sendFavouritesHint => 'Your favourite channels';
+
+  @override
+  String get sendGuideHint => 'Added guides and channels matched by hand';
+
+  @override
+  String get sendWatching => 'My list and started titles';
+
+  @override
+  String get sendWatchingHint => 'Resume where you left off';
+
+  @override
+  String get sendSettings => 'App settings';
+
+  @override
+  String get sendSettingsHint => 'Language, quality, channel numbers…';
+
+  @override
+  String get sendPinHint => 'Off: you can choose another one there';
+
+  @override
+  String get sendReplaces => 'What is already there gets replaced.';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get sentTitle => 'Sent';
+
+  @override
+  String sentHint(String name) {
+    return '$name is downloading the channels now.';
+  }
+
+  @override
+  String get done => 'Done';
 }

@@ -11,6 +11,7 @@ import '../widgets/pin_pad.dart';
 import '../widgets/settings_widgets.dart';
 import 'add_source_screen.dart';
 import 'backup_screen.dart';
+import 'transfer_screens.dart';
 import 'source_detail_screen.dart';
 
 /// Set by release builds: `--dart-define=ZAPLINE_VERSION=0.1.0 (42)`.
@@ -278,6 +279,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.save_alt_rounded,
                   title: l.backupTitle,
                   onTap: () => _open(BackupScreen(state: _state)),
+                ),
+              ],
+            ),
+            SettingsGroup(
+              title: l.otherDevices,
+              children: [
+                if (context.isPhone)
+                  SettingsTile(
+                    icon: Icons.send_to_mobile_rounded,
+                    title: l.sendTitle,
+                    subtitle: l.sendHint,
+                    onTap: () => _open(TransferSendScreen(state: _state)),
+                  ),
+                SettingsTile(
+                  icon: Icons.qr_code_2_rounded,
+                  title: l.receiveTitle,
+                  subtitle: l.receiveHint,
+                  onTap: () => _open(TransferReceiveScreen(state: _state)),
                 ),
               ],
             ),
