@@ -272,4 +272,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageDevice => 'Same as device';
+
+  @override
+  String get watch => 'Watch';
+
+  @override
+  String get fromTheStart => 'From the start';
+
+  @override
+  String get replayAction => 'Replay';
+
+  @override
+  String get remindMe => 'Remind me';
+
+  @override
+  String get reminderSet => 'Reminder set';
+
+  @override
+  String get watchChannel => 'Watch channel';
+
+  @override
+  String nextAt(String time, String title) {
+    return 'Next: $time $title';
+  }
+
+  @override
+  String get continueWatching => 'Continue watching';
+
+  @override
+  String get favouritesEmpty =>
+      'No favourites yet.\nHold a channel and choose “Add to favourites”.';
+
+  @override
+  String reminderNow(String title, String channel) {
+    return '$title is starting on $channel';
+  }
+
+  @override
+  String get searchTooltip => 'Search channels and programmes';
+
+  @override
+  String get lessThanAMinute => 'Ending now';
 }

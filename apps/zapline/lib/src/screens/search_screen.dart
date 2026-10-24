@@ -7,6 +7,7 @@ import '../app_state.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../mobile/mobile_widgets.dart';
+import '../mobile/programme_sheet.dart';
 import '../theme.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_logo.dart';
@@ -155,7 +156,13 @@ class _SearchScreenState extends State<SearchScreen> {
             state: widget.state,
             channel: c,
             programme: p,
-            onTap: () => _openProgramme(c, p),
+            onTap: () => showProgrammeSheet(
+              context,
+              state: widget.state,
+              channels: [c],
+              index: 0,
+              programme: p,
+            ),
           )
         else
           () => Padding(
@@ -171,6 +178,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
     final m = Metrics.of(context);
     return Scaffold(
+      // Phones open search from the header, as a page of its own.
+      appBar: phone && Navigator.of(context).canPop()
+          ? AppBar(title: Text(context.l10n.search))
+          : null,
       body: Padding(
         padding: phone
             ? EdgeInsets.zero
@@ -178,19 +189,16 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: phone
-                  ? const EdgeInsets.fromLTRB(20, 12, 20, 0)
-                  : EdgeInsets.zero,
-              child: Text(
+            if (!phone) ...[
+              Text(
                 context.l10n.search,
-                style: TextStyle(
-                  fontSize: phone ? 24 : 34,
+                style: const TextStyle(
+                  fontSize: 34,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-            ),
-            SizedBox(height: m.gap * 1.5),
+              SizedBox(height: m.gap * 1.5),
+            ],
             Padding(
               padding: phone
                   ? const EdgeInsets.symmetric(horizontal: 16)
@@ -199,7 +207,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 builder: (readOnly) => TextField(
                   readOnly: readOnly,
                   controller: _query,
-                  autofocus: !context.isPhone,
+                  // On phones the page was opened to type: keyboard up.
+                  autofocus: true,
                   autocorrect: false,
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _run(),

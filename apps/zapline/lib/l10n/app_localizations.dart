@@ -565,6 +565,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Same as device'**
   String get languageDevice;
+
+  /// No description provided for @watch.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch'**
+  String get watch;
+
+  /// No description provided for @fromTheStart.
+  ///
+  /// In en, this message translates to:
+  /// **'From the start'**
+  String get fromTheStart;
+
+  /// No description provided for @replayAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay'**
+  String get replayAction;
+
+  /// No description provided for @remindMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me'**
+  String get remindMe;
+
+  /// No description provided for @reminderSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder set'**
+  String get reminderSet;
+
+  /// No description provided for @watchChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch channel'**
+  String get watchChannel;
+
+  /// No description provided for @nextAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {time} {title}'**
+  String nextAt(String time, String title);
+
+  /// No description provided for @continueWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue watching'**
+  String get continueWatching;
+
+  /// No description provided for @favouritesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No favourites yet.\nHold a channel and choose “Add to favourites”.'**
+  String get favouritesEmpty;
+
+  /// No description provided for @reminderNow.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} is starting on {channel}'**
+  String reminderNow(String title, String channel);
+
+  /// No description provided for @searchTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Search channels and programmes'**
+  String get searchTooltip;
+
+  /// No description provided for @lessThanAMinute.
+  ///
+  /// In en, this message translates to:
+  /// **'Ending now'**
+  String get lessThanAMinute;
 }
 
 class _AppLocalizationsDelegate

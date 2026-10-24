@@ -86,5 +86,17 @@
   "minutesLeft": "mancano {minutes} min",
   "hoursMinutesLeft": "mancano {hours} h {minutes} min",
   "language": "Lingua",
-  "languageDevice": "Come il dispositivo"
+  "languageDevice": "Come il dispositivo",
+  "watch": "Guarda",
+  "fromTheStart": "Dall'inizio",
+  "replayAction": "Rivedi",
+  "remindMe": "Ricordamelo",
+  "reminderSet": "Promemoria attivo",
+  "watchChannel": "Guarda il canale",
+  "nextAt": "Dopo: {time} {title}",
+  "continueWatching": "Continua a guardare",
+  "favouritesEmpty": "Ancora nessun preferito.\nTieni premuto un canale e scegli “Aggiungi ai preferiti”.",
+  "reminderNow": "{title} sta per iniziare su {channel}",
+  "searchTooltip": "Cerca canali e programmi",
+  "lessThanAMinute": "Sta finendo"
 }

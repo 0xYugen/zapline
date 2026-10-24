@@ -275,4 +275,45 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get languageDevice => 'Come il dispositivo';
+
+  @override
+  String get watch => 'Guarda';
+
+  @override
+  String get fromTheStart => 'Dall\'inizio';
+
+  @override
+  String get replayAction => 'Rivedi';
+
+  @override
+  String get remindMe => 'Ricordamelo';
+
+  @override
+  String get reminderSet => 'Promemoria attivo';
+
+  @override
+  String get watchChannel => 'Guarda il canale';
+
+  @override
+  String nextAt(String time, String title) {
+    return 'Dopo: $time $title';
+  }
+
+  @override
+  String get continueWatching => 'Continua a guardare';
+
+  @override
+  String get favouritesEmpty =>
+      'Ancora nessun preferito.\nTieni premuto un canale e scegli “Aggiungi ai preferiti”.';
+
+  @override
+  String reminderNow(String title, String channel) {
+    return '$title sta per iniziare su $channel';
+  }
+
+  @override
+  String get searchTooltip => 'Cerca canali e programmi';
+
+  @override
+  String get lessThanAMinute => 'Sta finendo';
 }

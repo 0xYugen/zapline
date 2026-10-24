@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
-import '../l10n.dart';
 import '../channel_groups.dart';
+import '../l10n.dart';
 import '../screens/player_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/settings_screen.dart';
 import '../theme.dart';
-import '../widgets/channel_actions.dart';
 import '../widgets/brand.dart';
+import '../widgets/channel_actions.dart';
+import '../widgets/channel_logo.dart';
 import 'mobile_guide.dart';
 import 'mobile_widgets.dart';
 
-/// Phone shell: channels, guide, search and settings behind a bottom
-/// navigation bar. Each tab keeps its state while another is shown.
+/// Phone shell: live TV, guide, favourites and settings behind a bottom
+/// navigation bar (a side rail when held sideways). Search sits in the
+/// header of every tab. Each tab keeps its state while another is shown.
 class MobileHome extends StatefulWidget {
   const MobileHome({super.key, required this.state});
 
@@ -41,21 +43,21 @@ class _MobileHomeState extends State<MobileHome> {
     });
   }
 
-  static const _destinations = [
-    (Icons.live_tv_outlined, Icons.live_tv_rounded, 'Channels'),
-    (Icons.view_list_outlined, Icons.view_list_rounded, 'Guide'),
-    (Icons.search_rounded, Icons.search_rounded, 'Search'),
-    (Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
+    final destinations = [
+      (Icons.live_tv_outlined, Icons.live_tv_rounded, l.liveTv),
+      (Icons.calendar_month_outlined, Icons.calendar_month_rounded, l.guide),
+      (Icons.star_outline_rounded, Icons.star_rounded, l.favourites),
+      (Icons.settings_outlined, Icons.settings_rounded, l.settings),
+    ];
     final tabs = IndexedStack(
       index: _tab,
       children: [
         ChannelsTab(state: widget.state),
         MobileGuide(state: widget.state),
-        SearchScreen(state: widget.state),
+        FavouritesTab(state: widget.state),
         SettingsScreen(state: widget.state),
       ],
     );
@@ -70,7 +72,7 @@ class _MobileHomeState extends State<MobileHome> {
               onDestinationSelected: select,
               labelType: NavigationRailLabelType.all,
               destinations: [
-                for (final (icon, selected, label) in _destinations)
+                for (final (icon, selected, label) in destinations)
                   NavigationRailDestination(
                     icon: Icon(icon),
                     selectedIcon: Icon(selected),
@@ -91,7 +93,7 @@ class _MobileHomeState extends State<MobileHome> {
         onDestinationSelected: select,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: [
-          for (final (icon, selected, label) in _destinations)
+          for (final (icon, selected, label) in destinations)
             NavigationDestination(
               icon: Icon(icon),
               selectedIcon: Icon(selected),
@@ -126,7 +128,7 @@ void openPlayer(
   ),
 );
 
-/// A header with the brand and a sync indicator, shared by the tabs.
+/// A tab's header: the logo or a title, a sync indicator and search.
 class MobileHeader extends StatelessWidget {
   const MobileHeader({super.key, required this.state, this.title});
 
@@ -140,8 +142,8 @@ class MobileHeader extends StatelessWidget {
     listenable: state,
     builder: (context, _) => Padding(
       padding: isLandscape(context)
-          ? const EdgeInsets.fromLTRB(20, 6, 12, 0)
-          : const EdgeInsets.fromLTRB(20, 12, 12, 4),
+          ? const EdgeInsets.fromLTRB(20, 4, 8, 0)
+          : const EdgeInsets.fromLTRB(20, 10, 8, 2),
       child: Row(
         children: [
           Expanded(
@@ -170,6 +172,19 @@ class MobileHeader extends StatelessWidget {
                 ),
               ),
             ),
+          IconButton.filledTonal(
+            tooltip: context.l10n.searchTooltip,
+            style: IconButton.styleFrom(
+              backgroundColor: ZaplineColors.surface,
+              foregroundColor: ZaplineColors.text,
+            ),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => SearchScreen(state: state),
+              ),
+            ),
+            icon: const Icon(Icons.search_rounded),
+          ),
         ],
       ),
     ),
@@ -210,6 +225,10 @@ class _ChannelsTabState extends State<ChannelsTab> {
         if (!groupsOf(state).contains(_group)) _group = null;
         final locked = _group != null && state.isLocked(_group!);
         final list = locked ? const <Channel>[] : _cache.get(state, _group);
+        // The last channel watched, a tap away, on the full list only.
+        final last = _group == null && state.hasRecents
+            ? state.recents().firstOrNull
+            : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -221,18 +240,31 @@ class _ChannelsTabState extends State<ChannelsTab> {
                   ? LockedGroupView(state: state)
                   : list.isEmpty
                   ? EmptyView(context.l10n.noChannelsInGroup)
-                  : ListView.builder(
+                  : CustomScrollView(
                       controller: _scroll,
-                      itemCount: list.length,
-                      itemExtent: MobileChannelRow.height,
-                      itemBuilder: (context, i) => MobileChannelRow(
-                        state: state,
-                        channel: list[i],
-                        number: state.channelNumber(list[i], i),
-                        onTap: () => openPlayer(context, state, list, i),
-                        onLongPress: () =>
-                            showChannelActions(context, state, list[i]),
-                      ),
+                      slivers: [
+                        if (last != null && !isLandscape(context))
+                          SliverToBoxAdapter(
+                            child: ContinueWatchingCard(
+                              state: state,
+                              channel: last,
+                            ),
+                          ),
+                        SliverFixedExtentList(
+                          itemExtent: MobileChannelRow.height,
+                          delegate: SliverChildBuilderDelegate(
+                            childCount: list.length,
+                            (context, i) => MobileChannelRow(
+                              state: state,
+                              channel: list[i],
+                              number: state.channelNumber(list[i], i),
+                              onTap: () => openPlayer(context, state, list, i),
+                              onLongPress: () =>
+                                  showChannelActions(context, state, list[i]),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
             ),
           ],
@@ -240,4 +272,168 @@ class _ChannelsTabState extends State<ChannelsTab> {
       },
     );
   }
+}
+
+/// The last channel watched with what's on it now, at the top of the list.
+class ContinueWatchingCard extends StatelessWidget {
+  const ContinueWatchingCard({
+    super.key,
+    required this.state,
+    required this.channel,
+  });
+
+  final AppState state;
+  final Channel channel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final (now, _) = state.nowNext(channel);
+    final t = DateTime.now();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Material(
+        color: ZaplineColors.surfaceHigh,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            final recents = state.recents();
+            openPlayer(context, state, recents, 0);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    ChannelLogo(channel: channel, width: 104, height: 62),
+                    Positioned(
+                      left: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ZaplineColors.live,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'LIVE',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: ZaplineColors.onFocus,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l.continueWatching.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: ZaplineColors.focus,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        now == null
+                            ? channel.name
+                            : '${now.title} · ${channel.name}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (now != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '${state.time(now.start)}–${state.time(now.stop)}'
+                          ' · ${l.timeLeft(now.stop.difference(t))}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ZaplineColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value:
+                                (t.difference(now.start).inSeconds /
+                                        now.stop
+                                            .difference(now.start)
+                                            .inSeconds)
+                                    .clamp(0.0, 1.0),
+                            minHeight: 3,
+                            color: ZaplineColors.focus,
+                            backgroundColor: ZaplineColors.line,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Favourite channels, across sources.
+class FavouritesTab extends StatelessWidget {
+  const FavouritesTab({super.key, required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: state,
+    builder: (context, _) {
+      final list = state.favourites();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MobileHeader(state: state, title: context.l10n.favourites),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: ZaplineColors.line),
+          Expanded(
+            child: list.isEmpty
+                ? EmptyView(
+                    context.l10n.favouritesEmpty,
+                    icon: Icons.star_outline_rounded,
+                  )
+                : ListView.builder(
+                    itemCount: list.length,
+                    itemExtent: MobileChannelRow.height,
+                    itemBuilder: (context, i) => MobileChannelRow(
+                      state: state,
+                      channel: list[i],
+                      number: state.channelNumber(list[i], i),
+                      onTap: () => openPlayer(context, state, list, i),
+                      onLongPress: () =>
+                          showChannelActions(context, state, list[i]),
+                    ),
+                  ),
+          ),
+        ],
+      );
+    },
+  );
 }

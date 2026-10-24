@@ -8,6 +8,7 @@ import '../l10n.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
 import 'mobile_home.dart';
+import 'programme_sheet.dart';
 import 'mobile_widgets.dart';
 
 /// The guide on a phone: what's on at a chosen time on every channel of a
@@ -366,54 +367,12 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
         .replaceAll(RegExp(r'[/.]\d+$'), '');
   }
 
-  void _open(Programme p) {
-    final now = DateTime.now();
-    final onAir = !p.start.isAfter(now) && p.stop.isAfter(now);
-    final replay =
-        !onAir &&
-        !p.stop.isAfter(now) &&
-        widget.state.catchupUrl(_channel, p) != null;
-    if (onAir || replay) {
-      openPlayer(
-        context,
-        widget.state,
-        widget.channels,
-        widget.index,
-        replay: replay ? p : null,
-      );
-    } else {
-      _details(p);
-    }
-  }
-
-  void _details(Programme p) => showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
-    isScrollControlled: true,
-    builder: (context) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            p.title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${_dayLabel(_dateOf(p.start))}  ·  '
-            '${widget.state.time(p.start)}–${widget.state.time(p.stop)}'
-            '${p.category == null ? '' : '  ·  ${p.category}'}',
-            style: const TextStyle(color: ZaplineColors.textMuted),
-          ),
-          if (p.description case final d? when d.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Flexible(child: SingleChildScrollView(child: Text(d))),
-          ],
-        ],
-      ),
-    ),
+  void _open(Programme p) => showProgrammeSheet(
+    context,
+    state: widget.state,
+    channels: widget.channels,
+    index: widget.index,
+    programme: p,
   );
 
   @override
@@ -493,7 +452,6 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
                           past && state.catchupUrl(_channel, p) != null;
                       return InkWell(
                         onTap: () => _open(p),
-                        onLongPress: () => _details(p),
                         child: Container(
                           color: onAir
                               ? ZaplineColors.surfaceHigh

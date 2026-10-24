@@ -338,14 +338,30 @@ class MobileChannelRow extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    now?.title ?? context.l10n.noGuide,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: ZaplineColors.textMuted,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          now?.title ?? context.l10n.noGuide,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: ZaplineColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      if (now != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          context.l10n.timeLeft(now.stop.difference(t)),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ZaplineColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (progress != null) ...[
                     const SizedBox(height: 5),

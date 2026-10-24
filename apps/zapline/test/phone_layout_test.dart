@@ -68,7 +68,17 @@ void main() {
       await back();
       await tester.pumpAndSettle();
 
-      for (final tab in ['Guide', 'Search', 'Settings']) {
+      // Search opens from the header as a page.
+      await tester.tap(find.byTooltip('Search channels and programmes').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'Show 2');
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('In the TV guide'));
+      await tester.pumpAndSettle();
+      await back();
+
+      for (final tab in ['Guide', 'Favourites', 'Settings']) {
         await tester.tap(find.text(tab).last);
         await tester.pumpAndSettle();
       }
@@ -90,6 +100,19 @@ void main() {
       await tester.tap(find.text('Channel 3').first);
       await tester.pumpAndSettle();
       expect(find.text('ON NOW'), findsOneWidget);
+
+      // A programme opens its sheet; an upcoming one can be reminded.
+      // The next programme may already fall on tomorrow's page.
+      if (find.text('Show 3.1').evaluate().isEmpty) {
+        await tester.tap(find.text('Tomorrow'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Show 3.1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Remind me'), findsOneWidget);
+      await tester.tap(find.text('Remind me'));
+      await tester.pumpAndSettle();
+      expect(find.text('Reminder set'), findsOneWidget);
     });
   }
 }

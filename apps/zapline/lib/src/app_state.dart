@@ -575,6 +575,81 @@ class AppState extends ChangeNotifier {
     return refresh(sources.firstWhere((e) => e.id == s.id));
   }
 
+  // ------------------------------------------------------------ reminders
+
+  /// Programmes the user asked to be reminded of, by channel key and start.
+  List<Reminder> get reminders {
+    final raw = db.setting('reminders');
+    if (raw == null) return const [];
+    return [
+      for (final r in jsonDecode(raw) as List)
+        Reminder(
+          channelKey: r['k'] as String,
+          start: DateTime.fromMillisecondsSinceEpoch(
+            (r['s'] as int) * 1000,
+            isUtc: true,
+          ),
+          title: r['t'] as String,
+        ),
+    ];
+  }
+
+  void _saveReminders(List<Reminder> list) => db.setSetting(
+    'reminders',
+    jsonEncode([
+      for (final r in list)
+        {
+          'k': r.channelKey,
+          's': r.start.millisecondsSinceEpoch ~/ 1000,
+          't': r.title,
+        },
+    ]),
+  );
+
+  bool hasReminder(Channel c, Programme p) => reminders.any(
+    (r) => r.channelKey == ZaplineDatabase.channelKey(c) && r.start == p.start,
+  );
+
+  void toggleReminder(Channel c, Programme p) {
+    final key = ZaplineDatabase.channelKey(c);
+    final list = reminders;
+    final i = list.indexWhere((r) => r.channelKey == key && r.start == p.start);
+    _saveReminders([
+      for (final (j, r) in list.indexed)
+        if (j != i) r,
+      if (i < 0) Reminder(channelKey: key, start: p.start, title: p.title),
+    ]);
+    notifyListeners();
+  }
+
+  /// Reminders whose programme starts within a minute (or started in the
+  /// last ten); they are removed once returned. Old ones are dropped.
+  List<(Reminder, Channel?)> takeDueReminders(DateTime now) {
+    final list = reminders;
+    if (list.isEmpty) return const [];
+    final due = <Reminder>[], keep = <Reminder>[];
+    for (final r in list) {
+      final until = r.start.difference(now);
+      if (until <= const Duration(minutes: 1)) {
+        if (until > const Duration(minutes: -10)) due.add(r);
+      } else {
+        keep.add(r);
+      }
+    }
+    if (due.isEmpty && keep.length == list.length) return const [];
+    _saveReminders(keep);
+    final all = due.isEmpty ? const <Channel>[] : channels();
+    return [
+      for (final r in due)
+        (
+          r,
+          all
+              .where((c) => ZaplineDatabase.channelKey(c) == r.channelKey)
+              .firstOrNull,
+        ),
+    ];
+  }
+
   /// What the last sync got from [sourceId]'s TV guides.
   GuideStatus? guideStatus(String sourceId) {
     final raw = db.setting('guideStatus:$sourceId');
@@ -788,4 +863,17 @@ class GuideStatus {
 
   /// The source can be asked for what's on channel by channel instead.
   final bool perChannel;
+}
+
+/// A programme to be reminded of when it starts.
+class Reminder {
+  const Reminder({
+    required this.channelKey,
+    required this.start,
+    required this.title,
+  });
+
+  final String channelKey;
+  final DateTime start;
+  final String title;
 }

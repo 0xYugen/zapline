@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,7 @@ import 'src/mobile/mobile_home.dart';
 import 'src/secret_store.dart';
 import 'src/screens/add_source_screen.dart';
 import 'src/screens/channels_screen.dart';
+import 'src/screens/player_screen.dart';
 import 'src/theme.dart';
 import 'src/widgets/channel_logo.dart';
 
@@ -91,12 +93,63 @@ class ZaplineApp extends StatefulWidget {
 
 class _ZaplineAppState extends State<ZaplineApp> {
   final _navigator = GlobalKey<NavigatorState>();
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _backStack = BackStackObserver();
+  Timer? _reminderTimer;
 
   @override
   void initState() {
     super.initState();
     InputMode.instance.attach();
+    _reminderTimer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _checkReminders(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _reminderTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Programmes the user asked about that are starting: a banner with a
+  /// shortcut to the channel.
+  void _checkReminders() {
+    final context = _navigator.currentContext;
+    if (context == null) return;
+    for (final (reminder, channel) in widget.state.takeDueReminders(
+      DateTime.now().toUtc(),
+    )) {
+      final l = AppLocalizations.of(context);
+      _messenger.currentState?.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 20),
+          content: Text(l.reminderNow(reminder.title, channel?.name ?? '')),
+          action: channel == null
+              ? null
+              : SnackBarAction(
+                  label: l.watch,
+                  onPressed: () {
+                    final all = widget.state.channels();
+                    final i = all.indexWhere(
+                      (c) =>
+                          c.sourceId == channel.sourceId && c.id == channel.id,
+                    );
+                    _navigator.currentState?.push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PlayerScreen(
+                          state: widget.state,
+                          channels: i < 0 ? [channel] : all,
+                          initialIndex: i < 0 ? 0 : i,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      );
+    }
   }
 
   void _back() => _navigator.currentState?.maybePop();
@@ -166,6 +219,7 @@ class _ZaplineAppState extends State<ZaplineApp> {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       navigatorKey: _navigator,
+      scaffoldMessengerKey: _messenger,
       navigatorObservers: [_backStack],
       // Desktop has no Back key: Esc and the browser back key go back. The
       // Android Back key is left to the system, which pops the route itself;

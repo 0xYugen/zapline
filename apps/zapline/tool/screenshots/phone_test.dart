@@ -88,17 +88,29 @@ void main() {
       await shot(tester, d, '02c-groups');
       await back(tester);
 
+      await tester.tap(find.byTooltip('Search channels and programmes').first);
+      await step(tester);
+      await tester.enterText(find.byType(TextField).last, 'Show 1');
+      await tester.pump(const Duration(milliseconds: 400));
+      await step(tester);
+      await shot(tester, d, '04-search');
+      await back(tester);
+
       if (await tapText(tester, 'Guide')) {
         await shot(tester, d, '03-guide');
         await tapText(tester, 'Channel 3');
         await shot(tester, d, '03b-schedule');
+        final upcoming = find.text('Show 3.1').evaluate().isEmpty
+            ? 'Show 3.-1'
+            : 'Show 3.1';
+        if (await tapText(tester, upcoming)) {
+          await shot(tester, d, '03c-programme');
+          await back(tester);
+        }
         await back(tester);
       }
-      if (await tapText(tester, 'Search')) {
-        await tester.enterText(find.byType(TextField).last, 'Show 1');
-        await tester.pump(const Duration(milliseconds: 400));
-        await step(tester);
-        await shot(tester, d, '04-search');
+      if (await tapText(tester, 'Favourites')) {
+        await shot(tester, d, '04b-favourites');
       }
       if (await tapText(tester, 'Settings')) {
         await shot(tester, d, '05-settings');
@@ -110,6 +122,16 @@ void main() {
           }
           await back(tester);
         }
+      }
+      // The same app in Italian.
+      state.settings.setLanguage('it');
+      await step(tester);
+      await shot(tester, d, '09-settings-it');
+      if (await tapText(tester, 'TV in diretta')) {
+        await shot(tester, d, '09b-channels-it');
+      }
+      if (await tapText(tester, 'Guida')) {
+        await shot(tester, d, '09c-guide-it');
       }
       // ignore: avoid_print
       print(
