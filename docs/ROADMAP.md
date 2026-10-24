@@ -54,8 +54,15 @@ documented.
 - [x] Sources screen: add, refresh, remove (second press confirms), guide
       coverage
 - [ ] Manual guide mapping UI for unmatched channels
-- [ ] Catch-up playback from the guide (xc, shift, append, flussonic)
-- [ ] Favourites, channel search UI, number-key zapping
+- [x] Catch-up: URL builder for xtream/xc, default, append, shift,
+      flussonic and vod with Kodi-compatible placeholders; Xtream panel UTC
+      offset from `server_info`; archive programmes marked in the guide and
+      playable with OK; "watch from the start" (Left) and "back to live"
+      (Right) in the player
+- [x] Favourites (hold OK, Menu key, long tap or right click), shown as a
+      group; kept across re-syncs (database migration v1 → v2)
+- [x] Number-key zapping in the player
+- [ ] Channel search UI
 - [ ] QR onboarding from a phone
 - [ ] JSON backup/restore
 - [ ] Store credentials in the platform keystore instead of SQLite

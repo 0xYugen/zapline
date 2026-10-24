@@ -73,7 +73,7 @@ class SourceSync {
     void Function(SyncProgress)? onProgress,
   }) async {
     onProgress?.call(const SyncProgress(SyncStage.channels));
-    final (channels, guideUrls) = switch (source.kind) {
+    final (channels, guideUrls, offset) = switch (source.kind) {
       SourceKind.xtream => await _xtream(source),
       SourceKind.m3u => await _m3u(source),
       SourceKind.stalker => throw SyncException(
@@ -104,7 +104,9 @@ class SourceSync {
 
     onProgress?.call(const SyncProgress(SyncStage.linking));
     final coverage = db.rebuildGuideLinks();
-    db.saveSource(source.copyWith(syncedAt: DateTime.now().toUtc()));
+    db.saveSource(
+      source.copyWith(syncedAt: DateTime.now().toUtc(), serverOffset: offset),
+    );
     onProgress?.call(SyncProgress(SyncStage.done, count: coverage.matched));
     return SyncResult(
       channels: channels.length,
@@ -114,7 +116,7 @@ class SourceSync {
     );
   }
 
-  Future<(List<Channel>, List<Uri>)> _xtream(SourceRecord s) async {
+  Future<(List<Channel>, List<Uri>, Duration?)> _xtream(SourceRecord s) async {
     final client = XtreamClient(_credentials(s), httpClient: _http);
     final XtreamAccount account;
     try {
@@ -149,7 +151,7 @@ class SourceSync {
             httpHeaders: const {'User-Agent': userAgent},
           ),
     ];
-    return (channels, [client.xmltvUrl]);
+    return (channels, [client.xmltvUrl], account.serverUtcOffset);
   }
 
   static XtreamCredentials _credentials(SourceRecord s) {
@@ -165,7 +167,7 @@ class SourceSync {
     );
   }
 
-  Future<(List<Channel>, List<Uri>)> _m3u(SourceRecord s) async {
+  Future<(List<Channel>, List<Uri>, Duration?)> _m3u(SourceRecord s) async {
     final uri = Uri.tryParse(s.url);
     if (uri == null || !uri.hasScheme) throw SyncException('Not a valid URL');
     final res = await _send(uri);
@@ -194,7 +196,7 @@ class SourceSync {
     if (channels.isEmpty) {
       throw SyncException('The playlist contains no channels');
     }
-    return (channels, parser.header.epgUrls);
+    return (channels, parser.header.epgUrls, null);
   }
 
   static CatchupInfo? _m3uCatchup(M3uEntry e) {

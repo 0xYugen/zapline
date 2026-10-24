@@ -16,6 +16,7 @@ class SourceRecord {
     this.password = '',
     this.extraGuideUrls = const [],
     this.syncedAt,
+    this.serverOffset = Duration.zero,
   });
 
   final String id;
@@ -31,7 +32,14 @@ class SourceRecord {
   final List<String> extraGuideUrls;
   final DateTime? syncedAt;
 
-  SourceRecord copyWith({String? name, DateTime? syncedAt}) => SourceRecord(
+  /// Xtream panels read catch-up start times in their own local time.
+  final Duration serverOffset;
+
+  SourceRecord copyWith({
+    String? name,
+    DateTime? syncedAt,
+    Duration? serverOffset,
+  }) => SourceRecord(
     id: id,
     kind: kind,
     name: name ?? this.name,
@@ -40,6 +48,7 @@ class SourceRecord {
     password: password,
     extraGuideUrls: extraGuideUrls,
     syncedAt: syncedAt ?? this.syncedAt,
+    serverOffset: serverOffset ?? this.serverOffset,
   );
 
   Map<String, Object?> toConfigJson() => {
@@ -47,6 +56,7 @@ class SourceRecord {
     'username': username,
     'password': password,
     'guides': extraGuideUrls,
+    'offsetMinutes': serverOffset.inMinutes,
   };
 
   static SourceRecord fromRow({
@@ -68,6 +78,7 @@ class SourceRecord {
       syncedAt: syncedAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(syncedAt * 1000, isUtc: true),
+      serverOffset: Duration(minutes: (c['offsetMinutes'] as int?) ?? 0),
     );
   }
 }

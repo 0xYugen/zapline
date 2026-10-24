@@ -5,8 +5,21 @@ import 'package:sqlite3/sqlite3.dart';
 
 import 'source_record.dart';
 
-const _schemaVersion = 1;
+const _schemaVersion = 2;
 
+/// Migrations from version N to N+1, applied in order.
+const _migrations = <List<String>>[
+  // 1 → 2: favourites.
+  [
+    '''
+    CREATE TABLE favourites(
+      channel_key TEXT PRIMARY KEY,
+      added_at INTEGER NOT NULL
+    ) WITHOUT ROWID''',
+  ],
+];
+
+/// Version 1 schema; later versions are reached through [_migrations].
 const _schema = [
   '''
   CREATE TABLE sources(
@@ -125,14 +138,22 @@ class LineupDatabase {
   void close() => _db.close();
 
   void _migrate() {
-    final v = _db.userVersion;
+    var v = _db.userVersion;
     if (v == _schemaVersion) return;
-    if (v != 0) {
-      throw StateError('Unsupported database version $v');
+    if (v > _schemaVersion) {
+      throw StateError('Database version $v is newer than this app');
     }
     _transaction(() {
-      for (final sql in _schema) {
-        _db.execute(sql);
+      if (v == 0) {
+        for (final sql in _schema) {
+          _db.execute(sql);
+        }
+        v = 1;
+      }
+      for (; v < _schemaVersion; v++) {
+        for (final sql in _migrations[v - 1]) {
+          _db.execute(sql);
+        }
       }
       _db.userVersion = _schemaVersion;
     });
@@ -191,6 +212,9 @@ class LineupDatabase {
 
   void deleteSource(String id) => _transaction(() {
     _db.execute("DELETE FROM epg_map WHERE channel_key LIKE ? || '/%'", [id]);
+    _db.execute("DELETE FROM favourites WHERE channel_key LIKE ? || '/%'", [
+      id,
+    ]);
     _db.execute('DELETE FROM sources WHERE id = ?', [id]);
   });
 
@@ -317,6 +341,39 @@ class LineupDatabase {
       ))
         _channel(r),
     ];
+  }
+
+  // ------------------------------------------------------------- favourites
+
+  /// Favourite channels in the order they were added. Favourites survive a
+  /// re-sync as long as the source keeps the same channel ids.
+  List<Channel> favourites() => [
+    for (final r in _db.select(
+      'SELECT ${_channelCols.split(', ').map((c) => 'c.$c').join(', ')} '
+      'FROM favourites f JOIN channels c '
+      "ON f.channel_key = c.source_id || '/' || c.id ORDER BY f.added_at",
+    ))
+      _channel(r),
+  ];
+
+  Set<String> favouriteKeys() => {
+    for (final r in _db.select('SELECT channel_key FROM favourites'))
+      r['channel_key'] as String,
+  };
+
+  void setFavourite(Channel c, bool favourite) {
+    if (favourite) {
+      // A counter rather than a clock: consecutive adds can share a tick.
+      _db.execute(
+        'INSERT OR IGNORE INTO favourites(channel_key, added_at) '
+        'VALUES (?, (SELECT coalesce(max(added_at), 0) + 1 FROM favourites))',
+        [channelKey(c)],
+      );
+    } else {
+      _db.execute('DELETE FROM favourites WHERE channel_key = ?', [
+        channelKey(c),
+      ]);
+    }
   }
 
   // ------------------------------------------------------------------ guide

@@ -121,13 +121,24 @@ class _GuideScreenState extends State<GuideScreen> {
     return KeyEventResult.ignored;
   }
 
-  void _play(int index) {
+  /// Plays the channel live, or replays [programme] from the archive when it
+  /// has already aired and the provider keeps it.
+  void _play(int index, [Programme? programme]) {
+    final c = widget.channels[index];
+    final replay =
+        programme != null &&
+            programme.start.isBefore(DateTime.now().toUtc()) &&
+            !programme.isAiringAt(DateTime.now().toUtc()) &&
+            widget.state.catchupUrl(c, programme) != null
+        ? programme
+        : null;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => PlayerScreen(
           state: widget.state,
           channels: widget.channels,
           initialIndex: index,
+          replay: replay,
         ),
       ),
     );
@@ -235,8 +246,10 @@ class _GuideScreenState extends State<GuideScreen> {
           width: width,
           label: p.title,
           dim: p.stop.isBefore(DateTime.now().toUtc()),
+          replayable:
+              p.stop.isBefore(DateTime.now().toUtc()) && canReplay(c, p),
           onFocus: () => _select(i, c, p),
-          onPressed: () => _play(i),
+          onPressed: () => _play(i, p),
         ),
       );
     }
@@ -286,6 +299,7 @@ class _GuideScreenState extends State<GuideScreen> {
     required double width,
     required String label,
     required bool dim,
+    bool replayable = false,
     required VoidCallback onFocus,
     required VoidCallback onPressed,
   }) {
@@ -300,18 +314,26 @@ class _GuideScreenState extends State<GuideScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         onFocused: onFocus,
         onPressed: onPressed,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: dim ? LineupColors.textMuted : null,
+        child: Row(
+          children: [
+            if (replayable) ...[
+              const Icon(Icons.history, size: 18),
+              const SizedBox(width: 6),
+            ],
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                // Dim past programmes unless they can still be watched.
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: dim && !replayable ? LineupColors.textMuted : null,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

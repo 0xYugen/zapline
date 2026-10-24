@@ -22,7 +22,7 @@ const _channels = [
   (3, 'Bip Bop Advanced', '1', 'bipbopadv.test',
       'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8'),
   (4, 'Live Test Clock', '2', 'live.test',
-      'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8'),
+      'https://demo.unified-streaming.com/k8s/live/stable/live.isml/.m3u8'),
   (5, 'Tears of Steel', '2', 'tos.test',
       'https://test-streams.mux.dev/tos_ismc/main.m3u8'),
   (6, 'Broken Stream', '2', 'broken.test', 'http://127.0.0.1:9/nothing.ts'),
@@ -83,6 +83,25 @@ Future<void> _handle(HttpRequest req) async {
     return;
   }
 
+  // Catch-up: /timeshift/U/P/{minutes}/{YYYY-MM-DD:HH-MM}/{id}.{ext}. Any
+  // archived programme replays a public VOD test stream.
+  final shift = RegExp(
+    r'^/timeshift/([^/]+)/([^/]+)/(\d+)/(\d{4}-\d{2}-\d{2}:\d{2}-\d{2})/(\d+)\.\w+$',
+  ).firstMatch(path);
+  if (shift != null) {
+    if (shift.group(1) != _user || shift.group(2) != _pass) {
+      res.statusCode = HttpStatus.forbidden;
+      return;
+    }
+    stdout.writeln('  catch-up ${shift.group(4)} for ${shift.group(3)} min');
+    res.statusCode = HttpStatus.found;
+    res.headers.set(
+      HttpHeaders.locationHeader,
+      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    );
+    return;
+  }
+
   final live = RegExp(r'^/live/([^/]+)/([^/]+)/(\d+)\.\w+$').firstMatch(path);
   if (live != null) {
     if (live.group(1) != _user || live.group(2) != _pass) {
@@ -126,6 +145,7 @@ Object? _api(String? action, Map<String, String> q, HttpRequest req) {
           'server_protocol': 'http',
           'timezone': 'UTC',
           'timestamp_now': now.millisecondsSinceEpoch ~/ 1000,
+          'time_now': now.toIso8601String().substring(0, 19).replaceFirst('T', ' '),
         },
       };
     case 'get_live_categories':

@@ -97,6 +97,7 @@ class AppState extends ChangeNotifier {
   final SyncRunner syncRunner;
 
   List<SourceRecord> sources = const [];
+  Set<String> _favouriteKeys = const {};
   List<String> groups = const [];
   int channelCount = 0;
 
@@ -116,11 +117,37 @@ class AppState extends ChangeNotifier {
     sources = db.sources();
     groups = db.groups();
     channelCount = db.channelCount();
+    _favouriteKeys = db.favouriteKeys();
   }
 
   List<Channel> channels({String? group}) => db.channels(group: group);
 
   List<Channel> search(String query) => db.search(query);
+
+  List<Channel> favourites() => db.favourites();
+
+  bool get hasFavourites => _favouriteKeys.isNotEmpty;
+
+  bool isFavourite(Channel c) =>
+      _favouriteKeys.contains(LineupDatabase.channelKey(c));
+
+  void toggleFavourite(Channel c) {
+    db.setFavourite(c, !isFavourite(c));
+    _reload();
+    notifyListeners();
+  }
+
+  /// The archive URL for [p] on [c], or `null` if it cannot be replayed.
+  Uri? catchupUrl(Channel c, Programme p) {
+    if (!canReplay(c, p)) return null;
+    final source = sources.where((s) => s.id == c.sourceId).firstOrNull;
+    return buildCatchupUrl(
+      c,
+      start: p.start,
+      stop: p.stop,
+      serverOffset: source?.serverOffset ?? Duration.zero,
+    );
+  }
 
   (Programme?, Programme?) nowNext(Channel c) =>
       db.nowNext(c, DateTime.now().toUtc());

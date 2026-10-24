@@ -26,8 +26,11 @@ class ChannelsScreen extends StatefulWidget {
   State<ChannelsScreen> createState() => _ChannelsScreenState();
 }
 
+/// Pseudo-group for favourites; cannot clash with a real group title.
+const _favourites = '\u0000favourites';
+
 class _ChannelsScreenState extends State<ChannelsScreen> {
-  /// `null` means all channels.
+  /// `null` means all channels, [_favourites] the favourites list.
   String? _group;
 
   final _firstChannel = FocusNode(debugLabel: 'first channel');
@@ -57,7 +60,9 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     final key = (_group, widget.state.version);
     if (key != _cacheKey) {
       _cacheKey = key;
-      _cache = widget.state.channels(group: _group);
+      _cache = _group == _favourites
+          ? widget.state.favourites()
+          : widget.state.channels(group: _group);
     }
     return _cache;
   }
@@ -88,8 +93,12 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
 
   Widget _build(BuildContext context) {
     final state = widget.state;
-    final groups = <String?>[null, ...state.groups];
-    if (_group != null && !state.groups.contains(_group)) _group = null;
+    final groups = <String?>[
+      null,
+      if (state.hasFavourites) _favourites,
+      ...state.groups,
+    ];
+    if (!groups.contains(_group)) _group = null;
     final visible = _visible;
 
     return Scaffold(
@@ -154,18 +163,42 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                             // most TV apps; Select jumps into the list.
                             onFocused: () => setState(() => _group = g),
                             onPressed: () => _firstChannel.requestFocus(),
-                            child: Text(
-                              g ?? 'All channels',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
+                            child: Row(
+                              children: [
+                                if (g == _favourites) ...[
+                                  const Icon(Icons.star_rounded, size: 20),
+                                  const SizedBox(width: 10),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    switch (g) {
+                                      null => 'All channels',
+                                      _favourites => 'Favourites',
+                                      _ => g,
+                                    },
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );
                       },
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(8, 12, 8, 0),
+                    child: Text(
+                      'Hold OK on a channel to add it to favourites',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: LineupColors.textMuted,
+                      ),
                     ),
                   ),
                 ],
@@ -186,6 +219,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                     fallbackNumber: i + 1,
                     focusNode: i == 0 ? _firstChannel : null,
                     onPressed: () => _play(visible, i),
+                    onLongPress: () => state.toggleFavourite(visible[i]),
                   ),
                 ),
               ),
@@ -233,6 +267,7 @@ class _ChannelRow extends StatelessWidget {
     required this.channel,
     required this.fallbackNumber,
     required this.onPressed,
+    required this.onLongPress,
     this.focusNode,
   });
 
@@ -240,6 +275,7 @@ class _ChannelRow extends StatelessWidget {
   final Channel channel;
   final int fallbackNumber;
   final VoidCallback onPressed;
+  final VoidCallback onLongPress;
   final FocusNode? focusNode;
 
   @override
@@ -250,6 +286,7 @@ class _ChannelRow extends StatelessWidget {
     return FocusCard(
       focusNode: focusNode,
       onPressed: onPressed,
+      onLongPress: onLongPress,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: Row(
         children: [
@@ -301,6 +338,11 @@ class _ChannelRow extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.only(left: 16),
               child: Icon(Icons.history, size: 20),
+            ),
+          if (state.isFavourite(c))
+            const Padding(
+              padding: EdgeInsets.only(left: 12),
+              child: Icon(Icons.star_rounded, size: 22),
             ),
         ],
       ),

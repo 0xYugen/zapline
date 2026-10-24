@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:lineup_core/lineup_core.dart';
 import 'package:lineup_data/lineup_data.dart';
+import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 
 Channel _ch(String src, String id, String name, {String? group, String? epg}) =>
@@ -128,6 +131,55 @@ void main() {
     expect(db.pruneProgrammes(now), 6);
     db.setGuideOverride(chans[2], 'news.example');
     expect(db.rebuildGuideLinks().matched, 3);
+  });
+
+  test('favourites keep order, survive re-sync, go with their source', () {
+    final chans = [
+      _ch('a', '1', 'One'),
+      _ch('a', '2', 'Two'),
+      _ch('a', '3', 'Three'),
+    ];
+    db.replaceChannels('a', chans);
+    db.setFavourite(chans[2], true);
+    db.setFavourite(chans[0], true);
+    db.setFavourite(chans[0], true); // idempotent
+    expect(db.favourites().map((c) => c.id), ['3', '1']);
+
+    db.replaceChannels('a', chans.reversed);
+    expect(db.favourites().map((c) => c.id), ['3', '1']);
+
+    db.setFavourite(chans[2], false);
+    expect(db.favouriteKeys(), {'a/1'});
+    db.deleteSource('a');
+    expect(db.favouriteKeys(), isEmpty);
+  });
+
+  test('a version 1 database is migrated in place', () {
+    final dir = Directory.systemTemp.createTempSync('lineup_db');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final path = '${dir.path}/v1.db';
+    LineupDatabase.open(path)
+      ..saveSource(
+        const SourceRecord(
+          id: 'k',
+          kind: SourceKind.m3u,
+          name: 'K',
+          url: 'http://k',
+        ),
+      )
+      ..close();
+    // Roll the file back to version 1.
+    final raw = sqlite3.open(path)
+      ..execute('DROP TABLE favourites')
+      ..userVersion = 1;
+    raw.close();
+
+    final migrated = LineupDatabase.open(path);
+    addTearDown(migrated.close);
+    expect(migrated.sources().single.id, 'k');
+    migrated.replaceChannels('k', [_ch('k', '1', 'One')]);
+    migrated.setFavourite(_ch('k', '1', 'One'), true);
+    expect(migrated.favourites().single.id, '1');
   });
 
   test('deleting a source removes its channels and links', () async {

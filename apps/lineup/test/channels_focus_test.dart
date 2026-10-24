@@ -79,4 +79,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(_focusedLabel(), startsWith('Show 2.'));
   });
+
+  testWidgets('Menu key toggles a favourite and the group appears', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    final state = fakeState();
+    await tester.pumpWidget(LineupApp(state: state));
+    await _connect(tester);
+    expect(find.text('Favourites'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.pumpAndSettle();
+    expect(find.text('Favourites'), findsOneWidget);
+    expect(state.favourites().single.name, 'Channel 2');
+    expect(find.byIcon(Icons.star_rounded), findsNWidgets(2));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.pumpAndSettle();
+    expect(find.text('Favourites'), findsNothing);
+  });
+
+  testWidgets('past programmes with an archive are marked in the guide', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    await tester.pumpWidget(LineupApp(state: fakeState()));
+    await _connect(tester);
+    await tester.tap(find.text('TV guide'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.history), findsNothing);
+
+    // Page back past the left edge into programmes that already aired.
+    for (var i = 0; i < 3; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+    }
+    expect(find.byIcon(Icons.history), findsWidgets);
+  });
 }

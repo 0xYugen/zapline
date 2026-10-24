@@ -37,6 +37,7 @@ class XtreamAccount {
     this.serverTimezone,
     this.serverUrl,
     this.httpsPort,
+    this.serverUtcOffset,
   });
 
   factory XtreamAccount.fromJson(Map<String, Object?> json) {
@@ -54,6 +55,10 @@ class XtreamAccount {
       serverTimezone: readString(server['timezone']),
       serverUrl: readString(server['url']),
       httpsPort: readInt(server['https_port']),
+      serverUtcOffset: _utcOffset(
+        readString(server['time_now']),
+        readInt(server['timestamp_now']),
+      ),
     );
   }
 
@@ -68,6 +73,23 @@ class XtreamAccount {
   final String? serverTimezone;
   final String? serverUrl;
   final int? httpsPort;
+
+  /// The panel's local time minus UTC, needed for catch-up URLs. Derived
+  /// from `time_now` (local wall clock) and `timestamp_now` (unix time),
+  /// rounded to 15 minutes; `null` when the panel omits either.
+  final Duration? serverUtcOffset;
+
+  static Duration? _utcOffset(String? timeNow, int? timestampNow) {
+    if (timeNow == null || timestampNow == null) return null;
+    final wall = DateTime.tryParse('${timeNow.replaceFirst(' ', 'T')}Z');
+    if (wall == null) return null;
+    final unix = DateTime.fromMillisecondsSinceEpoch(
+      timestampNow * 1000,
+      isUtc: true,
+    );
+    final minutes = wall.difference(unix).inMinutes;
+    return Duration(minutes: (minutes / 15).round() * 15);
+  }
 
   bool get isActive => authenticated && status.toLowerCase() == 'active';
 

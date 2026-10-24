@@ -65,7 +65,12 @@ void main() {
             'active_cons': 0,
             'allowed_output_formats': ['m3u8', 'ts'],
           },
-          'server_info': {'timezone': 'Europe/Rome', 'https_port': '443'},
+          'server_info': {
+            'timezone': 'Europe/Rome',
+            'https_port': '443',
+            'time_now': '2026-10-24 22:00:07',
+            'timestamp_now': 1792872000, // 2026-10-24 20:00 UTC
+          },
         },
       });
       final account = await client.authenticate();
@@ -74,6 +79,7 @@ void main() {
       expect(account.maxConnections, 2);
       expect(account.preferredLiveExtension, 'ts');
       expect(account.serverTimezone, 'Europe/Rome');
+      expect(account.serverUtcOffset, const Duration(hours: 2));
     });
 
     test('authenticate rejects bad login', () async {

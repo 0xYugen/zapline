@@ -18,7 +18,8 @@ AppState fakeState({int count = 20}) {
             number: i,
             groupTitle: i.isEven ? 'Even' : 'Odd',
             epgChannelId: 'g$i',
-            streamUrl: Uri.parse('http://x.example/$i.ts'),
+            streamUrl: Uri.parse('http://x.example/live/u/p/$i.ts'),
+            catchup: const CatchupInfo(mode: CatchupMode.xtream, days: 2),
           ),
       ];
       db.replaceChannels(source.id, channels);
