@@ -133,10 +133,7 @@ class _ZaplineAppState extends State<ZaplineApp> {
                   label: l.watch,
                   onPressed: () {
                     final all = widget.state.channels();
-                    final i = all.indexWhere(
-                      (c) =>
-                          c.sourceId == channel.sourceId && c.id == channel.id,
-                    );
+                    final i = widget.state.indexOfChannel(all, channel);
                     _navigator.currentState?.push(
                       MaterialPageRoute<void>(
                         builder: (_) => PlayerScreen(

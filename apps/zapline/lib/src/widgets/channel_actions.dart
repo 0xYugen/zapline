@@ -7,7 +7,9 @@ import '../screens/guide_mapping_screen.dart';
 import '../layout.dart';
 import '../l10n.dart';
 import '../theme.dart';
+import '../screens/player_screen.dart';
 import 'channel_logo.dart';
+import 'channel_versions.dart';
 import 'focus_card.dart';
 
 /// Menu opened by holding OK on a channel (or the Menu key, a long tap, a
@@ -69,7 +71,7 @@ Future<void> showChannelActions(
                         const SizedBox(width: 14),
                         Expanded(
                           child: Text(
-                            channel.name,
+                            state.displayName(channel),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -81,6 +83,15 @@ Future<void> showChannelActions(
                       ],
                     ),
                     const SizedBox(height: 18),
+                    if (state.versionsOf(channel).length > 1)
+                      action(
+                        Icons.hd_outlined,
+                        _versionLabel(context, state, channel),
+                        () {
+                          done();
+                          _pickVersion(context, state, channel);
+                        },
+                      ),
                     action(
                       favourite
                           ? Icons.star_outline_rounded
@@ -98,7 +109,7 @@ Future<void> showChannelActions(
                       Icons.visibility_off_outlined,
                       context.l10n.hideChannel,
                       () {
-                        state.setChannelHidden(channel, true);
+                        _hideAll(state, channel);
                         done();
                       },
                     ),
@@ -163,13 +174,25 @@ Future<void> _showSheet(
           ListTile(
             leading: ChannelLogo(channel: channel, width: 48, height: 34),
             title: Text(
-              channel.name,
+              state.displayName(channel),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
           ),
           const Divider(height: 1, color: ZaplineColors.line),
+          if (state.versionsOf(channel).length > 1)
+            ListTile(
+              leading: const Icon(Icons.hd_outlined),
+              title: Text(_versionLabel(context, state, channel)),
+              subtitle: Text(
+                context.l10n.versionCount(state.versionsOf(channel).length),
+              ),
+              onTap: () {
+                done();
+                _pickVersion(context, state, channel);
+              },
+            ),
           ListTile(
             leading: Icon(
               favourite ? Icons.star_outline_rounded : Icons.star_rounded,
@@ -189,7 +212,7 @@ Future<void> _showSheet(
             title: Text(context.l10n.hideChannel),
             subtitle: Text(context.l10n.hiddenHint),
             onTap: () {
-              state.setChannelHidden(channel, true);
+              _hideAll(state, channel);
               done();
             },
           ),
@@ -207,3 +230,41 @@ Future<void> _showSheet(
     );
   },
 );
+
+void _hideAll(AppState state, Channel channel) {
+  for (final v in state.versionsOf(channel)) {
+    state.setChannelHidden(v, true);
+  }
+}
+
+String _versionLabel(BuildContext context, AppState state, Channel c) =>
+    context.l10n.versionPlaying(state.qualityOf(c) ?? state.displayName(c));
+
+/// From the channel list: the picked version becomes the channel's, or
+/// plays once when not to be remembered.
+Future<void> _pickVersion(
+  BuildContext context,
+  AppState state,
+  Channel channel,
+) async {
+  final picked = await pickChannelVersion(
+    context,
+    state,
+    channel,
+    rememberByDefault: true,
+  );
+  if (picked == null || !context.mounted) return;
+  if (picked.remember) {
+    state.preferVersion(picked.channel);
+    return;
+  }
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => PlayerScreen(
+        state: state,
+        channels: [picked.channel],
+        initialIndex: 0,
+      ),
+    ),
+  );
+}

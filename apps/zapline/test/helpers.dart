@@ -14,6 +14,7 @@ AppState fakeState({
   SecretStore? secrets,
   ChannelGuideFetcher? guideFetcher,
   bool vod = false,
+  List<String>? names,
 }) {
   final db = database ?? ZaplineDatabase.inMemory();
   return AppState(
@@ -26,7 +27,11 @@ AppState fakeState({
           Channel(
             sourceId: source.id,
             id: '$i',
-            name: unmatched.contains(i) ? 'Channel $i Extra' : 'Channel $i',
+            name: names != null && i <= names.length
+                ? names[i - 1]
+                : unmatched.contains(i)
+                ? 'Channel $i Extra'
+                : 'Channel $i',
             number: i,
             groupTitle: i.isEven ? 'Even' : 'Odd',
             epgChannelId: unmatched.contains(i) ? null : 'g$i',

@@ -64,9 +64,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
         _play(_visible, 0);
       } else if (widget.state.resumeChannel case final last?) {
         final all = widget.state.channels();
-        final i = all.indexWhere(
-          (c) => c.sourceId == last.sourceId && c.id == last.id,
-        );
+        final i = widget.state.indexOfChannel(all, last);
         if (i >= 0) _play(all, i);
       }
     });

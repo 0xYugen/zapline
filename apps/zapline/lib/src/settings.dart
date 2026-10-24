@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:zapline_data/zapline_data.dart';
@@ -37,6 +39,29 @@ class AppSettings {
   /// Hours between automatic refreshes of each source; 0 turns them off.
   int get refreshHours => _int('refreshHours', 12);
   set refreshHours(int v) => _db.setSetting('refreshHours', '$v');
+
+  /// Show "Rai 1 HD", "Rai 1 FHD" and "Rai 1 4K" as one channel.
+  bool get mergeVersions => _bool('mergeVersions', true);
+  set mergeVersions(bool v) => _db.setSetting('mergeVersions', '$v');
+
+  /// Which version of a merged channel plays: the best picture, or the
+  /// one that uses less data (HD before Full HD and 4K).
+  bool get saveData => _bool('saveData', false);
+  set saveData(bool v) => _db.setSetting('saveData', '$v');
+
+  /// Versions picked by hand: channel key ("source/id") by version key.
+  Map<String, String> get versionChoices {
+    final raw = _db.setting('versionChoices');
+    if (raw == null) return {};
+    try {
+      return (jsonDecode(raw) as Map).map((k, v) => MapEntry('$k', '$v'));
+    } on FormatException {
+      return {};
+    }
+  }
+
+  set versionChoices(Map<String, String> v) =>
+      _db.setSetting('versionChoices', jsonEncode(v));
 
   /// How the picture fills the screen.
   BoxFit get videoFit => switch (_db.setting('videoFit')) {

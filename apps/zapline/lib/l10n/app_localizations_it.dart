@@ -1175,4 +1175,63 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get channelProgrammeOrTitle => 'Canale, programma, film o serie';
+
+  @override
+  String get channelVersion => 'Versione (4K, HD…)';
+
+  @override
+  String get versionUhd => 'Ultra HD · serve una connessione veloce';
+
+  @override
+  String get versionFhd => 'Full HD';
+
+  @override
+  String get versionHd => 'HD · consuma meno dati';
+
+  @override
+  String get versionSd => 'SD · consumo minimo';
+
+  @override
+  String get versionOther => 'Altra versione';
+
+  @override
+  String versionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count versioni dalla tua lista',
+      one: '1 versione',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String versionPlaying(String quality) {
+    return 'Versione: $quality';
+  }
+
+  @override
+  String get rememberVersion => 'Ricorda per questo canale';
+
+  @override
+  String get rememberVersionHintBest => 'Altrimenti parte la qualità migliore';
+
+  @override
+  String get rememberVersionHintSaver => 'Altrimenti parte la versione HD';
+
+  @override
+  String get mergeVersions => 'Unisci HD, Full HD e 4K';
+
+  @override
+  String get mergeVersionsHint =>
+      'Una riga per canale; tienila premuta per scegliere la versione';
+
+  @override
+  String get preferredQuality => 'Qualità da riprodurre';
+
+  @override
+  String get qualityBest => 'La migliore';
+
+  @override
+  String get qualitySaver => 'Risparmio dati (HD)';
 }

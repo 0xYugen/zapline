@@ -123,6 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           BoxFit.fill: l.fitStretch,
         };
         final numbering = {false: l.numbersProvider, true: l.numbersSequential};
+        final quality = {false: l.qualityBest, true: l.qualitySaver};
         final days = {
           for (final d in [2, 3, 7, 14]) d: l.daysCount(d),
         };
@@ -177,6 +178,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     (v) => s.videoFit = v,
                   ),
                 ),
+                SettingsSwitchTile(
+                  title: l.mergeVersions,
+                  subtitle: l.mergeVersionsHint,
+                  value: s.mergeVersions,
+                  onChanged: (v) => _set(() => s.mergeVersions = v),
+                ),
+                if (s.mergeVersions)
+                  SettingsTile(
+                    title: l.preferredQuality,
+                    value: quality[s.saveData],
+                    onTap: () => _pick(
+                      l.preferredQuality,
+                      quality,
+                      s.saveData,
+                      (v) => s.saveData = v,
+                    ),
+                  ),
                 SettingsTile(
                   title: l.channelNumbers,
                   value: numbering[s.sequentialNumbers],

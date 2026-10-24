@@ -6,6 +6,7 @@ import '../l10n.dart';
 import '../channel_groups.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
+import '../widgets/channel_name.dart';
 import '../widgets/pin_pad.dart';
 
 /// Asks for the PIN and opens locked groups for this session.
@@ -325,10 +326,9 @@ class MobileChannelRow extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          c.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: ChannelName(
+                          state: state,
+                          channel: c,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

@@ -339,7 +339,7 @@ class _GuideScreenState extends State<GuideScreen> {
                 ),
                 Expanded(
                   child: Text(
-                    c.name,
+                    widget.state.displayName(c),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

@@ -292,10 +292,111 @@ class AppState extends ChangeNotifier {
   // --------------------------------------------------------- channels
 
   List<Channel> channels({String? group}) =>
-      db.channels(group: group, visibility: _visibility);
+      _mergeVersions(db.channels(group: group, visibility: _visibility));
 
   List<Channel> search(String query) =>
-      db.search(query, visibility: _visibility);
+      _mergeVersions(db.search(query, visibility: _visibility));
+
+  // ------------------------------------------------ versions of a channel
+
+  /// Every version of a merged channel by each version's key; rebuilt as
+  /// lists are merged, dropped when the stored channels change.
+  final _versions = <String, List<Channel>>{};
+  int _versionsAt = -1;
+
+  static final _parsed = <String, ChannelVariant>{};
+
+  static ChannelVariant _variant(String name) =>
+      _parsed[name] ??= ChannelVariant.parse(name);
+
+  static String _versionKey(Channel c) =>
+      '${c.sourceId}\u0000${_variant(c.name).key}';
+
+  /// Order of preference: best picture first, or HD first to save data.
+  int _rank(VideoQuality q) => settings.saveData
+      ? switch (q) {
+          VideoQuality.hd || VideoQuality.unknown => 0,
+          VideoQuality.sd => 1,
+          VideoQuality.fhd => 2,
+          VideoQuality.uhd => 3,
+        }
+      : -(q == VideoQuality.unknown ? VideoQuality.hd.index : q.index);
+
+  /// One entry per channel: its versions ("HD", "FHD", "4K", backups) fold
+  /// into the preferred one, at the place of the first.
+  List<Channel> _mergeVersions(List<Channel> list) {
+    if (!settings.mergeVersions || list.length < 2) return list;
+    if (_versionsAt != version) {
+      _versions.clear();
+      _versionsAt = version;
+    }
+    final byKey = <String, List<Channel>>{};
+    for (final c in list) {
+      (byKey[_versionKey(c)] ??= []).add(c);
+    }
+    if (byKey.length == list.length) return list;
+    final choices = settings.versionChoices;
+    final out = <Channel>[];
+    for (final c in list) {
+      final key = _versionKey(c);
+      final group = byKey[key];
+      if (group == null) continue;
+      byKey.remove(key);
+      if (group.length == 1) {
+        out.add(c);
+        continue;
+      }
+      final sorted = [...group]
+        ..sort(
+          (a, b) =>
+              _rank(_variant(a.name).quality)
+                  .compareTo(_rank(_variant(b.name).quality)),
+        );
+      for (final v in sorted) {
+        _versions[ZaplineDatabase.channelKey(v)] = sorted;
+      }
+      final chosen = choices[key];
+      out.add(
+        sorted.firstWhere(
+          (v) => ZaplineDatabase.channelKey(v) == chosen,
+          orElse: () => sorted.first,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// The versions of [c] in order of preference; just [c] when it has none.
+  List<Channel> versionsOf(Channel c) =>
+      _versions[ZaplineDatabase.channelKey(c)] ?? [c];
+
+  /// [c]'s name without the quality words when it stands for several
+  /// versions ("Rai 1" for "Rai 1 FHD").
+  String displayName(Channel c) =>
+      versionsOf(c).length > 1 ? _variant(c.name).baseName : c.name;
+
+  /// "4K", "FHD", "HD" or "SD" as [c]'s name says, if it says.
+  String? qualityOf(Channel c) => _variant(c.name).quality.label;
+
+  /// Plays [c] from now on when its channel is opened.
+  void preferVersion(Channel c) {
+    settings.versionChoices = {
+      ...settings.versionChoices,
+      _versionKey(c): ZaplineDatabase.channelKey(c),
+    };
+    _reload();
+    notifyListeners();
+  }
+
+  /// Where [c], or another version of it, is in [list]; -1 if nowhere.
+  int indexOfChannel(List<Channel> list, Channel c) {
+    final exact = list.indexWhere(
+      (e) => e.sourceId == c.sourceId && e.id == c.id,
+    );
+    if (exact >= 0) return exact;
+    final key = _versionKey(c);
+    return list.indexWhere((e) => _versionKey(e) == key);
+  }
 
   List<(Channel, Programme)> searchProgrammes(String query) =>
       db.searchProgrammes(

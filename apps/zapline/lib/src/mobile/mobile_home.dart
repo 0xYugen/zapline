@@ -41,9 +41,7 @@ class _MobileHomeState extends State<MobileHome> {
       final last = widget.state.resumeChannel;
       if (!mounted || last == null) return;
       final all = widget.state.channels();
-      final i = all.indexWhere(
-        (c) => c.sourceId == last.sourceId && c.id == last.id,
-      );
+      final i = widget.state.indexOfChannel(all, last);
       if (i >= 0) openPlayer(context, widget.state, all, i);
     });
   }
@@ -414,8 +412,8 @@ class ContinueWatchingCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         now == null
-                            ? channel.name
-                            : '${now.title} · ${channel.name}',
+                            ? state.displayName(channel)
+                            : '${now.title} · ${state.displayName(channel)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

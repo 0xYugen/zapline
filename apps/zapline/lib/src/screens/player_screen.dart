@@ -13,6 +13,7 @@ import '../mobile/programme_sheet.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
+import '../widgets/channel_versions.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/tracks_sheet.dart';
 
@@ -65,7 +66,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String _digits = '';
   Timer? _digitTimer;
 
-  Channel get _channel => widget.channels[_index];
+  /// Another version of the channel (4K, HD…) picked or fallen back to.
+  Channel? _version;
+
+  /// Versions that failed to play on this channel, by id.
+  final _failed = <String>{};
+
+  Channel get _channel => _version ?? widget.channels[_index];
 
   @override
   void initState() {
@@ -83,7 +90,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       )
       ..add(
         _engine.errors.listen((e) {
-          if (mounted) setState(() => _error = e);
+          if (!mounted) return;
+          if (_tryNextVersion()) return;
+          setState(() => _error = e);
         }),
       );
     _open();
@@ -147,12 +156,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final n = widget.channels.length;
     _index = (_index + delta + n) % n;
     _replay = null;
+    _version = null;
+    _failed.clear();
     _open();
   }
 
   void _goTo(int index) {
     if (index == _index && _replay == null) return;
     _index = index;
+    _replay = null;
+    _version = null;
+    _failed.clear();
+    _open();
+  }
+
+  /// When a live version fails, plays the next one that hasn't (a 4K
+  /// stream the connection can't keep up with falls back to Full HD).
+  bool _tryNextVersion() {
+    if (_replay != null) return false;
+    _failed.add(_channel.id);
+    final next = widget.state
+        .versionsOf(_channel)
+        .where((v) => !_failed.contains(v.id))
+        .firstOrNull;
+    if (next == null) return false;
+    _version = next;
+    _open();
+    return true;
+  }
+
+  Future<void> _pickVersion() async {
+    final picked = await pickChannelVersion(context, widget.state, _channel);
+    if (picked == null || !mounted) return;
+    if (picked.remember) widget.state.preferVersion(picked.channel);
+    if (picked.channel.id == _channel.id) return;
+    _version = picked.channel;
+    _failed.clear();
     _replay = null;
     _open();
   }
@@ -523,7 +562,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             Flexible(
                               child: Text(
                                 '${widget.state.channelNumber(c, _index)} · '
-                                '${c.name}',
+                                '${widget.state.displayName(c)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -559,6 +598,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     tool(Icons.info_outline_rounded, l.programmeInfo, () {
                       _showInfo(c, p);
                     }),
+                  if (widget.state.versionsOf(c).length > 1)
+                    tool(Icons.hd_outlined, l.channelVersion, _pickVersion),
                   tool(Icons.subtitles_outlined, l.audioAndSubtitles, _tracks),
                   tool(Icons.aspect_ratio_rounded, l.pictureSize, _cycleFit),
                   tool(
@@ -834,7 +875,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 children: [
                   Flexible(
                     child: Text(
-                      c.name,
+                      widget.state.displayName(c),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -979,7 +1020,7 @@ class _ChannelListState extends State<_ChannelList> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          c.name,
+                          widget.state.displayName(c),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w700),

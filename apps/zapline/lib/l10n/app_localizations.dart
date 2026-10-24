@@ -2011,6 +2011,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Channel, programme, movie or series'**
   String get channelProgrammeOrTitle;
+
+  /// No description provided for @channelVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version (4K, HD…)'**
+  String get channelVersion;
+
+  /// No description provided for @versionUhd.
+  ///
+  /// In en, this message translates to:
+  /// **'Ultra HD · needs a fast connection'**
+  String get versionUhd;
+
+  /// No description provided for @versionFhd.
+  ///
+  /// In en, this message translates to:
+  /// **'Full HD'**
+  String get versionFhd;
+
+  /// No description provided for @versionHd.
+  ///
+  /// In en, this message translates to:
+  /// **'HD · uses less data'**
+  String get versionHd;
+
+  /// No description provided for @versionSd.
+  ///
+  /// In en, this message translates to:
+  /// **'SD · lowest data use'**
+  String get versionSd;
+
+  /// No description provided for @versionOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other version'**
+  String get versionOther;
+
+  /// No description provided for @versionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 version} other{{count} versions from your list}}'**
+  String versionCount(int count);
+
+  /// No description provided for @versionPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Version: {quality}'**
+  String versionPlaying(String quality);
+
+  /// No description provided for @rememberVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember for this channel'**
+  String get rememberVersion;
+
+  /// No description provided for @rememberVersionHintBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Otherwise the best picture plays'**
+  String get rememberVersionHintBest;
+
+  /// No description provided for @rememberVersionHintSaver.
+  ///
+  /// In en, this message translates to:
+  /// **'Otherwise the HD version plays'**
+  String get rememberVersionHintSaver;
+
+  /// No description provided for @mergeVersions.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge HD, Full HD and 4K'**
+  String get mergeVersions;
+
+  /// No description provided for @mergeVersionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One row per channel; hold it to pick the version'**
+  String get mergeVersionsHint;
+
+  /// No description provided for @preferredQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality to play'**
+  String get preferredQuality;
+
+  /// No description provided for @qualityBest.
+  ///
+  /// In en, this message translates to:
+  /// **'The best'**
+  String get qualityBest;
+
+  /// No description provided for @qualitySaver.
+  ///
+  /// In en, this message translates to:
+  /// **'Save data (HD)'**
+  String get qualitySaver;
 }
 
 class _AppLocalizationsDelegate

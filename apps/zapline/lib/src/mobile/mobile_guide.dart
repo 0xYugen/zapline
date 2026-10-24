@@ -228,7 +228,7 @@ class _WhatsOnRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    channel.name,
+                    state.displayName(channel),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -390,7 +390,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                _channel.name,
+                widget.state.displayName(_channel),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

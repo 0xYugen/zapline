@@ -140,7 +140,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  c.name,
+                  state.displayName(c),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

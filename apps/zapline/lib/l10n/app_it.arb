@@ -328,5 +328,21 @@
   "filterPreviewVod": "{shown} categorie su {all} visibili · {titles} titoli",
   "applyFilterEverywhere": "Applica a TV, film e serie",
   "filterAppliedEverywhere": "Filtro applicato a TV, film e serie",
-  "channelProgrammeOrTitle": "Canale, programma, film o serie"
+  "channelProgrammeOrTitle": "Canale, programma, film o serie",
+  "channelVersion": "Versione (4K, HD…)",
+  "versionUhd": "Ultra HD · serve una connessione veloce",
+  "versionFhd": "Full HD",
+  "versionHd": "HD · consuma meno dati",
+  "versionSd": "SD · consumo minimo",
+  "versionOther": "Altra versione",
+  "versionCount": "{count, plural, =1{1 versione} other{{count} versioni dalla tua lista}}",
+  "versionPlaying": "Versione: {quality}",
+  "rememberVersion": "Ricorda per questo canale",
+  "rememberVersionHintBest": "Altrimenti parte la qualità migliore",
+  "rememberVersionHintSaver": "Altrimenti parte la versione HD",
+  "mergeVersions": "Unisci HD, Full HD e 4K",
+  "mergeVersionsHint": "Una riga per canale; tienila premuta per scegliere la versione",
+  "preferredQuality": "Qualità da riprodurre",
+  "qualityBest": "La migliore",
+  "qualitySaver": "Risparmio dati (HD)"
 }

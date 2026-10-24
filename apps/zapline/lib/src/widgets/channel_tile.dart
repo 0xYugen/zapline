@@ -4,6 +4,7 @@ import 'package:zapline_core/zapline_core.dart';
 import '../app_state.dart';
 import '../theme.dart';
 import 'channel_logo.dart';
+import 'channel_name.dart';
 import 'focus_card.dart';
 
 /// A channel in a list: logo, number, name, what is on now with progress,
@@ -55,10 +56,9 @@ class ChannelTile extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  c.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                ChannelName(
+                  state: state,
+                  channel: c,
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w700,
