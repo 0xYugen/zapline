@@ -6,3 +6,4 @@ export 'src/channel_guide.dart';
 export 'src/database.dart';
 export 'src/source_record.dart';
 export 'src/source_sync.dart';
+export 'src/vod_catalog.dart';

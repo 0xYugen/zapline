@@ -21,6 +21,8 @@ class SourceRecord {
     this.serverOffset = Duration.zero,
     this.guideOffset = Duration.zero,
     this.groupFilter = GroupFilter.none,
+    this.movieFilter = GroupFilter.none,
+    this.showFilter = GroupFilter.none,
   });
 
   final String id;
@@ -46,6 +48,10 @@ class SourceRecord {
   /// Which groups to show; see [GroupFilter].
   final GroupFilter groupFilter;
 
+  /// Which film and series categories to show.
+  final GroupFilter movieFilter;
+  final GroupFilter showFilter;
+
   SourceRecord copyWith({
     String? name,
     String? password,
@@ -54,6 +60,8 @@ class SourceRecord {
     Duration? serverOffset,
     Duration? guideOffset,
     GroupFilter? groupFilter,
+    GroupFilter? movieFilter,
+    GroupFilter? showFilter,
   }) => SourceRecord(
     id: id,
     kind: kind,
@@ -66,6 +74,8 @@ class SourceRecord {
     serverOffset: serverOffset ?? this.serverOffset,
     guideOffset: guideOffset ?? this.guideOffset,
     groupFilter: groupFilter ?? this.groupFilter,
+    movieFilter: movieFilter ?? this.movieFilter,
+    showFilter: showFilter ?? this.showFilter,
   );
 
   Map<String, Object?> toConfigJson() => {
@@ -76,6 +86,8 @@ class SourceRecord {
     'offsetMinutes': serverOffset.inMinutes,
     'guideOffsetMinutes': guideOffset.inMinutes,
     'groupFilter': groupFilter.toJson(),
+    'movieFilter': movieFilter.toJson(),
+    'showFilter': showFilter.toJson(),
   };
 
   static SourceRecord fromRow({
@@ -100,6 +112,8 @@ class SourceRecord {
       serverOffset: Duration(minutes: (c['offsetMinutes'] as int?) ?? 0),
       guideOffset: Duration(minutes: (c['guideOffsetMinutes'] as int?) ?? 0),
       groupFilter: GroupFilter.fromJson(c['groupFilter']),
+      movieFilter: GroupFilter.fromJson(c['movieFilter']),
+      showFilter: GroupFilter.fromJson(c['showFilter']),
     );
   }
 }

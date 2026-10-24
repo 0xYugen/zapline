@@ -1741,6 +1741,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not now'**
   String get notNow;
+
+  /// No description provided for @tv.
+  ///
+  /// In en, this message translates to:
+  /// **'TV'**
+  String get tv;
+
+  /// No description provided for @movies.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get movies;
+
+  /// No description provided for @series.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get series;
+
+  /// No description provided for @myList.
+  ///
+  /// In en, this message translates to:
+  /// **'My list'**
+  String get myList;
+
+  /// No description provided for @addToMyList.
+  ///
+  /// In en, this message translates to:
+  /// **'My list'**
+  String get addToMyList;
+
+  /// No description provided for @inMyList.
+  ///
+  /// In en, this message translates to:
+  /// **'In my list'**
+  String get inMyList;
+
+  /// No description provided for @addedToMyList.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to My list'**
+  String get addedToMyList;
+
+  /// No description provided for @removedFromMyList.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from My list'**
+  String get removedFromMyList;
+
+  /// No description provided for @recentlyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get recentlyAdded;
+
+  /// No description provided for @seeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get seeAll;
+
+  /// No description provided for @allTitles.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allTitles;
+
+  /// No description provided for @categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get categories;
+
+  /// No description provided for @noTitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here yet.'**
+  String get noTitles;
+
+  /// No description provided for @myListEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add films and series to My list to find them here.'**
+  String get myListEmpty;
+
+  /// No description provided for @play.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get play;
+
+  /// No description provided for @resume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get resume;
+
+  /// No description provided for @startOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Start over'**
+  String get startOver;
+
+  /// No description provided for @trailer.
+  ///
+  /// In en, this message translates to:
+  /// **'Trailer'**
+  String get trailer;
+
+  /// No description provided for @moreLikeThis.
+  ///
+  /// In en, this message translates to:
+  /// **'More like this'**
+  String get moreLikeThis;
+
+  /// No description provided for @director.
+  ///
+  /// In en, this message translates to:
+  /// **'Director'**
+  String get director;
+
+  /// No description provided for @cast.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast'**
+  String get cast;
+
+  /// No description provided for @seasonNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Season {number}'**
+  String seasonNumber(int number);
+
+  /// No description provided for @episodeCode.
+  ///
+  /// In en, this message translates to:
+  /// **'S{season}·E{episode}'**
+  String episodeCode(int season, int episode);
+
+  /// No description provided for @playEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Play S{season}·E{episode}'**
+  String playEpisode(int season, int episode);
+
+  /// No description provided for @continueEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue S{season}·E{episode}'**
+  String continueEpisode(int season, int episode);
+
+  /// No description provided for @episodeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 episode} other{{count} episodes}}'**
+  String episodeCount(int count);
+
+  /// No description provided for @titleCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 title} other{{count} titles}}'**
+  String titleCount(int count);
+
+  /// No description provided for @noEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'No episodes available.'**
+  String get noEpisodes;
+
+  /// No description provided for @detailsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the details. Check the connection and try again.'**
+  String get detailsUnavailable;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get retry;
+
+  /// No description provided for @nextEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Next episode'**
+  String get nextEpisode;
+
+  /// No description provided for @nextEpisodeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Next episode in {seconds} s'**
+  String nextEpisodeIn(int seconds);
+
+  /// No description provided for @rewind10.
+  ///
+  /// In en, this message translates to:
+  /// **'Back 10 seconds'**
+  String get rewind10;
+
+  /// No description provided for @forward10.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward 10 seconds'**
+  String get forward10;
+
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
+  /// No description provided for @hoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h {minutes} min'**
+  String hoursMinutes(int hours, int minutes);
+
+  /// No description provided for @minutesShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String minutesShort(int minutes);
+
+  /// No description provided for @videoUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This title can\'t be played right now.'**
+  String get videoUnavailable;
+
+  /// No description provided for @searchMoviesSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies and series'**
+  String get searchMoviesSeries;
+
+  /// No description provided for @searchTooltipVod.
+  ///
+  /// In en, this message translates to:
+  /// **'Search channels, programmes, movies and series'**
+  String get searchTooltipVod;
+
+  /// No description provided for @seasonCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 season} other{{count} seasons}}'**
+  String seasonCount(int count);
+
+  /// No description provided for @filterPreviewVod.
+  ///
+  /// In en, this message translates to:
+  /// **'{shown} of {all} categories shown · {titles} titles'**
+  String filterPreviewVod(int shown, int all, int titles);
+
+  /// No description provided for @applyFilterEverywhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to TV, movies and series'**
+  String get applyFilterEverywhere;
+
+  /// No description provided for @filterAppliedEverywhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter applied to TV, movies and series'**
+  String get filterAppliedEverywhere;
+
+  /// No description provided for @channelProgrammeOrTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel, programme, movie or series'**
+  String get channelProgrammeOrTitle;
 }
 
 class _AppLocalizationsDelegate

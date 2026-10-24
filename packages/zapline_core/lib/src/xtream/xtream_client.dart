@@ -122,15 +122,20 @@ class XtreamClient {
           .toList();
 
   /// A film's plot, cast, duration, artwork and trailer.
-  Future<MovieDetails> vodInfo(int vodId) async => parseVodInfo(
-        await _getJson(_api({'action': 'get_vod_info', 'vod_id': '$vodId'})),
-      );
+  Future<MovieDetails> vodInfo(int vodId) async =>
+      parseVodInfo(await rawVodInfo(vodId));
+
+  /// The panel's `get_vod_info` JSON, for caching.
+  Future<Object?> rawVodInfo(int vodId) =>
+      _getJson(_api({'action': 'get_vod_info', 'vod_id': '$vodId'}));
 
   /// A series' information, seasons and episodes.
-  Future<ShowDetails> seriesInfo(int seriesId) async => parseSeriesInfo(
-        await _getJson(
-          _api({'action': 'get_series_info', 'series_id': '$seriesId'}),
-        ),
+  Future<ShowDetails> seriesInfo(int seriesId) async =>
+      parseSeriesInfo(await rawSeriesInfo(seriesId));
+
+  /// The panel's `get_series_info` JSON, for caching.
+  Future<Object?> rawSeriesInfo(int seriesId) => _getJson(
+        _api({'action': 'get_series_info', 'series_id': '$seriesId'}),
       );
 
   /// Small per-channel guide. For the full grid use [xmltvUrl] instead:

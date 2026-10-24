@@ -38,9 +38,17 @@ void main() {
       'Gamma',
     ]);
     expect(
-      db.movies(hiddenCategories: {'EN | Action', ''}).map((m) => m.name),
+      db
+          .movies(hiddenCategories: {('s', 'EN | Action'), ('s', '')})
+          .map((m) => m.name),
       ['Alpha', 'Beta'],
     );
+    // Hiding is per source: another source's category of that name stays.
+    expect(
+      db.movies(hiddenCategories: {('other', 'EN | Action')}).length,
+      db.movieCount(),
+    );
+    expect(db.movieCategories(sourceId: 'nope'), isEmpty);
     expect(db.searchMovies('amm').single.name, 'Gamma');
     expect(db.movie('s', '2')!.rating, 7);
   });

@@ -5,6 +5,7 @@ import 'package:zapline_core/zapline_core.dart';
 import '../app_state.dart';
 import '../l10n.dart';
 import '../theme.dart';
+import '../vod/vod_browse.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_tile.dart';
 import '../widgets/epg_suggestion.dart';
@@ -195,6 +196,20 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                     onPressed: () =>
                         _open(GuideScreen(state: state, channels: visible)),
                   ),
+                  if (state.hasMovies)
+                    _MenuItem(
+                      icon: Icons.movie_outlined,
+                      label: context.l10n.movies,
+                      onPressed: () =>
+                          _open(VodScreen(state: state, kind: VodKind.movies)),
+                    ),
+                  if (state.hasShows)
+                    _MenuItem(
+                      icon: Icons.video_library_outlined,
+                      label: context.l10n.series,
+                      onPressed: () =>
+                          _open(VodScreen(state: state, kind: VodKind.shows)),
+                    ),
                   _MenuItem(
                     icon: Icons.search,
                     label: context.l10n.search,

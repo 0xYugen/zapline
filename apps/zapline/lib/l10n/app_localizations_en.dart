@@ -992,4 +992,183 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notNow => 'Not now';
+
+  @override
+  String get tv => 'TV';
+
+  @override
+  String get movies => 'Movies';
+
+  @override
+  String get series => 'Series';
+
+  @override
+  String get myList => 'My list';
+
+  @override
+  String get addToMyList => 'My list';
+
+  @override
+  String get inMyList => 'In my list';
+
+  @override
+  String get addedToMyList => 'Added to My list';
+
+  @override
+  String get removedFromMyList => 'Removed from My list';
+
+  @override
+  String get recentlyAdded => 'Recently added';
+
+  @override
+  String get seeAll => 'See all';
+
+  @override
+  String get allTitles => 'All';
+
+  @override
+  String get categories => 'Categories';
+
+  @override
+  String get noTitles => 'Nothing here yet.';
+
+  @override
+  String get myListEmpty =>
+      'Add films and series to My list to find them here.';
+
+  @override
+  String get play => 'Play';
+
+  @override
+  String get resume => 'Resume';
+
+  @override
+  String get startOver => 'Start over';
+
+  @override
+  String get trailer => 'Trailer';
+
+  @override
+  String get moreLikeThis => 'More like this';
+
+  @override
+  String get director => 'Director';
+
+  @override
+  String get cast => 'Cast';
+
+  @override
+  String seasonNumber(int number) {
+    return 'Season $number';
+  }
+
+  @override
+  String episodeCode(int season, int episode) {
+    return 'S$season·E$episode';
+  }
+
+  @override
+  String playEpisode(int season, int episode) {
+    return 'Play S$season·E$episode';
+  }
+
+  @override
+  String continueEpisode(int season, int episode) {
+    return 'Continue S$season·E$episode';
+  }
+
+  @override
+  String episodeCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count episodes',
+      one: '1 episode',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String titleCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count titles',
+      one: '1 title',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noEpisodes => 'No episodes available.';
+
+  @override
+  String get detailsUnavailable =>
+      'Couldn\'t load the details. Check the connection and try again.';
+
+  @override
+  String get retry => 'Try again';
+
+  @override
+  String get nextEpisode => 'Next episode';
+
+  @override
+  String nextEpisodeIn(int seconds) {
+    return 'Next episode in $seconds s';
+  }
+
+  @override
+  String get rewind10 => 'Back 10 seconds';
+
+  @override
+  String get forward10 => 'Forward 10 seconds';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String hoursMinutes(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String minutesShort(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get videoUnavailable => 'This title can\'t be played right now.';
+
+  @override
+  String get searchMoviesSeries => 'Movies and series';
+
+  @override
+  String get searchTooltipVod =>
+      'Search channels, programmes, movies and series';
+
+  @override
+  String seasonCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seasons',
+      one: '1 season',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String filterPreviewVod(int shown, int all, int titles) {
+    return '$shown of $all categories shown · $titles titles';
+  }
+
+  @override
+  String get applyFilterEverywhere => 'Apply to TV, movies and series';
+
+  @override
+  String get filterAppliedEverywhere =>
+      'Filter applied to TV, movies and series';
+
+  @override
+  String get channelProgrammeOrTitle => 'Channel, programme, movie or series';
 }

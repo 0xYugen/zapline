@@ -79,6 +79,8 @@ abstract final class Backup {
             'guides': s.extraGuideUrls,
             'guideOffsetMinutes': s.guideOffset.inMinutes,
             'groupFilter': s.groupFilter.toJson(),
+            'movieFilter': s.movieFilter.toJson(),
+            'showFilter': s.showFilter.toJson(),
           },
       ],
       'groupPrefs': [
@@ -151,6 +153,8 @@ abstract final class Backup {
             minutes: (s['guideOffsetMinutes'] as int?) ?? 0,
           ),
           groupFilter: GroupFilter.fromJson(s['groupFilter']),
+          movieFilter: GroupFilter.fromJson(s['movieFilter']),
+          showFilter: GroupFilter.fromJson(s['showFilter']),
         ),
       );
     }

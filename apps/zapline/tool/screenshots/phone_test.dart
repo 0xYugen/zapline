@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zapline/main.dart';
+import 'package:zapline/src/app_state.dart';
 
 import 'package:zapline/src/playback/playback_engine.dart';
 
@@ -147,6 +148,62 @@ void main() {
       // ignore: avoid_print
       print(
         '${d.name}: ${problems.length} problems\n'
+        '${problems.toSet().join('\n')}',
+      );
+    });
+  }
+
+  for (final d in [phone, phoneLandscape]) {
+    testWidgets('films and series on ${d.name}', (tester) async {
+      problems.clear();
+      useDevice(tester, d);
+      debugEngineFactory = FakeEngine.new;
+      final state = fakeState(count: 10, vod: true);
+      await state.addSource(
+        const SourceInput(
+          url: 'http://x.example/get.php?username=a&password=b',
+        ),
+      );
+      await tester.pumpWidget(capturable(ZaplineApp(state: state), d));
+      await step(tester);
+      await shot(tester, d, '10-tv-vod');
+      await tapText(tester, 'Movies');
+      await shot(tester, d, '11-movies');
+      // The pill, not the row title of the same name.
+      await tester.tap(find.text('IT | Commedia').first);
+      await step(tester);
+      await shot(tester, d, '11b-category');
+      await tester.tap(find.text('Film 4').first);
+      await step(tester);
+      await shot(tester, d, '12-movie');
+      await tester.ensureVisible(find.text('Play'));
+      await step(tester);
+      await tapText(tester, 'Play');
+      await tester.pump(const Duration(seconds: 1));
+      await step(tester);
+      await shot(tester, d, '13-vod-player');
+      await back(tester);
+      await tester.pump(const Duration(seconds: 1));
+      await step(tester);
+      await shot(tester, d, '12b-movie-resume');
+      await back(tester);
+      await tapText(tester, 'All');
+      await shot(tester, d, '11c-movies-continue');
+      await tapText(tester, 'Series');
+      await shot(tester, d, '14-series');
+      await tester.tap(find.text('Serie 2').first);
+      await step(tester);
+      await shot(tester, d, '15-show');
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+      await step(tester);
+      await shot(tester, d, '15b-show-episodes');
+      await back(tester);
+      state.settings.setLanguage('it');
+      await step(tester);
+      await shot(tester, d, '16-series-it');
+      // ignore: avoid_print
+      print(
+        '${d.name} vod: ${problems.length} problems\n'
         '${problems.toSet().join('\n')}',
       );
     });

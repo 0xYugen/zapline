@@ -94,7 +94,7 @@ class _GroupBarState extends State<GroupBar> {
               itemBuilder: (context, i) {
                 final g = groups[i];
                 final selected = g == widget.selected;
-                return _Pill(
+                return Pill(
                   key: selected ? _selectedKey : null,
                   label: groupLabel(context.l10n, g),
                   icon: switch (g) {
@@ -116,8 +116,8 @@ class _GroupBarState extends State<GroupBar> {
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({
+class Pill extends StatelessWidget {
+  const Pill({
     super.key,
     required this.label,
     required this.selected,

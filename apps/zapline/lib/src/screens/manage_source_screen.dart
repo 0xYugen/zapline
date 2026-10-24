@@ -47,6 +47,29 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
   );
   String? _message;
 
+  /// Which filter the fields edit: channels, films or series.
+  _FilterKind _kind = _FilterKind.tv;
+
+  GroupFilter _filterOf(_FilterKind k) => switch (k) {
+    _FilterKind.tv => _source.groupFilter,
+    _FilterKind.movies => _source.movieFilter,
+    _FilterKind.shows => _source.showFilter,
+  };
+
+  void _editKind(_FilterKind k) {
+    final f = _filterOf(k);
+    setState(() => _kind = k);
+    _include.text = f.include.join(', ');
+    _exclude.text = f.exclude.join(', ');
+  }
+
+  SourceRecord _withFilter(SourceRecord s, _FilterKind k, GroupFilter f) =>
+      switch (k) {
+        _FilterKind.tv => s.copyWith(groupFilter: f),
+        _FilterKind.movies => s.copyWith(movieFilter: f),
+        _FilterKind.shows => s.copyWith(showFilter: f),
+      };
+
   SourceRecord _current() =>
       widget.state.sources.firstWhere((s) => s.id == widget.sourceId);
 
@@ -231,11 +254,33 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
         final hidden = _shows(SourceSection.hidden)
             ? state.hiddenChannels(widget.sourceId)
             : const <Channel>[];
-        final (shownGroups, allGroups, shownChannels) = state.previewFilter(
-          widget.sourceId,
-          _draftFilter,
-        );
-        final filterChanged = _draftFilter != _source.groupFilter;
+        final hasMovies = state.db.movieCount(sourceId: widget.sourceId) > 0;
+        final hasShows = state.db.showCount(sourceId: widget.sourceId) > 0;
+        final kinds = [
+          _FilterKind.tv,
+          if (hasMovies) _FilterKind.movies,
+          if (hasShows) _FilterKind.shows,
+        ];
+        if (!kinds.contains(_kind)) _kind = _FilterKind.tv;
+        final preview = switch (_kind) {
+          _FilterKind.tv => () {
+            final (g, all, c) = state.previewFilter(
+              widget.sourceId,
+              _draftFilter,
+            );
+            return l.filterPreview(g, all, c);
+          }(),
+          final k => () {
+            final (g, all, t) = state.previewVodFilter(
+              widget.sourceId,
+              _draftFilter,
+              movies: k == _FilterKind.movies,
+            );
+            return l.filterPreviewVod(g, all, t);
+          }(),
+        };
+        final filterChanged = _draftFilter != _filterOf(_kind);
+        final sameEverywhere = kinds.every((k) => _filterOf(k) == _draftFilter);
         final all = widget.section == null;
 
         // One flat list so it stays lazy with thousands of groups.
@@ -407,6 +452,50 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
           ],
           if (_shows(SourceSection.groups)) ...[
             if (all) () => PageSection(l.showTheseGroups),
+            if (kinds.length > 1)
+              () => Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final k in kinds)
+                      FocusCard(
+                        selected: k == _kind,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 10,
+                        ),
+                        onPressed: () => _editKind(k),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(switch (k) {
+                              _FilterKind.tv => Icons.live_tv_rounded,
+                              _FilterKind.movies => Icons.movie_rounded,
+                              _FilterKind.shows => Icons.video_library_rounded,
+                            }, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              switch (k) {
+                                _FilterKind.tv => l.tv,
+                                _FilterKind.movies => l.movies,
+                                _FilterKind.shows => l.series,
+                              },
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (!_filterOf(k).isEmpty) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Icons.filter_alt_rounded, size: 15),
+                            ],
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             () => Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Hint(l.filterHelp),
@@ -425,10 +514,11 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
                     onPressed: () => _preset([], ['xxx', 'adult', '18+']),
                     child: Text(l.presetAdult),
                   ),
-                  FocusCard(
-                    onPressed: () => _preset([], ['vod', 'series', 'movies']),
-                    child: Text(l.presetVod),
-                  ),
+                  if (_kind == _FilterKind.tv)
+                    FocusCard(
+                      onPressed: () => _preset([], ['vod', 'series', 'movies']),
+                      child: Text(l.presetVod),
+                    ),
                   FocusCard(
                     onPressed: () {
                       _include.clear();
@@ -467,13 +557,13 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      l.filterPreview(shownGroups, allGroups, shownChannels),
+                      preview,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                   FocusCard(
                     onPressed: () => _save(
-                      _source.copyWith(groupFilter: _draftFilter),
+                      _withFilter(_source, _kind, _draftFilter),
                       l.filterApplied,
                     ),
                     child: Text(filterChanged ? l.applyFilter : l.applied),
@@ -481,54 +571,73 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
                 ],
               ),
             ),
-            () => PageSection(l.groups),
-            () => Hint(l.groupsHelp),
-            for (final g in groups)
+            if (kinds.length > 1 && !sameEverywhere)
               () => Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: FocusCard(
-                  key: ValueKey('group-${g.title}'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
-                  ),
-                  onPressed: () =>
-                      state.setGroupHidden(_source, g.title, !g.hidden),
-                  onLongPress: () => _groupMenu(g),
-                  child: Row(
-                    children: [
-                      Icon(
-                        g.hidden
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          g.title.isEmpty ? l.noGroupChannels : g.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      if (g.locked)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 10),
-                          child: Icon(Icons.lock_outline_rounded, size: 18),
-                        ),
-                      Text(
-                        l.groupState(
-                          g.channels,
-                          g.hidden ? 'hidden' : 'shown',
-                          g.explicit == null ? 'filter' : 'user',
-                        ),
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ],
+                padding: const EdgeInsets.only(top: 10),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FocusCard(
+                    onPressed: () {
+                      var updated = _source;
+                      for (final k in kinds) {
+                        updated = _withFilter(updated, k, _draftFilter);
+                      }
+                      _save(updated, l.filterAppliedEverywhere);
+                    },
+                    child: Text(l.applyFilterEverywhere),
                   ),
                 ),
               ),
+            if (_kind == _FilterKind.tv) ...[
+              () => PageSection(l.groups),
+              () => Hint(l.groupsHelp),
+              for (final g in groups)
+                () => Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: FocusCard(
+                    key: ValueKey('group-${g.title}'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
+                    onPressed: () =>
+                        state.setGroupHidden(_source, g.title, !g.hidden),
+                    onLongPress: () => _groupMenu(g),
+                    child: Row(
+                      children: [
+                        Icon(
+                          g.hidden
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            g.title.isEmpty ? l.noGroupChannels : g.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        if (g.locked)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 10),
+                            child: Icon(Icons.lock_outline_rounded, size: 18),
+                          ),
+                        Text(
+                          l.groupState(
+                            g.channels,
+                            g.hidden ? 'hidden' : 'shown',
+                            g.explicit == null ? 'filter' : 'user',
+                          ),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ],
           if (_shows(SourceSection.hidden)) ...[
             if (all && hidden.isNotEmpty) () => PageSection(l.sectionHidden),
@@ -566,3 +675,5 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
     );
   }
 }
+
+enum _FilterKind { tv, movies, shows }

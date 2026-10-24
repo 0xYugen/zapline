@@ -148,7 +148,29 @@ class FakeEngine implements PlaybackEngine {
   String get name => 'fake';
 
   @override
-  Future<void> open(Uri url, {Map<String, String> headers = const {}}) async {}
+  Future<void> open(
+    Uri url, {
+    Map<String, String> headers = const {},
+    Duration start = Duration.zero,
+  }) async {}
+
+  @override
+  Duration get currentPosition => const Duration(minutes: 42, seconds: 10);
+
+  @override
+  Duration get duration => const Duration(hours: 1, minutes: 58);
+
+  @override
+  bool get isPlaying => true;
+
+  @override
+  Future<void> play() async {}
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> seek(Duration to) async {}
 
   @override
   Future<void> stop() async {}

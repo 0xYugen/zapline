@@ -18,3 +18,11 @@ extension L10nFormats on AppLocalizations {
     return m < 60 ? minutesLeft(m) : hoursMinutesLeft(m ~/ 60, m % 60);
   }
 }
+
+extension L10nRuntime on AppLocalizations {
+  /// "1 h 52 min", "48 min".
+  String runtime(Duration d) {
+    final m = d.inMinutes;
+    return m < 60 ? minutesShort(m) : hoursMinutes(m ~/ 60, m % 60);
+  }
+}

@@ -59,6 +59,7 @@ Future<void> main() async {
     ),
     secrets: const KeychainSecretStore(),
     guideFetcher: ChannelGuideFetcher(db),
+    vod: VodCatalog(db),
   );
   // Show the UI at once; the keystore can take seconds on first use and
   // passwords are only needed when syncing (which waits for them).

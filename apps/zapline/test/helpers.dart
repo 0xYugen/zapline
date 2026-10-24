@@ -13,6 +13,7 @@ AppState fakeState({
   ZaplineDatabase? database,
   SecretStore? secrets,
   ChannelGuideFetcher? guideFetcher,
+  bool vod = false,
 }) {
   final db = database ?? ZaplineDatabase.inMemory();
   return AppState(
@@ -34,6 +35,7 @@ AppState fakeState({
           ),
       ];
       db.replaceChannels(source.id, channels);
+      if (vod) seedVod(db, source.id);
       final now = DateTime.now().toUtc();
       Stream<XmltvItem> guide() async* {
         for (var i = 1; i <= count; i++) {
@@ -62,5 +64,60 @@ AppState fakeState({
       db.markSynced(source.id, now);
       return SyncResult(channels: count, guide: g, coverage: cov);
     },
+  );
+}
+
+/// A small film and series catalogue, as a playlist would give.
+void seedVod(ZaplineDatabase db, String sourceId) {
+  final added = DateTime.utc(2026, 1, 1);
+  db.replaceMovies(sourceId, [
+    for (var i = 1; i <= 36; i++)
+      Movie(
+        sourceId: sourceId,
+        id: '$i',
+        name: 'IT - Film $i (${2000 + i % 25})',
+        category: switch (i % 3) {
+          0 => 'IT | Azione',
+          1 => 'IT | Commedia',
+          _ => 'EN | Drama',
+        },
+        rating: 5 + (i % 5),
+        addedAt: added.add(Duration(days: i)),
+        streamUrl: Uri.parse('http://x.example/movie/u/p/$i.mp4'),
+      ),
+  ]);
+  db.replaceShows(
+    sourceId,
+    [
+      for (var i = 1; i <= 12; i++)
+        Show(
+          sourceId: sourceId,
+          id: 'serie $i',
+          name: 'Serie $i',
+          category: i.isEven ? 'IT | Serie TV' : 'EN | Series',
+          plot:
+              'A plot for series $i that is long enough to wrap over a '
+              'couple of lines on a phone.',
+          releaseDate: '2019-05-01',
+          rating: 7.5,
+        ),
+    ],
+    playlistEpisodes: [
+      for (var i = 1; i <= 12; i++)
+        for (var season = 1; season <= 2; season++)
+          for (var e = 1; e <= 6; e++)
+            (
+              'serie $i',
+              Episode(
+                id: '${season}x$e',
+                season: season,
+                number: e,
+                title: 'Serie $i S0${season}E0$e Episode title $e',
+                streamUrl: Uri.parse(
+                  'http://x.example/series/u/p/$i$season$e.mp4',
+                ),
+              ),
+            ),
+    ],
   );
 }

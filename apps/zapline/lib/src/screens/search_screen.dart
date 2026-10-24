@@ -14,10 +14,11 @@ import '../widgets/channel_logo.dart';
 import '../widgets/channel_tile.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/tv_text_field.dart';
+import '../vod/vod_widgets.dart';
 import 'player_screen.dart';
 
-/// Search across all sources: channels (prefix matching, accent-insensitive)
-/// and then programmes in the TV guide, results as you type.
+/// Search across all sources: channels (prefix matching, accent-insensitive),
+/// films and series, then programmes in the TV guide, results as you type.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key, required this.state});
 
@@ -32,6 +33,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Timer? _debounce;
   List<Channel> _results = const [];
   List<(Channel, Programme)> _programmes = const [];
+  List<VodTitle> _titles = const [];
 
   @override
   void initState() {
@@ -54,6 +56,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final q = _query.text;
     setState(() {
       _results = widget.state.search(q);
+      _titles = [
+        for (final m in widget.state.searchMovies(q)) VodTitle.movie(m),
+        for (final x in widget.state.searchShows(q)) VodTitle.show(x),
+      ];
       // Titles are matched anywhere in the text, so wait for a few letters.
       _programmes = q.trim().length < 3
           ? const []
@@ -106,6 +112,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final empty =
         _query.text.trim().isNotEmpty &&
         _results.isEmpty &&
+        _titles.isEmpty &&
         _programmes.isEmpty;
     final phone = context.isPhone;
     final items = <Widget Function()>[
@@ -137,6 +144,18 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
+      if (_titles.isNotEmpty)
+        () => Padding(
+          padding: phone ? EdgeInsets.zero : const EdgeInsets.only(top: 8),
+          child: VodRow(
+            title: context.l10n.searchMoviesSeries,
+            itemCount: _titles.length,
+            itemBuilder: (context, i) => PosterCard(
+              title: _titles[i],
+              onTap: () => openTitle(context, widget.state, _titles[i]),
+            ),
+          ),
+        ),
       if (_programmes.isNotEmpty)
         () => Padding(
           padding: phone
@@ -213,7 +232,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _run(),
                   decoration: InputDecoration(
-                    labelText: context.l10n.channelOrProgramme,
+                    labelText: widget.state.hasMovies || widget.state.hasShows
+                        ? context.l10n.channelProgrammeOrTitle
+                        : context.l10n.channelOrProgramme,
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),

@@ -124,6 +124,7 @@ class AppState extends ChangeNotifier {
     required this.syncRunner,
     SecretStore? secrets,
     this.guideFetcher,
+    this.vod,
   }) : secrets = secrets ?? MemorySecretStore() {
     _upgradeFreeEpgs();
     _reload();
@@ -197,7 +198,13 @@ class AppState extends ChangeNotifier {
   SyncProgress? progress;
   String? syncingSourceId;
 
-  bool get isEmpty => channelCount == 0;
+  bool get isEmpty => channelCount == 0 && movieCount == 0 && showCount == 0;
+
+  /// Films and series across sources.
+  int movieCount = 0;
+  int showCount = 0;
+  bool get hasMovies => movieCount > 0;
+  bool get hasShows => showCount > 0;
   bool get isSyncing => syncingSourceId != null;
 
   /// Incremented whenever stored channels change; screens use it to cache
@@ -215,6 +222,8 @@ class AppState extends ChangeNotifier {
     groups = db.groups();
     lockedGroups = db.lockedGroups();
     channelCount = db.channelCount();
+    movieCount = db.movieCount();
+    showCount = db.showCount();
     _favouriteKeys = db.favouriteKeys();
   }
 
@@ -650,6 +659,206 @@ class AppState extends ChangeNotifier {
     ];
   }
 
+  // ------------------------------------------------------ films, series
+
+  /// Opens films and series; `null` in tests that don't need it.
+  final VodCatalog? vod;
+
+  (int, _VodVisibility, _VodVisibility)? _vodCache;
+
+  /// What each source's film and series filters leave out, and the
+  /// categories still shown across sources; worked out once per change.
+  (_VodVisibility, _VodVisibility) get _vodVisibility {
+    final cached = _vodCache;
+    if (cached != null && cached.$1 == version) return (cached.$2, cached.$3);
+    _VodVisibility work(
+      List<VodCategory> Function(String sourceId) categoriesOf,
+      GroupFilter Function(SourceRecord) filterOf,
+    ) {
+      final hidden = <(String, String)>{};
+      final shown = <String, int>{};
+      for (final s in sources) {
+        final filter = filterOf(s);
+        for (final c in categoriesOf(s.id)) {
+          if (!filter.isEmpty &&
+              filter.hides(c.title.isEmpty ? null : c.title)) {
+            hidden.add((s.id, c.title));
+          } else {
+            shown[c.title] = (shown[c.title] ?? 0) + c.count;
+          }
+        }
+      }
+      return (
+        hidden: hidden,
+        categories: [
+          for (final e in shown.entries) (title: e.key, count: e.value),
+        ],
+      );
+    }
+
+    final movies = work(
+      (id) => db.movieCategories(sourceId: id),
+      (s) => s.movieFilter,
+    );
+    final shows = work(
+      (id) => db.showCategories(sourceId: id),
+      (s) => s.showFilter,
+    );
+    _vodCache = (version, movies, shows);
+    return (movies, shows);
+  }
+
+  List<VodCategory> movieCategories() => _vodVisibility.$1.categories;
+
+  List<VodCategory> showCategories() => _vodVisibility.$2.categories;
+
+  /// Categories a filter would leave of [sourceId]'s films or series, and
+  /// their titles: (categories shown, all categories, titles shown).
+  (int, int, int) previewVodFilter(
+    String sourceId,
+    GroupFilter filter, {
+    required bool movies,
+  }) {
+    final all = movies
+        ? db.movieCategories(sourceId: sourceId)
+        : db.showCategories(sourceId: sourceId);
+    var shown = 0, titles = 0;
+    for (final c in all) {
+      if (filter.hides(c.title.isEmpty ? null : c.title)) continue;
+      shown++;
+      titles += c.count;
+    }
+    return (shown, all.length, titles);
+  }
+
+  List<Movie> movies({
+    String? category,
+    bool newest = false,
+    int limit = 1 << 30,
+    int offset = 0,
+  }) => db.movies(
+    category: category,
+    hiddenCategories: _vodVisibility.$1.hidden,
+    newest: newest,
+    limit: limit,
+    offset: offset,
+  );
+
+  List<Show> shows({
+    String? category,
+    bool newest = false,
+    int limit = 1 << 30,
+    int offset = 0,
+  }) => db.shows(
+    category: category,
+    hiddenCategories: _vodVisibility.$2.hidden,
+    newest: newest,
+    limit: limit,
+    offset: offset,
+  );
+
+  List<Movie> searchMovies(String q) => db.searchMovies(q);
+  List<Show> searchShows(String q) => db.searchShows(q);
+
+  SourceRecord? _source(String id) =>
+      sources.where((s) => s.id == id).firstOrNull;
+
+  Future<MovieDetails?> movieDetails(Movie m) async {
+    final source = _source(m.sourceId);
+    if (source == null || vod == null) return null;
+    return vod!.movieDetails(source, m);
+  }
+
+  Future<ShowDetails> showDetails(Show s) async {
+    final source = _source(s.sourceId);
+    if (source == null || vod == null) {
+      return ShowDetails(episodes: db.playlistEpisodes(s.sourceId, s.id));
+    }
+    return vod!.showDetails(source, s);
+  }
+
+  Uri? movieUrl(Movie m, [MovieDetails? details]) {
+    final source = _source(m.sourceId);
+    if (source == null || vod == null) return m.streamUrl;
+    return vod!.movieUrl(source, m, details: details);
+  }
+
+  Uri? episodeUrl(Show s, Episode e) {
+    final source = _source(s.sourceId);
+    if (source == null || vod == null) return e.streamUrl;
+    return vod!.episodeUrl(source, e);
+  }
+
+  PlaybackPosition? positionOf(String key) => db.position(key);
+
+  /// Saves where playback stopped; screens redraw when the player closes.
+  void savePosition(String key, Duration position, Duration duration) {
+    if (duration <= Duration.zero) return;
+    db.savePosition(key, position, duration);
+  }
+
+  /// Called when the player closes so rows like "Continue watching" update.
+  void positionsChanged() => notifyListeners();
+
+  /// Positions of a series' episodes, by episode id.
+  Map<String, PlaybackPosition> episodePositions(Show s) => {
+    for (final p in db.positions(prefix: 'episode:${s.sourceId}/${s.id}/'))
+      p.key.substring(p.key.lastIndexOf('/') + 1): p,
+  };
+
+  /// Films and series started and not finished, most recent first; for a
+  /// series, its latest episode.
+  List<ContinueItem> continueWatching({int limit = 20}) {
+    final out = <ContinueItem>[];
+    final seenShows = <String>{};
+    for (final p in db.positions(limit: 200)) {
+      if (out.length >= limit) break;
+      final key = p.key;
+      if (key.startsWith('movie:')) {
+        if (!p.resumable) continue;
+        final (src, id) = _split(key.substring(6));
+        final m = db.movie(src, id);
+        if (m != null) out.add(ContinueItem(position: p, movie: m));
+      } else if (key.startsWith('episode:')) {
+        final rest = key.substring(8);
+        final parts = rest.split('/');
+        if (parts.length < 3) continue;
+        final showKey = '${parts[0]}/${parts[1]}';
+        if (!seenShows.add(showKey)) continue;
+        final show = db.show(parts[0], parts[1]);
+        if (show != null) {
+          out.add(ContinueItem(position: p, show: show, episodeId: parts.last));
+        }
+      }
+    }
+    return out;
+  }
+
+  static (String, String) _split(String sourceAndId) {
+    final i = sourceAndId.indexOf('/');
+    return (sourceAndId.substring(0, i), sourceAndId.substring(i + 1));
+  }
+
+  bool inMyList(String key) => db.inMyList(key);
+
+  void toggleMyList(String key) {
+    db.setInMyList(key, !db.inMyList(key));
+    notifyListeners();
+  }
+
+  List<Movie> myMovies() => [
+    for (final (src, id) in _myList('movie:')) ?db.movie(src, id),
+  ];
+
+  List<Show> myShows() => [
+    for (final (src, id) in _myList('show:')) ?db.show(src, id),
+  ];
+
+  Iterable<(String, String)> _myList(String prefix) => db
+      .myList()
+      .where((k) => k.startsWith(prefix))
+      .map((k) => _split(k.substring(prefix.length)));
+
   /// What the last sync got from [sourceId]'s TV guides.
   GuideStatus? guideStatus(String sourceId) {
     final raw = db.setting('guideStatus:$sourceId');
@@ -892,3 +1101,23 @@ class Reminder {
   final DateTime start;
   final String title;
 }
+
+/// A film or series episode to resume.
+class ContinueItem {
+  const ContinueItem({
+    required this.position,
+    this.movie,
+    this.show,
+    this.episodeId,
+  });
+
+  final PlaybackPosition position;
+  final Movie? movie;
+  final Show? show;
+  final String? episodeId;
+}
+
+typedef _VodVisibility = ({
+  Set<(String, String)> hidden,
+  List<VodCategory> categories,
+});

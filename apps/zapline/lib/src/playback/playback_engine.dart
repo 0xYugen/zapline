@@ -15,8 +15,13 @@ abstract class PlaybackEngine {
   /// Short engine name shown in diagnostics.
   String get name;
 
-  /// Starts playing [url], replacing whatever was playing.
-  Future<void> open(Uri url, {Map<String, String> headers = const {}});
+  /// Starts playing [url], replacing whatever was playing; films and
+  /// episodes resume from [start].
+  Future<void> open(
+    Uri url, {
+    Map<String, String> headers = const {},
+    Duration start = Duration.zero,
+  });
 
   Future<void> stop();
 
@@ -25,6 +30,20 @@ abstract class PlaybackEngine {
   /// Playback position of the current stream; the first value above zero
   /// marks the end of a zap.
   Stream<Duration> get position;
+
+  /// Where playback is now; zero before the stream starts.
+  Duration get currentPosition;
+
+  /// Length of the stream; zero for live channels or while unknown.
+  Duration get duration;
+
+  bool get isPlaying;
+
+  Future<void> play();
+
+  Future<void> pause();
+
+  Future<void> seek(Duration to);
 
   /// Human-readable playback errors.
   Stream<String> get errors;

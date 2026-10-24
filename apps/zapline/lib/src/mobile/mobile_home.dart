@@ -13,11 +13,13 @@ import '../widgets/brand.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/epg_suggestion.dart';
+import '../vod/vod_browse.dart';
 import 'mobile_guide.dart';
 import 'mobile_widgets.dart';
 
-/// Phone shell: live TV, guide, favourites and settings behind a bottom
-/// navigation bar (a side rail when held sideways). Search sits in the
+/// Phone shell: live TV, films and series (when a source has them), guide,
+/// favourites and settings behind a bottom navigation bar (a side rail when
+/// held sideways). Search sits in the
 /// header of every tab. Each tab keeps its state while another is shown.
 class MobileHome extends StatefulWidget {
   const MobileHome({super.key, required this.state});
@@ -29,7 +31,7 @@ class MobileHome extends StatefulWidget {
 }
 
 class _MobileHomeState extends State<MobileHome> {
-  int _tab = 0;
+  _Tab _tab = _Tab.tv;
 
   @override
   void initState() {
@@ -47,26 +49,78 @@ class _MobileHomeState extends State<MobileHome> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.state,
+    builder: (context, _) => _build(context),
+  );
+
+  Widget _build(BuildContext context) {
     final l = context.l10n;
-    final destinations = [
-      (Icons.live_tv_outlined, Icons.live_tv_rounded, l.liveTv),
-      (Icons.calendar_month_outlined, Icons.calendar_month_rounded, l.guide),
-      (Icons.star_outline_rounded, Icons.star_rounded, l.favourites),
-      (Icons.settings_outlined, Icons.settings_rounded, l.settings),
+    final state = widget.state;
+    final vod = state.hasMovies || state.hasShows;
+    // Five tabs leave no room for favourites: with films and series they
+    // are a pill in the TV tab.
+    final tabs = [
+      _Tab.tv,
+      if (state.hasMovies) _Tab.movies,
+      if (state.hasShows) _Tab.shows,
+      _Tab.guide,
+      if (!vod) _Tab.favourites,
+      _Tab.settings,
     ];
-    final tabs = IndexedStack(
-      index: _tab,
+    if (!tabs.contains(_tab)) _tab = _Tab.tv;
+    final index = tabs.indexOf(_tab);
+    final destinations = [
+      for (final t in tabs)
+        switch (t) {
+          _Tab.tv => (
+            Icons.live_tv_outlined,
+            Icons.live_tv_rounded,
+            vod ? l.tv : l.liveTv,
+          ),
+          _Tab.movies => (Icons.movie_outlined, Icons.movie_rounded, l.movies),
+          _Tab.shows => (
+            Icons.video_library_outlined,
+            Icons.video_library_rounded,
+            l.series,
+          ),
+          _Tab.guide => (
+            Icons.calendar_month_outlined,
+            Icons.calendar_month_rounded,
+            l.guide,
+          ),
+          _Tab.favourites => (
+            Icons.star_outline_rounded,
+            Icons.star_rounded,
+            l.favourites,
+          ),
+          _Tab.settings => (
+            Icons.settings_outlined,
+            Icons.settings_rounded,
+            l.settings,
+          ),
+        },
+    ];
+    final body = IndexedStack(
+      index: index,
       children: [
-        ChannelsTab(state: widget.state),
-        MobileGuide(state: widget.state),
-        FavouritesTab(state: widget.state),
-        SettingsScreen(state: widget.state),
+        for (final t in tabs)
+          KeyedSubtree(
+            key: ValueKey(t),
+            child: switch (t) {
+              _Tab.tv => ChannelsTab(state: state),
+              _Tab.movies => VodTab(state: state, kind: VodKind.movies),
+              _Tab.shows => VodTab(state: state, kind: VodKind.shows),
+              _Tab.guide => MobileGuide(state: state),
+              _Tab.favourites => FavouritesTab(state: state),
+              _Tab.settings => SettingsScreen(state: state),
+            },
+          ),
       ],
     );
     void select(int i) {
       HapticFeedback.selectionClick();
-      setState(() => _tab = i);
+      setState(() => _tab = tabs[i]);
     }
 
     // Sideways, a rail keeps the little height there is for the lists.
@@ -75,7 +129,7 @@ class _MobileHomeState extends State<MobileHome> {
         body: Row(
           children: [
             NavigationRail(
-              selectedIndex: _tab,
+              selectedIndex: index,
               onDestinationSelected: select,
               labelType: NavigationRailLabelType.all,
               destinations: [
@@ -88,15 +142,15 @@ class _MobileHomeState extends State<MobileHome> {
               ],
             ),
             const VerticalDivider(width: 1, color: ZaplineColors.line),
-            Expanded(child: tabs),
+            Expanded(child: body),
           ],
         ),
       );
     }
     return Scaffold(
-      body: tabs,
+      body: body,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
+        selectedIndex: index,
         onDestinationSelected: select,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: [
@@ -111,6 +165,8 @@ class _MobileHomeState extends State<MobileHome> {
     );
   }
 }
+
+enum _Tab { tv, movies, shows, guide, favourites, settings }
 
 /// A phone held sideways: little height, so headers shrink.
 bool isLandscape(BuildContext context) {
@@ -180,7 +236,9 @@ class MobileHeader extends StatelessWidget {
               ),
             ),
           IconButton.filledTonal(
-            tooltip: context.l10n.searchTooltip,
+            tooltip: state.hasMovies || state.hasShows
+                ? context.l10n.searchTooltipVod
+                : context.l10n.searchTooltip,
             style: IconButton.styleFrom(
               backgroundColor: ZaplineColors.surface,
               foregroundColor: ZaplineColors.text,

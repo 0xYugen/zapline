@@ -23,7 +23,8 @@ class LogoCache {
   static final _failed = <String>{};
   static final _inflight = <String, Future<Uint8List>>{};
 
-  static const _maxBytes = 512 * 1024;
+  // Logos are small; film posters and backdrops can reach a few MB.
+  static const _maxBytes = 3 * 1024 * 1024;
 
   /// Enables the disk layer; without it logos are only cached in memory.
   static Future<void> init(Directory cacheRoot) async {

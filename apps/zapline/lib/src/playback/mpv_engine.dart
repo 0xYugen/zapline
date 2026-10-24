@@ -25,8 +25,35 @@ class MpvEngine implements PlaybackEngine {
   String get name => 'mpv';
 
   @override
-  Future<void> open(Uri url, {Map<String, String> headers = const {}}) =>
-      _player.open(Media(url.toString(), httpHeaders: headers));
+  Future<void> open(
+    Uri url, {
+    Map<String, String> headers = const {},
+    Duration start = Duration.zero,
+  }) => _player.open(
+    Media(
+      url.toString(),
+      httpHeaders: headers,
+      start: start > Duration.zero ? start : null,
+    ),
+  );
+
+  @override
+  Duration get currentPosition => _player.state.position;
+
+  @override
+  Duration get duration => _player.state.duration;
+
+  @override
+  bool get isPlaying => _player.state.playing;
+
+  @override
+  Future<void> play() => _player.play();
+
+  @override
+  Future<void> pause() => _player.pause();
+
+  @override
+  Future<void> seek(Duration to) => _player.seek(to);
 
   @override
   Future<void> stop() => _player.stop();

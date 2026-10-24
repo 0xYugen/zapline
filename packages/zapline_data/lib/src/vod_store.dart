@@ -189,27 +189,38 @@ extension VodStore on ZaplineDatabase {
           as int;
 
   /// Categories in the order the source lists them, with their sizes.
-  List<VodCategory> movieCategories() => _categories('movies');
-  List<VodCategory> showCategories() => _categories('shows');
+  /// Categories in the source's order, of one source or all of them.
+  List<VodCategory> movieCategories({String? sourceId}) =>
+      _categories('movies', sourceId);
+  List<VodCategory> showCategories({String? sourceId}) =>
+      _categories('shows', sourceId);
 
-  List<VodCategory> _categories(String table) => [
+  List<VodCategory> _categories(String table, String? sourceId) => [
     for (final r in _db.select(
       'SELECT coalesce(category, \'\') AS c, count(*) AS n, min(sort) AS s '
-      'FROM $table GROUP BY coalesce(category, \'\') ORDER BY s',
+      'FROM $table${sourceId == null ? '' : ' WHERE source_id = ?'} '
+      'GROUP BY coalesce(category, \'\') ORDER BY s',
+      [?sourceId],
     ))
       (title: r['c'] as String, count: r['n'] as int),
   ];
 
-  static String _notIn(String column, Set<String> hidden) => hidden.isEmpty
+  /// Leaves out (source id, category) pairs.
+  static String _notIn(Set<(String, String)> hidden) => hidden.isEmpty
       ? ''
-      : ' AND coalesce($column, \'\') NOT IN '
+      : ' AND source_id || char(31) || coalesce(category, \'\') NOT IN '
             '(${List.filled(hidden.length, '?').join(', ')})';
 
-  /// Films, optionally of one [category], skipping [hiddenCategories].
+  static List<String> _keys(Set<(String, String)> hidden) => [
+    for (final (source, category) in hidden) '$source\u001f$category',
+  ];
+
+  /// Films, optionally of one [category], skipping the categories each
+  /// source hides ([hiddenCategories], as (source id, category) pairs).
   /// [newest] orders by date added instead of the source's order.
   List<Movie> movies({
     String? category,
-    Set<String> hiddenCategories = const {},
+    Set<(String, String)> hiddenCategories = const {},
     bool newest = false,
     int limit = 1 << 30,
     int offset = 0,
@@ -217,17 +228,17 @@ extension VodStore on ZaplineDatabase {
     for (final r in _db.select(
       'SELECT * FROM movies WHERE 1'
       '${category == null ? '' : ' AND coalesce(category, \'\') = ?'}'
-      '${_notIn('category', hiddenCategories)}'
+      '${_notIn(hiddenCategories)}'
       '${newest ? ' ORDER BY added DESC, sort' : ' ORDER BY source_id, sort'}'
       ' LIMIT ? OFFSET ?',
-      [?category, ...hiddenCategories, limit, offset],
+      [?category, ..._keys(hiddenCategories), limit, offset],
     ))
       _movie(r),
   ];
 
   List<Show> shows({
     String? category,
-    Set<String> hiddenCategories = const {},
+    Set<(String, String)> hiddenCategories = const {},
     bool newest = false,
     int limit = 1 << 30,
     int offset = 0,
@@ -235,10 +246,10 @@ extension VodStore on ZaplineDatabase {
     for (final r in _db.select(
       'SELECT * FROM shows WHERE 1'
       '${category == null ? '' : ' AND coalesce(category, \'\') = ?'}'
-      '${_notIn('category', hiddenCategories)}'
+      '${_notIn(hiddenCategories)}'
       '${newest ? ' ORDER BY updated DESC, sort' : ' ORDER BY source_id, sort'}'
       ' LIMIT ? OFFSET ?',
-      [?category, ...hiddenCategories, limit, offset],
+      [?category, ..._keys(hiddenCategories), limit, offset],
     ))
       _show(r),
   ];

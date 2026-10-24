@@ -22,7 +22,11 @@ class NativeEngine implements PlaybackEngine {
   String get name => kIsWeb ? 'html5' : 'media3';
 
   @override
-  Future<void> open(Uri url, {Map<String, String> headers = const {}}) async {
+  Future<void> open(
+    Uri url, {
+    Map<String, String> headers = const {},
+    Duration start = Duration.zero,
+  }) async {
     final gen = ++_generation;
     _lastError = null;
     await _release();
@@ -49,6 +53,7 @@ class NativeEngine implements PlaybackEngine {
       return;
     }
     c.addListener(() => _onValue(c));
+    if (start > Duration.zero) await c.seekTo(start);
     _controller.value = c;
     await c.play();
   }
@@ -82,6 +87,29 @@ class NativeEngine implements PlaybackEngine {
     await _errors.close();
     _controller.dispose();
   }
+
+  VideoPlayerValue? get _value {
+    final c = _controller.value;
+    return c != null && c.value.isInitialized ? c.value : null;
+  }
+
+  @override
+  Duration get currentPosition => _value?.position ?? Duration.zero;
+
+  @override
+  Duration get duration => _value?.duration ?? Duration.zero;
+
+  @override
+  bool get isPlaying => _value?.isPlaying ?? false;
+
+  @override
+  Future<void> play() async => _controller.value?.play();
+
+  @override
+  Future<void> pause() async => _controller.value?.pause();
+
+  @override
+  Future<void> seek(Duration to) async => _controller.value?.seekTo(to);
 
   @override
   Future<List<MediaTrack>> audioTracks() async {
