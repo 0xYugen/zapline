@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
+import '../keep_awake.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../theme.dart';
@@ -177,6 +178,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     s.videoFit,
                     (v) => s.videoFit = v,
                   ),
+                ),
+                SettingsSwitchTile(
+                  title: l.keepScreenOn,
+                  subtitle: l.keepScreenOnHint,
+                  value: s.keepScreenOn,
+                  onChanged: (v) => _set(() {
+                    s.keepScreenOn = v;
+                    keepScreenAwake(v);
+                  }),
                 ),
                 SettingsSwitchTile(
                   title: l.mergeVersions,

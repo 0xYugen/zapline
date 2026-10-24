@@ -40,6 +40,10 @@ class AppSettings {
   int get refreshHours => _int('refreshHours', 12);
   set refreshHours(int v) => _db.setSetting('refreshHours', '$v');
 
+  /// The screen stays on while Zapline is open.
+  bool get keepScreenOn => _bool('keepScreenOn', true);
+  set keepScreenOn(bool v) => _db.setSetting('keepScreenOn', '$v');
+
   /// Show "Rai 1 HD", "Rai 1 FHD" and "Rai 1 4K" as one channel.
   bool get mergeVersions => _bool('mergeVersions', true);
   set mergeVersions(bool v) => _db.setSetting('mergeVersions', '$v');

@@ -493,5 +493,7 @@
   "versionUhdHint": "Needs a fast connection",
   "versionFhdHint": "Sharp picture, for most connections",
   "versionHdHint": "Uses less data",
-  "versionSdHint": "Lowest data use"
+  "versionSdHint": "Lowest data use",
+  "keepScreenOn": "Keep the screen on",
+  "keepScreenOnHint": "While Zapline is open"
 }

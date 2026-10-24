@@ -1528,4 +1528,10 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get versionSdHint => 'Consumo minimo';
+
+  @override
+  String get keepScreenOn => 'Schermo sempre acceso';
+
+  @override
+  String get keepScreenOnHint => 'Finché Zapline è aperta';
 }

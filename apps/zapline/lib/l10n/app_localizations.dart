@@ -2527,6 +2527,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lowest data use'**
   String get versionSdHint;
+
+  /// No description provided for @keepScreenOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the screen on'**
+  String get keepScreenOn;
+
+  /// No description provided for @keepScreenOnHint.
+  ///
+  /// In en, this message translates to:
+  /// **'While Zapline is open'**
+  String get keepScreenOnHint;
 }
 
 class _AppLocalizationsDelegate

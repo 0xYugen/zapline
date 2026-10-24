@@ -1525,4 +1525,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get versionSdHint => 'Lowest data use';
+
+  @override
+  String get keepScreenOn => 'Keep the screen on';
+
+  @override
+  String get keepScreenOnHint => 'While Zapline is open';
 }

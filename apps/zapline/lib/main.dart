@@ -10,6 +10,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
+import 'src/keep_awake.dart';
 import 'src/input_mode.dart';
 import 'src/l10n.dart';
 import 'src/layout.dart';
@@ -92,7 +93,7 @@ class ZaplineApp extends StatefulWidget {
   State<ZaplineApp> createState() => _ZaplineAppState();
 }
 
-class _ZaplineAppState extends State<ZaplineApp> {
+class _ZaplineAppState extends State<ZaplineApp> with WidgetsBindingObserver {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _backStack = BackStackObserver();
@@ -102,6 +103,8 @@ class _ZaplineAppState extends State<ZaplineApp> {
   void initState() {
     super.initState();
     InputMode.instance.attach();
+    WidgetsBinding.instance.addObserver(this);
+    keepScreenAwake(widget.state.settings.keepScreenOn);
     _reminderTimer = Timer.periodic(
       const Duration(seconds: 20),
       (_) => _checkReminders(),
@@ -110,8 +113,16 @@ class _ZaplineAppState extends State<ZaplineApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _reminderTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      keepScreenAwake(widget.state.settings.keepScreenOn);
+    }
   }
 
   /// Programmes the user asked about that are starting: a banner with a

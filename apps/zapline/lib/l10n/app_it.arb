@@ -414,5 +414,7 @@
   "versionUhdHint": "Serve una connessione veloce",
   "versionFhdHint": "Immagine nitida, va bene quasi sempre",
   "versionHdHint": "Consuma meno dati",
-  "versionSdHint": "Consumo minimo"
+  "versionSdHint": "Consumo minimo",
+  "keepScreenOn": "Schermo sempre acceso",
+  "keepScreenOnHint": "Finché Zapline è aperta"
 }
