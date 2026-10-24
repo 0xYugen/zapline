@@ -252,7 +252,11 @@ class _ZaplineAppState extends State<ZaplineApp> {
       home: ListenableBuilder(
         listenable: state,
         builder: (context, _) {
-          if (state.isEmpty) return AddSourceScreen(state: state);
+          if (state.isEmpty) {
+            return context.isPhone
+                ? WelcomeScreen(state: state)
+                : AddSourceScreen(state: state);
+          }
           if (context.isPhone) return MobileHome(state: state);
           return ChannelsScreen(
             state: state,

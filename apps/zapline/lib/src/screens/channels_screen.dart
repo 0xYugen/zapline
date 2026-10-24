@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../theme.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_tile.dart';
+import '../widgets/epg_suggestion.dart';
 import '../widgets/brand.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/pin_pad.dart';
@@ -57,6 +58,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _firstChannel.requestFocus();
+      offerFreeEpgIfUseful(context, widget.state);
       if (widget.autoplayFirst && _visible.isNotEmpty) {
         _play(_visible, 0);
       } else if (widget.state.resumeChannel case final last?) {

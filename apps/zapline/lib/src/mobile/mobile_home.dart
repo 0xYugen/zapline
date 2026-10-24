@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
@@ -11,6 +12,7 @@ import '../theme.dart';
 import '../widgets/brand.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_logo.dart';
+import '../widgets/epg_suggestion.dart';
 import 'mobile_guide.dart';
 import 'mobile_widgets.dart';
 
@@ -33,6 +35,7 @@ class _MobileHomeState extends State<MobileHome> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) offerFreeEpgIfUseful(context, widget.state);
       final last = widget.state.resumeChannel;
       if (!mounted || last == null) return;
       final all = widget.state.channels();
@@ -61,7 +64,11 @@ class _MobileHomeState extends State<MobileHome> {
         SettingsScreen(state: widget.state),
       ],
     );
-    void select(int i) => setState(() => _tab = i);
+    void select(int i) {
+      HapticFeedback.selectionClick();
+      setState(() => _tab = i);
+    }
+
     // Sideways, a rail keeps the little height there is for the lists.
     if (isLandscape(context)) {
       return Scaffold(

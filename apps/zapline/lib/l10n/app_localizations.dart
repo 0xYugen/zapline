@@ -1483,6 +1483,264 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Locked groups hidden again.'**
   String get lockedAgain;
+
+  /// No description provided for @tagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Your channels, your TV guide. Free, no account, no ads.'**
+  String get tagline;
+
+  /// No description provided for @howDoYouGetChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'How do you get your channels?'**
+  String get howDoYouGetChannels;
+
+  /// No description provided for @xtreamChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Server login (Xtream)'**
+  String get xtreamChoice;
+
+  /// No description provided for @xtreamChoiceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address, username and password'**
+  String get xtreamChoiceHint;
+
+  /// No description provided for @m3uChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist link (M3U)'**
+  String get m3uChoice;
+
+  /// No description provided for @m3uChoiceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A link ending in .m3u or .m3u8'**
+  String get m3uChoiceHint;
+
+  /// No description provided for @restoreChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore a backup'**
+  String get restoreChoice;
+
+  /// No description provided for @restoreChoiceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring sources and favourites from another device'**
+  String get restoreChoiceHint;
+
+  /// No description provided for @noChannelsIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Zapline includes no channels or playlists. It only plays sources you add.'**
+  String get noChannelsIncluded;
+
+  /// No description provided for @errorDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'This source is already added.'**
+  String get errorDuplicate;
+
+  /// No description provided for @errorUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the server. Check the address and your internet connection.'**
+  String get errorUnreachable;
+
+  /// No description provided for @errorLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused the login. Check username and password.'**
+  String get errorLogin;
+
+  /// No description provided for @errorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found at that address. Check the link.'**
+  String get errorNotFound;
+
+  /// No description provided for @errorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t connect: {error}'**
+  String errorGeneric(String error);
+
+  /// No description provided for @pairingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the code and paste your details there. No typing on the TV.'**
+  String get pairingHint;
+
+  /// No description provided for @paste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get paste;
+
+  /// No description provided for @addFirstSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first source'**
+  String get addFirstSource;
+
+  /// No description provided for @xtreamFormHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the link your provider sent you: if it contains username and password, they are filled in for you.'**
+  String get xtreamFormHint;
+
+  /// No description provided for @m3uFormHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the playlist link. If your provider gave you a TV guide (EPG) link too, add it below.'**
+  String get m3uFormHint;
+
+  /// No description provided for @addSourceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a playlist link or your server address. Xtream links are recognised automatically and the TV guide is set up for you.'**
+  String get addSourceHint;
+
+  /// No description provided for @serverAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address'**
+  String get serverAddress;
+
+  /// No description provided for @playlistLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist link'**
+  String get playlistLink;
+
+  /// No description provided for @urlOrServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist URL or server address'**
+  String get urlOrServer;
+
+  /// No description provided for @xtreamDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Xtream login detected: {user} @ {host}'**
+  String xtreamDetected(String user, String host);
+
+  /// No description provided for @epgLinkOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'TV guide (EPG) link, optional'**
+  String get epgLinkOptional;
+
+  /// No description provided for @storedOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved only on this device, in the system\'s secure storage.'**
+  String get storedOnDevice;
+
+  /// No description provided for @connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get connect;
+
+  /// No description provided for @restoreFromBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from a backup'**
+  String get restoreFromBackup;
+
+  /// No description provided for @usernameXtreamOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Username (Xtream only)'**
+  String get usernameXtreamOnly;
+
+  /// No description provided for @password.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get password;
+
+  /// No description provided for @passwordXtreamOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Password (Xtream only)'**
+  String get passwordXtreamOnly;
+
+  /// No description provided for @hidePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get hidePassword;
+
+  /// No description provided for @showPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get showPassword;
+
+  /// No description provided for @connecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get connecting;
+
+  /// No description provided for @stepLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get stepLogin;
+
+  /// No description provided for @stepChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels'**
+  String get stepChannels;
+
+  /// No description provided for @stepChannelsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} channels'**
+  String stepChannelsCount(int count);
+
+  /// No description provided for @stepGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'TV guide'**
+  String get stepGuide;
+
+  /// No description provided for @stepGuideCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide {count}'**
+  String stepGuideCount(int count);
+
+  /// No description provided for @stepMatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Matching'**
+  String get stepMatching;
+
+  /// No description provided for @epgOfferTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Want a fuller TV guide?'**
+  String get epgOfferTitle;
+
+  /// No description provided for @epgOfferMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} channels of this source have no TV guide. A free public EPG for {country} can fill most of them.'**
+  String epgOfferMessage(int count, String country);
+
+  /// No description provided for @notNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get notNow;
 }
 
 class _AppLocalizationsDelegate

@@ -688,7 +688,22 @@ class AppState extends ChangeNotifier {
     if (_isDuplicate(record)) {
       throw Exception('This source is already added');
     }
-    return _addRecord(record);
+    final result = await _addRecord(record);
+    _epgSuggestion = record.id;
+    return result;
+  }
+
+  String? _epgSuggestion;
+
+  /// A source just added whose guide covers less than 80% of its
+  /// channels and that uses no free EPG yet: worth offering one, once.
+  SourceRecord? takeEpgSuggestion() {
+    final id = _epgSuggestion;
+    _epgSuggestion = null;
+    final s = sources.where((e) => e.id == id).firstOrNull;
+    if (s == null || hasFreeEpg(s)) return null;
+    final cov = coverage(s.id);
+    return cov.channels > 0 && cov.ratio < 0.8 ? s : null;
   }
 
   static int _idCounter = 0;

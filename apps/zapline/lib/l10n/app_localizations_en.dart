@@ -843,4 +843,153 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockedAgain => 'Locked groups hidden again.';
+
+  @override
+  String get tagline =>
+      'Your channels, your TV guide. Free, no account, no ads.';
+
+  @override
+  String get howDoYouGetChannels => 'How do you get your channels?';
+
+  @override
+  String get xtreamChoice => 'Server login (Xtream)';
+
+  @override
+  String get xtreamChoiceHint => 'Server address, username and password';
+
+  @override
+  String get m3uChoice => 'Playlist link (M3U)';
+
+  @override
+  String get m3uChoiceHint => 'A link ending in .m3u or .m3u8';
+
+  @override
+  String get restoreChoice => 'Restore a backup';
+
+  @override
+  String get restoreChoiceHint =>
+      'Bring sources and favourites from another device';
+
+  @override
+  String get noChannelsIncluded =>
+      'Zapline includes no channels or playlists. It only plays sources you add.';
+
+  @override
+  String get errorDuplicate => 'This source is already added.';
+
+  @override
+  String get errorUnreachable =>
+      'Can\'t reach the server. Check the address and your internet connection.';
+
+  @override
+  String get errorLogin =>
+      'The server refused the login. Check username and password.';
+
+  @override
+  String get errorNotFound => 'Nothing found at that address. Check the link.';
+
+  @override
+  String errorGeneric(String error) {
+    return 'Couldn\'t connect: $error';
+  }
+
+  @override
+  String get pairingHint =>
+      'Scan the code and paste your details there. No typing on the TV.';
+
+  @override
+  String get paste => 'Paste';
+
+  @override
+  String get addFirstSource => 'Add your first source';
+
+  @override
+  String get xtreamFormHint =>
+      'Paste the link your provider sent you: if it contains username and password, they are filled in for you.';
+
+  @override
+  String get m3uFormHint =>
+      'Paste the playlist link. If your provider gave you a TV guide (EPG) link too, add it below.';
+
+  @override
+  String get addSourceHint =>
+      'Paste a playlist link or your server address. Xtream links are recognised automatically and the TV guide is set up for you.';
+
+  @override
+  String get serverAddress => 'Server address';
+
+  @override
+  String get playlistLink => 'Playlist link';
+
+  @override
+  String get urlOrServer => 'Playlist URL or server address';
+
+  @override
+  String xtreamDetected(String user, String host) {
+    return 'Xtream login detected: $user @ $host';
+  }
+
+  @override
+  String get epgLinkOptional => 'TV guide (EPG) link, optional';
+
+  @override
+  String get storedOnDevice =>
+      'Saved only on this device, in the system\'s secure storage.';
+
+  @override
+  String get connect => 'Connect';
+
+  @override
+  String get restoreFromBackup => 'Restore from a backup';
+
+  @override
+  String get usernameXtreamOnly => 'Username (Xtream only)';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get passwordXtreamOnly => 'Password (Xtream only)';
+
+  @override
+  String get hidePassword => 'Hide password';
+
+  @override
+  String get showPassword => 'Show password';
+
+  @override
+  String get connecting => 'Connecting…';
+
+  @override
+  String get stepLogin => 'Login';
+
+  @override
+  String get stepChannels => 'Channels';
+
+  @override
+  String stepChannelsCount(int count) {
+    return '$count channels';
+  }
+
+  @override
+  String get stepGuide => 'TV guide';
+
+  @override
+  String stepGuideCount(int count) {
+    return 'Guide $count';
+  }
+
+  @override
+  String get stepMatching => 'Matching';
+
+  @override
+  String get epgOfferTitle => 'Want a fuller TV guide?';
+
+  @override
+  String epgOfferMessage(int count, String country) {
+    return '$count channels of this source have no TV guide. A free public EPG for $country can fill most of them.';
+  }
+
+  @override
+  String get notNow => 'Not now';
 }

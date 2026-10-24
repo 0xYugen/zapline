@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
@@ -16,7 +17,7 @@ Future<void> showChannelActions(
   AppState state,
   Channel channel,
 ) => context.isPhone
-    ? _showSheet(context, state, channel)
+    ? (HapticFeedback.mediumImpact(), _showSheet(context, state, channel)).$2
     : showDialog<void>(
         context: context,
         barrierColor: Colors.black87,

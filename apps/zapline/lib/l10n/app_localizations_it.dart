@@ -848,4 +848,154 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get lockedAgain => 'Gruppi bloccati di nuovo nascosti.';
+
+  @override
+  String get tagline =>
+      'I tuoi canali, la tua guida TV. Gratis, senza account, senza pubblicità.';
+
+  @override
+  String get howDoYouGetChannels => 'Come ricevi i tuoi canali?';
+
+  @override
+  String get xtreamChoice => 'Accesso al server (Xtream)';
+
+  @override
+  String get xtreamChoiceHint => 'Indirizzo del server, nome utente e password';
+
+  @override
+  String get m3uChoice => 'Link della playlist (M3U)';
+
+  @override
+  String get m3uChoiceHint => 'Un link che finisce in .m3u o .m3u8';
+
+  @override
+  String get restoreChoice => 'Ripristina un backup';
+
+  @override
+  String get restoreChoiceHint =>
+      'Porta sorgenti e preferiti da un altro dispositivo';
+
+  @override
+  String get noChannelsIncluded =>
+      'Zapline non include canali né playlist. Riproduce solo le sorgenti che aggiungi.';
+
+  @override
+  String get errorDuplicate => 'Questa sorgente è già stata aggiunta.';
+
+  @override
+  String get errorUnreachable =>
+      'Impossibile raggiungere il server. Controlla l\'indirizzo e la connessione a internet.';
+
+  @override
+  String get errorLogin =>
+      'Il server ha rifiutato l\'accesso. Controlla nome utente e password.';
+
+  @override
+  String get errorNotFound =>
+      'Nessun contenuto a quell\'indirizzo. Controlla il link.';
+
+  @override
+  String errorGeneric(String error) {
+    return 'Connessione non riuscita: $error';
+  }
+
+  @override
+  String get pairingHint =>
+      'Inquadra il codice e incolla lì i tuoi dati. Niente da scrivere sulla TV.';
+
+  @override
+  String get paste => 'Incolla';
+
+  @override
+  String get addFirstSource => 'Aggiungi la tua prima sorgente';
+
+  @override
+  String get xtreamFormHint =>
+      'Incolla il link che ti ha mandato il provider: se contiene nome utente e password, li compiliamo noi.';
+
+  @override
+  String get m3uFormHint =>
+      'Incolla il link della playlist. Se il provider ti ha dato anche un link della guida TV (EPG), aggiungilo sotto.';
+
+  @override
+  String get addSourceHint =>
+      'Incolla il link di una playlist o l\'indirizzo del server. I link Xtream vengono riconosciuti da soli e la guida TV si imposta in automatico.';
+
+  @override
+  String get serverAddress => 'Indirizzo del server';
+
+  @override
+  String get playlistLink => 'Link della playlist';
+
+  @override
+  String get urlOrServer => 'Link della playlist o indirizzo del server';
+
+  @override
+  String xtreamDetected(String user, String host) {
+    return 'Accesso Xtream riconosciuto: $user @ $host';
+  }
+
+  @override
+  String get epgLinkOptional => 'Link della guida TV (EPG), facoltativo';
+
+  @override
+  String get storedOnDevice =>
+      'Salvati solo su questo dispositivo, nell\'archivio sicuro del sistema.';
+
+  @override
+  String get connect => 'Collegati';
+
+  @override
+  String get restoreFromBackup => 'Ripristina da un backup';
+
+  @override
+  String get usernameXtreamOnly => 'Nome utente (solo Xtream)';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get passwordXtreamOnly => 'Password (solo Xtream)';
+
+  @override
+  String get hidePassword => 'Nascondi password';
+
+  @override
+  String get showPassword => 'Mostra password';
+
+  @override
+  String get connecting => 'Connessione…';
+
+  @override
+  String get stepLogin => 'Accesso';
+
+  @override
+  String get stepChannels => 'Canali';
+
+  @override
+  String stepChannelsCount(int count) {
+    return '$count canali';
+  }
+
+  @override
+  String get stepGuide => 'Guida TV';
+
+  @override
+  String stepGuideCount(int count) {
+    return 'Guida $count';
+  }
+
+  @override
+  String get stepMatching => 'Abbinamento';
+
+  @override
+  String get epgOfferTitle => 'Vuoi una guida TV più completa?';
+
+  @override
+  String epgOfferMessage(int count, String country) {
+    return '$count canali di questa sorgente non hanno la guida TV. Un EPG pubblico gratuito per $country può coprirne la maggior parte.';
+  }
+
+  @override
+  String get notNow => 'Non ora';
 }

@@ -23,12 +23,19 @@ Future<void> step(WidgetTester tester) async {
   drain(tester);
 }
 
-Future<void> connect(WidgetTester tester) async {
+Future<void> connect(WidgetTester tester, Device d) async {
+  await tester.ensureVisible(find.text('Server login (Xtream)'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Server login (Xtream)'));
+  await step(tester);
+  await shot(tester, d, '01b-xtream-form');
   await tester.enterText(
     find.byType(TextField).first,
     'http://x.example/get.php?username=a&password=b',
   );
   await tester.pump();
+  await tester.ensureVisible(find.text('Connect'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Connect'));
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 300)),
@@ -63,7 +70,7 @@ void main() {
       await tester.pumpWidget(capturable(ZaplineApp(state: state), d));
       await step(tester);
       await shot(tester, d, '01-add-source');
-      await connect(tester);
+      await connect(tester, d);
       state.toggleFavourite(state.channels()[2]);
       await step(tester);
       await shot(tester, d, '02-channels');

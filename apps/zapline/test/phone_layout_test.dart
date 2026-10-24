@@ -26,6 +26,15 @@ void main() {
       final state = fakeState(count: 30);
       await tester.pumpWidget(ZaplineApp(state: state));
       await tester.pumpAndSettle();
+      // Phones start on the welcome screen.
+      expect(
+        find.text('How do you get your channels?'.toUpperCase()),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.text('Server login (Xtream)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Server login (Xtream)'));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField).first,
         'http://x.example/get.php?username=a&password=b',
