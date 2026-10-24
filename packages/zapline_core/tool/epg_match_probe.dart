@@ -70,9 +70,10 @@ const providerNames = [
 Future<void> main(List<String> args) async {
   final guide = <XmltvChannel>[];
   for (final path in args) {
-    var bytes = File(path).readAsBytesSync();
-    if (bytes[0] == 0x1f && bytes[1] == 0x8b)
-      bytes = gzip.decode(bytes) as dynamic;
+    List<int> bytes = File(path).readAsBytesSync();
+    if (bytes[0] == 0x1f && bytes[1] == 0x8b) {
+      bytes = gzip.decode(bytes);
+    }
     await for (final item in XmltvParser().parseBytes(Stream.value(bytes))) {
       if (item is XmltvChannel) guide.add(item);
     }
