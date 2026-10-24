@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:zapline_core/zapline_core.dart';
 import 'package:zapline_data/zapline_data.dart';
 
@@ -98,6 +99,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
             plot: d?.plot,
             director: d?.director,
             cast: d?.cast,
+            trailer: trailerUrl(d?.trailer),
             loading: loading,
             primary: _PlayButton(
               resume: saved != null && saved.resumable ? saved : null,
@@ -216,6 +218,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
             plot: d?.plot ?? widget.show.plot,
             director: d?.director,
             cast: d?.cast,
+            trailer: trailerUrl(d?.trailer),
             loading: loading,
             primary: switch (next) {
               (final e, final p) => _PlayButton(
@@ -280,6 +283,17 @@ String _episodeTitle(Episode e) {
   return t.isEmpty ? e.title : t;
 }
 
+/// Where to watch a trailer: providers give a YouTube id or a full link.
+Uri? trailerUrl(String? trailer) {
+  final t = trailer?.trim() ?? '';
+  if (t.isEmpty) return null;
+  if (RegExp(r'^[\w-]{11}$').hasMatch(t)) {
+    return Uri.https('www.youtube.com', '/watch', {'v': t});
+  }
+  final u = Uri.tryParse(t);
+  return u != null && (u.scheme == 'https' || u.scheme == 'http') ? u : null;
+}
+
 /// The layout both detail pages share.
 class _DetailPage extends StatelessWidget {
   const _DetailPage({
@@ -292,6 +306,7 @@ class _DetailPage extends StatelessWidget {
     required this.plot,
     required this.director,
     required this.cast,
+    required this.trailer,
     required this.loading,
     required this.primary,
     required this.below,
@@ -306,7 +321,17 @@ class _DetailPage extends StatelessWidget {
   final String? plot;
   final String? director;
   final String? cast;
+  final Uri? trailer;
   final bool loading;
+
+  static final _outlined = OutlinedButton.styleFrom(
+    foregroundColor: ZaplineColors.text,
+    side: const BorderSide(color: ZaplineColors.line),
+    textStyle: const TextStyle(
+      fontFamily: 'Inter',
+      fontWeight: FontWeight.w700,
+    ),
+  );
   final Widget? primary;
   final List<Widget> below;
 
@@ -445,33 +470,39 @@ class _DetailPage extends StatelessWidget {
                               listenable: state,
                               builder: (context, _) {
                                 final inList = state.inMyList(title.key);
-                                return Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      HapticFeedback.selectionClick();
-                                      state.toggleMyList(title.key);
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: ZaplineColors.text,
-                                      side: const BorderSide(
-                                        color: ZaplineColors.line,
+                                return Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        HapticFeedback.selectionClick();
+                                        state.toggleMyList(title.key);
+                                      },
+                                      style: _outlined,
+                                      icon: Icon(
+                                        inList
+                                            ? Icons.check_rounded
+                                            : Icons.add_rounded,
+                                        color: inList ? ZaplineColors.ok : null,
                                       ),
-                                      textStyle: const TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.w700,
+                                      label: Text(
+                                        inList ? l.inMyList : l.addToMyList,
                                       ),
                                     ),
-                                    icon: Icon(
-                                      inList
-                                          ? Icons.check_rounded
-                                          : Icons.add_rounded,
-                                      color: inList ? ZaplineColors.ok : null,
-                                    ),
-                                    label: Text(
-                                      inList ? l.inMyList : l.addToMyList,
-                                    ),
-                                  ),
+                                    if (trailer case final t?)
+                                      OutlinedButton.icon(
+                                        onPressed: () => launchUrl(
+                                          t,
+                                          mode: LaunchMode.externalApplication,
+                                        ),
+                                        style: _outlined,
+                                        icon: const Icon(
+                                          Icons.smart_display_outlined,
+                                        ),
+                                        label: Text(l.trailer),
+                                      ),
+                                  ],
                                 );
                               },
                             ),
