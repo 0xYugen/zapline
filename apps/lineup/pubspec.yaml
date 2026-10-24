@@ -20,6 +20,9 @@ dependencies:
   media_kit_libs_linux: ^1.2.1
   media_kit_libs_macos_video: ^1.1.4
   media_kit_libs_ios_video: ^1.1.4
+  path_provider: ^2.1.6
+  lineup_data:
+    path: ../../packages/lineup_data
 dev_dependencies:
   flutter_test:
     sdk: flutter

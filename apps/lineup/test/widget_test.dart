@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lineup/main.dart';
-import 'package:lineup/src/library.dart';
+import 'package:lineup/src/app_state.dart';
 import 'package:lineup/src/widgets/focus_card.dart';
+import 'package:lineup_data/lineup_data.dart';
+
+import 'helpers.dart';
 
 void main() {
   testWidgets(
     'first run shows the add-source screen and detects Xtream links',
     (tester) async {
-      await tester.pumpWidget(LineupApp(library: Library()));
+      await tester.pumpWidget(LineupApp(state: fakeState()));
       expect(find.text('Add your first source'), findsOneWidget);
 
       await tester.enterText(
@@ -34,4 +37,24 @@ void main() {
       expect(focused.findAncestorWidgetOfExactType<FocusCard>(), isNotNull);
     },
   );
+
+  test('SourceInput builds the right record', () {
+    final x = const SourceInput(
+      url: 'http://p.example:8080/get.php?username=a&password=b',
+    ).toRecord('1');
+    expect(x.kind, SourceKind.xtream);
+    expect(x.url, 'http://p.example:8080');
+    expect(x.username, 'a');
+
+    final m = const SourceInput(url: 'http://p.example/list.m3u').toRecord('2');
+    expect(m.kind, SourceKind.m3u);
+
+    final manual = const SourceInput(
+      url: 'p.example:8080',
+      username: 'u',
+      password: 'p',
+    ).toRecord('3');
+    expect(manual.kind, SourceKind.xtream);
+    expect(manual.name, 'p.example');
+  });
 }

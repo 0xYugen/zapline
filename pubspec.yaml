@@ -6,4 +6,5 @@ environment:
 
 workspace:
   - packages/lineup_core
+  - packages/lineup_data
   - apps/lineup

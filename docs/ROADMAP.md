@@ -38,6 +38,30 @@ documented.
 
 ## Phase 1 — MVP (~22 weeks, month 7)
 
+- [x] `lineup_data`: SQLite schema (sources, channels with FTS5 search,
+      guide channels, programmes, guide links, manual overrides), batched
+      guide import (48k programmes in ~0.25 s on desktop), retention window,
+      guide coverage
+- [x] Source sync: Xtream (+ `xmltv.php`), M3U (+ `url-tvg`), gzip guides
+      detected by magic bytes with download backpressure, M3U catch-up
+      attributes, guide failures don't fail the sync
+- [x] App: sources persisted and shown instantly at startup, sync on a
+      background isolate with progress, stale sources refreshed (12 h)
+- [x] Channel list with current programme and progress; player info bar with
+      now/next
+- [x] TV guide grid: 2-hour window paging by 30 min at the D-pad edges,
+      lazy rows, "now" line, details header; verified on Android TV emulator
+- [x] Sources screen: add, refresh, remove (second press confirms), guide
+      coverage
+- [ ] Manual guide mapping UI for unmatched channels
+- [ ] Catch-up playback from the guide (xc, shift, append, flussonic)
+- [ ] Favourites, channel search UI, number-key zapping
+- [ ] QR onboarding from a phone
+- [ ] JSON backup/restore
+- [ ] Store credentials in the platform keystore instead of SQLite
+- [ ] Logos (cached, decoded at display size)
+- [ ] Packaging: GitHub releases, F-Droid, Flathub, winget
+
 SQLite data layer and sync · Xtream + M3U sources · automatic Xtream guide via
 `xmltv.php` + external XMLTV · virtualised guide grid and mini-guide ·
 catch-up (xc, shift, append, flussonic) · unlimited sources · favourites ·

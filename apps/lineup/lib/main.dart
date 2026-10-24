@@ -1,43 +1,54 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lineup_data/lineup_data.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:path_provider/path_provider.dart';
 
-import 'src/library.dart';
+import 'src/app_state.dart';
 import 'src/screens/add_source_screen.dart';
 import 'src/screens/channels_screen.dart';
 import 'src/theme.dart';
 
-/// Development only: load this source at startup, e.g.
-/// `--dart-define=LINEUP_DEV_SOURCE=http://localhost:8099/get.php?username=demo&password=demo`
+/// Development only: add this source at startup when none exists, e.g.
+/// `--dart-define=LINEUP_DEV_SOURCE=http://localhost:8099/live/demo/demo/1.ts`
 const _devSource = String.fromEnvironment('LINEUP_DEV_SOURCE');
 
 /// Development only: open the first channel as soon as the list appears.
 const _devAutoplay = bool.fromEnvironment('LINEUP_DEV_AUTOPLAY');
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // libmpv is bundled only where MpvEngine is the default (desktop, iOS).
   if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
     MediaKit.ensureInitialized();
   }
-  final library = Library();
-  if (_devSource.isNotEmpty) {
-    library
-        .load(SourceInput(url: _devSource))
-        .catchError((Object e) => debugPrint('LINEUP_DEV_SOURCE failed: $e'));
+  final dir = await getApplicationSupportDirectory();
+  final dbPath = '${dir.path}${Platform.pathSeparator}lineup.db';
+  final state = AppState(
+    LineupDatabase.open(dbPath),
+    syncRunner: isolateSyncRunner(dbPath),
+  );
+  if (_devSource.isNotEmpty && state.sources.isEmpty) {
+    state
+        .addSource(SourceInput(url: _devSource))
+        .then(
+          (_) {},
+          onError: (Object e) => debugPrint('LINEUP_DEV_SOURCE failed: $e'),
+        );
+  } else {
+    // Startup shows cached data immediately; stale sources refresh behind it.
+    state.refreshStale();
   }
-  runApp(LineupApp(library: library, autoplayFirst: _devAutoplay));
+  runApp(LineupApp(state: state, autoplayFirst: _devAutoplay));
 }
 
 class LineupApp extends StatelessWidget {
-  const LineupApp({
-    super.key,
-    required this.library,
-    this.autoplayFirst = false,
-  });
+  const LineupApp({super.key, required this.state, this.autoplayFirst = false});
 
-  final Library library;
+  final AppState state;
   final bool autoplayFirst;
 
   @override
@@ -82,10 +93,10 @@ class LineupApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       home: ListenableBuilder(
-        listenable: library,
-        builder: (context, _) => library.isEmpty
-            ? AddSourceScreen(library: library)
-            : ChannelsScreen(library: library, autoplayFirst: autoplayFirst),
+        listenable: state,
+        builder: (context, _) => state.isEmpty
+            ? AddSourceScreen(state: state)
+            : ChannelsScreen(state: state, autoplayFirst: autoplayFirst),
       ),
     );
   }

@@ -2,35 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lineup/main.dart';
-import 'package:lineup/src/library.dart';
+import 'package:lineup/src/screens/guide_screen.dart';
 import 'package:lineup/src/widgets/focus_card.dart';
-import 'package:lineup_core/lineup_core.dart';
 
-class _FakeLibrary extends Library {
-  @override
-  Future<void> load(SourceInput input) async {
-    sourceName = 'test';
-    channels = [
-      for (var i = 1; i <= 20; i++)
-        Channel(
-          sourceId: 's',
-          id: '$i',
-          name: 'Channel $i',
-          number: i,
-          groupTitle: i.isEven ? 'Even' : 'Odd',
-          streamUrl: Uri.parse('http://x.example/$i.ts'),
-        ),
-    ];
-    groups = ['Odd', 'Even'];
-    notifyListeners();
-  }
-}
+import 'helpers.dart';
 
 String? _focusedLabel() {
   final ctx = FocusManager.instance.primaryFocus?.context;
-  if (ctx == null) return null;
-  final card = ctx.findAncestorWidgetOfExactType<FocusCard>();
-  if (card == null) return null;
+  if (ctx == null || ctx.findAncestorWidgetOfExactType<FocusCard>() == null) {
+    return null;
+  }
   final texts = <String>[];
   void visit(Element e) {
     final w = e.widget;
@@ -42,26 +23,60 @@ String? _focusedLabel() {
   return texts.join(' ');
 }
 
+Future<void> _connect(WidgetTester tester) async {
+  await tester.enterText(
+    find.byType(TextField).first,
+    'http://x.example/get.php?username=a&password=b',
+  );
+  await tester.pump();
+  await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+  await tester.sendKeyEvent(LogicalKeyboardKey.select);
+  // The fake sync is async; let it finish and the list appear.
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 200)),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('after connecting, the first channel has focus and D-pad moves', (
     tester,
   ) async {
-    final lib = _FakeLibrary();
-    await tester.pumpWidget(LineupApp(library: lib));
-    await tester.enterText(
-      find.byType(TextField).first,
-      'http://x.example/get.php?username=a&password=b',
-    );
-    await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.sendKeyEvent(LogicalKeyboardKey.select);
-    await tester.pumpAndSettle();
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    await tester.pumpWidget(LineupApp(state: fakeState()));
+    await _connect(tester);
 
     expect(find.text('Channel 1'), findsOneWidget);
     expect(_focusedLabel(), contains('Channel 1'));
+    expect(_focusedLabel(), contains('Show 1.0'), reason: 'now playing shown');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
     expect(_focusedLabel(), contains('Channel 2'));
+  });
+
+  testWidgets('TV guide opens on the current programme and pages with D-pad', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    await tester.pumpWidget(LineupApp(state: fakeState()));
+    await _connect(tester);
+
+    await tester.tap(find.text('TV guide'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GuideScreen), findsOneWidget);
+    expect(_focusedLabel(), 'Show 1.0');
+
+    // Walk right past the window edge: the grid pages forward.
+    for (var i = 0; i < 4; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+    }
+    expect(_focusedLabel(), startsWith('Show 1.'));
+    expect(_focusedLabel(), isNot('Show 1.0'));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(_focusedLabel(), startsWith('Show 2.'));
   });
 }

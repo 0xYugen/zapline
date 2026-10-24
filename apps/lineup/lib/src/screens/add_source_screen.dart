@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lineup_core/lineup_core.dart';
 
-import '../library.dart';
+import 'package:lineup_data/lineup_data.dart';
+
+import '../app_state.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/tv_text_field.dart';
@@ -12,9 +14,9 @@ import '../widgets/tv_text_field.dart';
 ///
 /// QR pairing from a phone replaces remote typing in Phase 1.
 class AddSourceScreen extends StatefulWidget {
-  const AddSourceScreen({super.key, required this.library});
+  const AddSourceScreen({super.key, required this.state});
 
-  final Library library;
+  final AppState state;
 
   @override
   State<AddSourceScreen> createState() => _AddSourceScreenState();
@@ -57,13 +59,17 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
       _error = null;
     });
     try {
-      await widget.library.load(
+      await widget.state.addSource(
         SourceInput(
           url: _url.text,
           username: _detected == null ? _user.text : '',
           password: _detected == null ? _pass.text : '',
         ),
       );
+      // Opened from the channel list to add another source: go back to it.
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
@@ -72,6 +78,14 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  static String _progressText(SyncProgress? p) => switch (p?.stage) {
+    null || SyncStage.channels =>
+      p == null || p.count == 0 ? 'Connecting…' : 'Loaded ${p.count} channels',
+    SyncStage.guide => 'Loading TV guide… ${p!.count} programmes',
+    SyncStage.linking => 'Matching channels with the guide…',
+    SyncStage.done => 'Done',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +108,9 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Add your first source',
+                  Navigator.of(context).canPop()
+                      ? 'Add a source'
+                      : 'Add your first source',
                   style: t.displaySmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
@@ -180,6 +196,17 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                           ),
                   ),
                 ),
+                if (_busy)
+                  ListenableBuilder(
+                    listenable: widget.state,
+                    builder: (context, _) => Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        _progressText(widget.state.progress),
+                        style: const TextStyle(color: LineupColors.textMuted),
+                      ),
+                    ),
+                  ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(

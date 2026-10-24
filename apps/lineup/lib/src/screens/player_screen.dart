@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:lineup_core/lineup_core.dart';
 
 import '../playback/playback_engine.dart';
+import '../app_state.dart';
 import '../theme.dart';
 
 /// Full-screen live player with channel zapping.
@@ -15,10 +16,12 @@ import '../theme.dart';
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({
     super.key,
+    required this.state,
     required this.channels,
     required this.initialIndex,
   });
 
+  final AppState state;
   final List<Channel> channels;
   final int initialIndex;
 
@@ -122,6 +125,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return KeyEventResult.handled;
   }
 
+  String _nowNextLine(Channel c) {
+    final (now, next) = widget.state.nowNext(c);
+    String hm(DateTime t) {
+      final l = t.toLocal();
+      return '${l.hour.toString().padLeft(2, '0')}:'
+          '${l.minute.toString().padLeft(2, '0')}';
+    }
+
+    return [
+      if (now != null) 'Now: ${now.title}',
+      if (next != null) '${hm(next.start)} ${next.title}',
+      if (now == null && next == null) c.groupTitle ?? '',
+    ].join('   ·   ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _channel;
@@ -202,14 +220,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            if (c.groupTitle != null)
-                              Text(
-                                c.groupTitle!,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: LineupColors.textMuted,
-                                ),
+                            Text(
+                              _nowNextLine(c),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: LineupColors.textMuted,
                               ),
+                            ),
                           ],
                         ),
                       ),

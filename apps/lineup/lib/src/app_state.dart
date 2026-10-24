@@ -1,0 +1,195 @@
+import 'dart:isolate';
+
+import 'package:flutter/foundation.dart';
+import 'package:lineup_core/lineup_core.dart';
+import 'package:lineup_data/lineup_data.dart';
+
+/// What the user typed or pasted on the "add source" screen.
+class SourceInput {
+  const SourceInput({
+    required this.url,
+    this.username = '',
+    this.password = '',
+  });
+
+  final String url;
+  final String username;
+  final String password;
+
+  /// Builds the record to persist: explicit credentials or credentials found
+  /// in the URL mean Xtream, anything else is an M3U playlist.
+  SourceRecord toRecord(String id) {
+    final trimmed = url.trim();
+    if (username.isNotEmpty) {
+      final u = Uri.parse(
+        trimmed.contains('://') ? trimmed : 'http://$trimmed',
+      );
+      return SourceRecord(
+        id: id,
+        kind: SourceKind.xtream,
+        name: u.host,
+        url: trimmed,
+        username: username.trim(),
+        password: password,
+      );
+    }
+    final creds = detectXtreamCredentials(trimmed);
+    if (creds != null) {
+      return SourceRecord(
+        id: id,
+        kind: SourceKind.xtream,
+        name: creds.baseUrl.host,
+        url: creds.baseUrl.toString(),
+        username: creds.username,
+        password: creds.password,
+      );
+    }
+    return SourceRecord(
+      id: id,
+      kind: SourceKind.m3u,
+      name: Uri.tryParse(trimmed)?.host ?? trimmed,
+      url: trimmed,
+    );
+  }
+}
+
+typedef SyncRunner = Future<SyncResult> Function(
+  SourceRecord source,
+  void Function(SyncProgress) onProgress,
+);
+
+/// Runs [SourceSync] on a background isolate with its own database
+/// connection, so parsing a large guide never blocks the UI.
+SyncRunner isolateSyncRunner(String dbPath) => (source, onProgress) async {
+  final port = ReceivePort();
+  final send = port.sendPort;
+  final sub = port.listen((m) => onProgress(m as SyncProgress));
+  try {
+    return await _syncInIsolate(dbPath, source, send);
+  } finally {
+    await sub.cancel();
+    port.close();
+  }
+};
+
+// Kept separate so the closure sent to the isolate captures only these three
+// sendable values, not the caller's scope (which holds the app state).
+Future<SyncResult> _syncInIsolate(
+  String dbPath,
+  SourceRecord source,
+  SendPort progress,
+) => Isolate.run(() async {
+  final db = LineupDatabase.open(dbPath);
+  try {
+    return await SourceSync(db).sync(source, onProgress: progress.send);
+  } finally {
+    db.close();
+  }
+});
+
+/// App-wide state backed by the local database.
+class AppState extends ChangeNotifier {
+  AppState(this.db, {required this.syncRunner}) {
+    _reload();
+  }
+
+  final LineupDatabase db;
+  final SyncRunner syncRunner;
+
+  List<SourceRecord> sources = const [];
+  List<String> groups = const [];
+  int channelCount = 0;
+
+  /// Progress of the sync in flight, if any.
+  SyncProgress? progress;
+  String? syncingSourceId;
+
+  bool get isEmpty => channelCount == 0;
+  bool get isSyncing => syncingSourceId != null;
+
+  /// Incremented whenever stored channels change; screens use it to cache
+  /// query results.
+  int version = 0;
+
+  void _reload() {
+    version++;
+    sources = db.sources();
+    groups = db.groups();
+    channelCount = db.channelCount();
+  }
+
+  List<Channel> channels({String? group}) => db.channels(group: group);
+
+  List<Channel> search(String query) => db.search(query);
+
+  (Programme?, Programme?) nowNext(Channel c) =>
+      db.nowNext(c, DateTime.now().toUtc());
+
+  Map<String, List<Programme>> guide(
+    List<Channel> channels,
+    DateTime from,
+    DateTime to,
+  ) => db.guide(channels, from, to);
+
+  GuideCoverage coverage(String sourceId) =>
+      db.guideCoverage(sourceId: sourceId);
+
+  /// Saves and synchronises a new source. On failure nothing is kept and the
+  /// error is rethrown for display.
+  Future<SyncResult> addSource(SourceInput input) async {
+    final record = input.toRecord(
+      DateTime.now().microsecondsSinceEpoch.toRadixString(36),
+    );
+    db.saveSource(record);
+    try {
+      return await _sync(record);
+    } catch (_) {
+      db.deleteSource(record.id);
+      _reload();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<SyncResult> refresh(SourceRecord source) => _sync(source);
+
+  /// Re-syncs sources not refreshed within [maxAge]; errors are ignored so a
+  /// temporarily unreachable server never blocks startup.
+  Future<void> refreshStale({
+    Duration maxAge = const Duration(hours: 12),
+  }) async {
+    final cutoff = DateTime.now().toUtc().subtract(maxAge);
+    for (final s in List.of(sources)) {
+      if (s.syncedAt != null && s.syncedAt!.isAfter(cutoff)) continue;
+      try {
+        await _sync(s);
+      } catch (e) {
+        debugPrint('Background refresh of ${s.name} failed: $e');
+      }
+    }
+  }
+
+  void deleteSource(String id) {
+    db.deleteSource(id);
+    db.rebuildGuideLinks();
+    _reload();
+    notifyListeners();
+  }
+
+  Future<SyncResult> _sync(SourceRecord s) async {
+    syncingSourceId = s.id;
+    progress = const SyncProgress(SyncStage.channels);
+    notifyListeners();
+    try {
+      return await syncRunner(s, (p) {
+        progress = p;
+        notifyListeners();
+      });
+    } finally {
+      syncingSourceId = null;
+      progress = null;
+      _reload();
+      notifyListeners();
+    }
+  }
+}
