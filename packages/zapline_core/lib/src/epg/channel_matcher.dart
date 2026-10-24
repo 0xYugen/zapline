@@ -56,8 +56,11 @@ class ChannelMatcher {
   }
 }
 
+// `[IT]`, `(IT)`, `IT:`, `IT |`, `|IT|` and `IT - ` (a spaced dash, so names
+// like "Rai-Sport" are left alone).
 final _prefix = RegExp(
-    r'^\s*(?:\[[^\]]{1,12}\]|\([^)]{1,12}\)|[a-z]{2,3}\s*[:|]+)\s*',
+    r'^\s*(?:\[[^\]]{1,12}\]|\([^)]{1,12}\)|\|[a-z]{2,3}\||'
+    r'[a-z]{2,3}\s*[:|]+|[a-z]{2}\s+-\s+)\s*',
     caseSensitive: false);
 final _quality = RegExp(
     r'\b(?:uhd|fhd|hd|sd|hq|4k|8k|1080p?|720p?|h\.?265|h\.?264|hevc|backup|bk|vip|raw)\b',

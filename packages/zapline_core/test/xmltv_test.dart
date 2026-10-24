@@ -103,6 +103,10 @@ void main() {
 
     test('normalizeChannelName', () {
       expect(normalizeChannelName('UK | BBC One HD'), 'bbcone');
+      expect(normalizeChannelName('IT - 20 Mediaset'), '20mediaset');
+      expect(normalizeChannelName('|IT| Rai 1 FHD'), 'rai1');
+      expect(normalizeChannelName('Rai-Sport'), 'raisport');
+      expect(normalizeChannelName('20 Mediaset'), '20mediaset');
       expect(normalizeChannelName('Télé Ciné 4K'), 'telecine');
     });
   });

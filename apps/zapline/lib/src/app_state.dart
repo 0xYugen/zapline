@@ -9,6 +9,7 @@ import 'package:zapline_data/zapline_data.dart';
 
 import 'secret_store.dart';
 import 'format.dart';
+import 'free_epg.dart';
 import 'settings.dart';
 
 /// What the user typed or pasted on the "add source" screen.
@@ -480,6 +481,80 @@ class AppState extends ChangeNotifier {
       version++;
       notifyListeners();
     });
+  }
+
+  final _likelyEpg = <String, (int, FreeEpg?)>{};
+
+  /// The country a source's channels are mostly from, judged by prefixes
+  /// such as "IT:", "IT |", "ITA" or a group called "Italia".
+  FreeEpg? likelyFreeEpg(String sourceId) {
+    final cached = _likelyEpg[sourceId];
+    if (cached != null && cached.$1 == version) return cached.$2;
+    final votes = <String, int>{};
+    final all = db.channels(
+      sourceId: sourceId,
+      visibility: ChannelVisibility.all,
+    );
+    for (final c in all) {
+      final code = _countryOf(c.groupTitle) ?? _countryOf(c.name);
+      if (code != null) votes[code] = (votes[code] ?? 0) + 1;
+    }
+    FreeEpg? best;
+    if (votes.isNotEmpty) {
+      final top = votes.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      // A country counts once a fifth of the channels carry its tag.
+      if (top.value * 5 >= all.length) {
+        best = FreeEpg.countries.where((e) => e.code == top.key).firstOrNull;
+      }
+    }
+    _likelyEpg[sourceId] = (version, best);
+    return best;
+  }
+
+  static final _leadingTag = RegExp(r'^\W*([A-Za-z]{2,3})(?!\w)');
+  static const _tagAliases = {
+    'uk': 'gb',
+    'ita': 'it',
+    'ger': 'de',
+    'deu': 'de',
+    'fra': 'fr',
+    'esp': 'es',
+    'spa': 'es',
+    'por': 'pt',
+    'pol': 'pl',
+    'tur': 'tr',
+    'usa': 'us',
+  };
+
+  static String? _countryOf(String? text) {
+    if (text == null) return null;
+    final t = text.trim();
+    final lower = t.toLowerCase();
+    if (lower.startsWith('italia') || lower.startsWith('italy')) return 'it';
+    final m = _leadingTag.firstMatch(t);
+    if (m == null) return null;
+    final tag = m.group(1)!;
+    // Only upper-case tags: "Rai 1" or "Sky Uno" are not country codes.
+    if (tag != tag.toUpperCase()) return null;
+    final code = _tagAliases[tag.toLowerCase()] ?? tag.toLowerCase();
+    return FreeEpg.countries.any((e) => e.code == code) ? code : null;
+  }
+
+  /// Whether [s] already uses a free EPG from the catalogue.
+  bool hasFreeEpg(SourceRecord s) =>
+      s.extraGuideUrls.any((u) => FreeEpg.ofUrl(u) != null);
+
+  /// Adds [epg]'s guides to [s] and refreshes it so they load at once.
+  Future<SyncResult> addFreeEpg(SourceRecord s, FreeEpg epg) {
+    final record = s.copyWith(
+      extraGuideUrls: [
+        ...s.extraGuideUrls,
+        for (final u in epg.urls)
+          if (!s.extraGuideUrls.contains(u)) u,
+      ],
+    );
+    updateSource(record);
+    return refresh(sources.firstWhere((e) => e.id == s.id));
   }
 
   /// What the last sync got from [sourceId]'s TV guides.

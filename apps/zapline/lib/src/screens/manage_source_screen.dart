@@ -4,9 +4,11 @@ import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../format.dart';
+import '../free_epg.dart';
 import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/free_epg_picker.dart';
 import '../widgets/tv_text_field.dart';
 
 /// Everything about one source: name, extra TV guides and their time
@@ -95,6 +97,27 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
       _source.copyWith(extraGuideUrls: [..._source.extraGuideUrls, url]),
       'Guide added. Refresh to load it.',
     );
+  }
+
+  Future<void> _addFreeEpg() async {
+    final epg = await pickFreeEpg(
+      context,
+      first: widget.state.likelyFreeEpg(widget.sourceId),
+    );
+    if (epg == null || !mounted) return;
+    setState(() => _message = 'Loading the free EPG for ${epg.name}…');
+    try {
+      final r = await widget.state.addFreeEpg(_current(), epg);
+      if (!mounted) return;
+      setState(() {
+        _source = _current();
+        _message =
+            '${epg.name} EPG added: TV guide for ${r.coverage.matched} of '
+            '${r.coverage.channels} channels.';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _message = 'Refresh failed: $e');
+    }
   }
 
   void _shiftGuide(int minutes) => _save(
@@ -234,12 +257,37 @@ class _ManageSourceScreenState extends State<ManageSourceScreen> {
             'more EPG links (XMLTV) here; the first match per channel wins.',
             style: TextStyle(color: ZaplineColors.textMuted),
           ),
+          () => Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FocusCard(
+                onPressed: state.isSyncing ? () {} : _addFreeEpg,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.public_rounded, size: 20),
+                    SizedBox(width: 10),
+                    Flexible(child: Text('Add a free EPG by country')),
+                  ],
+                ),
+              ),
+            ),
+          ),
           for (final url in _source.extraGuideUrls)
             () => Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Row(
                 children: [
-                  Expanded(child: Text(url, overflow: TextOverflow.ellipsis)),
+                  Expanded(
+                    child: switch (FreeEpg.ofUrl(url)) {
+                      final c? => Text(
+                        'Free EPG · ${c.name} (${Uri.parse(url).host})',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      null => Text(url, overflow: TextOverflow.ellipsis),
+                    },
+                  ),
                   FocusCard(
                     onPressed: () => _save(
                       _source.copyWith(

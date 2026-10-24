@@ -8,6 +8,7 @@ import '../app_state.dart';
 import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/free_epg_picker.dart';
 import 'add_source_screen.dart';
 import 'backup_screen.dart';
 import 'guide_mapping_screen.dart';
@@ -69,6 +70,27 @@ class _SourcesScreenState extends State<SourcesScreen> {
                   '${r.guide.programmes} guide entries'
             : '${s.name}: channels updated, guide failed '
                   '(${r.guideErrors.join('; ')})',
+      );
+    } catch (e) {
+      if (mounted) setState(() => _message = '${s.name}: $e');
+    }
+  }
+
+  /// One tap for the device's country; a list otherwise.
+  Future<void> _addFreeEpg(SourceRecord s) async {
+    final epg =
+        widget.state.likelyFreeEpg(s.id) ??
+        suggestedFreeEpg() ??
+        await pickFreeEpg(context);
+    if (epg == null || !mounted) return;
+    setState(() => _message = 'Loading the free EPG for ${epg.name}…');
+    try {
+      final r = await widget.state.addFreeEpg(s, epg);
+      if (!mounted) return;
+      setState(
+        () => _message =
+            '${epg.name} EPG added: TV guide for ${r.coverage.matched} of '
+            '${r.coverage.channels} channels.',
       );
     } catch (e) {
       if (mounted) setState(() => _message = '${s.name}: $e');
@@ -276,6 +298,28 @@ class _SourcesScreenState extends State<SourcesScreen> {
             '(${(cov.ratio * 100).round()}%)',
             style: const TextStyle(fontSize: 16),
           ),
+          if (cov.ratio < 0.8 && !state.hasFreeEpg(s))
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: FocusCard(
+                key: ValueKey('free-epg-${s.id}'),
+                onPressed: state.isSyncing ? () {} : () => _addFreeEpg(s),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.event_available_rounded, size: 20),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(switch (state.likelyFreeEpg(s.id) ??
+                          suggestedFreeEpg()) {
+                        final c? => 'Add the free EPG for ${c.name}',
+                        null => 'Add a free EPG',
+                      }, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (state.guideStatus(s.id) case final g?)
             Padding(
               padding: const EdgeInsets.only(top: 4),
