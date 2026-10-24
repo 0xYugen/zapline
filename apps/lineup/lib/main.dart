@@ -2,12 +2,14 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:lineup_data/lineup_data.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
+import 'src/input_mode.dart';
 import 'src/secret_store.dart';
 import 'src/screens/add_source_screen.dart';
 import 'src/screens/channels_screen.dart';
@@ -56,11 +58,27 @@ Future<void> main() async {
   }
 }
 
-class LineupApp extends StatelessWidget {
+class LineupApp extends StatefulWidget {
   const LineupApp({super.key, required this.state, this.autoplayFirst = false});
 
   final AppState state;
   final bool autoplayFirst;
+
+  @override
+  State<LineupApp> createState() => _LineupAppState();
+}
+
+class _LineupAppState extends State<LineupApp> {
+  final _navigator = GlobalKey<NavigatorState>();
+  final _backStack = BackStackObserver();
+
+  @override
+  void initState() {
+    super.initState();
+    InputMode.instance.attach();
+  }
+
+  void _back() => _navigator.currentState?.maybePop();
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +91,16 @@ class LineupApp extends StatelessWidget {
         canRequestFocus: false,
         skipTraversal: true,
         onKeyEvent: _recoverLostFocus,
-        child: _app(),
+        child: Listener(
+          // Pointer events steer the input mode; the mouse back button
+          // goes back like Esc and the remote's Back key.
+          onPointerHover: InputMode.instance.onPointer,
+          onPointerDown: (e) {
+            InputMode.instance.onPointer(e);
+            if (e.buttons & kBackMouseButton != 0) _back();
+          },
+          child: _app(),
+        ),
       ),
     );
   }
@@ -99,16 +126,79 @@ class LineupApp extends StatelessWidget {
   }
 
   Widget _app() {
+    final state = widget.state;
     return MaterialApp(
       title: 'Lineup',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      navigatorKey: _navigator,
+      navigatorObservers: [_backStack],
+      // Desktop has no Back key: Esc (and browser/remote back keys) go back.
+      shortcuts: {
+        ...WidgetsApp.defaultShortcuts,
+        const SingleActivator(LogicalKeyboardKey.escape): const BackIntent(),
+        const SingleActivator(LogicalKeyboardKey.browserBack):
+            const BackIntent(),
+        const SingleActivator(LogicalKeyboardKey.goBack): const BackIntent(),
+      },
+      actions: {
+        ...WidgetsApp.defaultActions,
+        BackIntent: CallbackAction<BackIntent>(onInvoke: (_) => _back()),
+      },
+      builder: (context, child) => Stack(
+        children: [
+          child!,
+          _PointerBackButton(depth: _backStack.depth, onPressed: _back),
+        ],
+      ),
       home: ListenableBuilder(
         listenable: state,
         builder: (context, _) => state.isEmpty
             ? AddSourceScreen(state: state)
-            : ChannelsScreen(state: state, autoplayFirst: autoplayFirst),
+            : ChannelsScreen(state: state, autoplayFirst: widget.autoplayFirst),
       ),
+    );
+  }
+}
+
+/// Back arrow for mouse and touch users, shown only in pointer mode and when
+/// there is somewhere to go back to. Never focusable, so the D-pad skips it.
+class _PointerBackButton extends StatelessWidget {
+  const _PointerBackButton({required this.depth, required this.onPressed});
+
+  final ValueListenable<int> depth;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([depth, InputMode.instance]),
+      builder: (context, _) {
+        if (depth.value <= 0 || !InputMode.instance.pointer) {
+          return const SizedBox.shrink();
+        }
+        return Positioned(
+          top: 12,
+          left: 12,
+          child: ExcludeFocus(
+            child: Material(
+              color: LineupColors.surfaceHigh.withValues(alpha: 0.9),
+              shape: const CircleBorder(),
+              // No tooltip: this sits above the navigator's Overlay, which
+              // tooltips need.
+              child: IconButton(
+                iconSize: 28,
+                color: LineupColors.text,
+                onPressed: onPressed,
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  semanticLabel: 'Back',
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

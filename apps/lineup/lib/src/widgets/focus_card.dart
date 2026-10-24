@@ -42,10 +42,30 @@ class FocusCard extends StatefulWidget {
 class _FocusCardState extends State<FocusCard> {
   bool _focused = false;
 
+  FocusNode? _ownNode;
+  FocusNode get _node => widget.focusNode ?? (_ownNode ??= FocusNode());
+
+  /// Focus that came from the mouse: don't auto-scroll, or the list would
+  /// slide away under the pointer.
+  bool _pointerFocus = false;
+
+  @override
+  void dispose() {
+    _ownNode?.dispose();
+    super.dispose();
+  }
+
+  void _focusFromPointer() {
+    if (_node.hasFocus) return;
+    _pointerFocus = true;
+    _node.requestFocus();
+  }
+
   static final _selectKeys = {
     LogicalKeyboardKey.select,
     LogicalKeyboardKey.enter,
     LogicalKeyboardKey.numpadEnter,
+    LogicalKeyboardKey.space,
     LogicalKeyboardKey.gameButtonA,
   };
 
@@ -94,12 +114,14 @@ class _FocusCardState extends State<FocusCard> {
       onKeyEvent: _onKey,
       child: FocusableActionDetector(
         autofocus: widget.autofocus,
-        focusNode: widget.focusNode,
+        focusNode: _node,
         // Follow real focus rather than onShowFocusHighlight: Flutter's
         // highlight mode can stay in "touch" on Android TV, which would hide
         // the only cue a remote user has.
         onFocusChange: (v) {
           setState(() => _focused = v);
+          final fromPointer = _pointerFocus;
+          _pointerFocus = false;
           if (v) {
             widget.onFocused?.call();
             // Scroll just enough to show the whole card: centring it pushed
@@ -108,7 +130,8 @@ class _FocusCardState extends State<FocusCard> {
             // On a cold start focus can arrive before the window has a size;
             // scrolling into a zero-height viewport would shift the list.
             final viewport = Scrollable.maybeOf(context)?.position;
-            if (viewport != null &&
+            if (!fromPointer &&
+                viewport != null &&
                 viewport.hasViewportDimension &&
                 viewport.viewportDimension > 0) {
               for (final policy in const [
@@ -130,6 +153,7 @@ class _FocusCardState extends State<FocusCard> {
             : const {
                 SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
                 SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+                SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
                 SingleActivator(LogicalKeyboardKey.gameButtonA):
                     ActivateIntent(),
               },
@@ -138,31 +162,39 @@ class _FocusCardState extends State<FocusCard> {
             onInvoke: (_) => widget.onPressed(),
           ),
         },
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          onLongPress: widget.onLongPress,
-          onSecondaryTap: widget.onLongPress,
-          child: AnimatedScale(
-            scale: _focused ? 1.02 : 1,
-            duration: const Duration(milliseconds: 100),
-            child: AnimatedContainer(
+        // Mouse: hovering moves the highlight, like the D-pad does.
+        mouseCursor: SystemMouseCursors.click,
+        child: MouseRegion(
+          onEnter: (_) => _focusFromPointer(),
+          child: GestureDetector(
+            onTap: () {
+              _focusFromPointer();
+              widget.onPressed();
+            },
+            onLongPress: widget.onLongPress,
+            onSecondaryTap: widget.onLongPress,
+            child: AnimatedScale(
+              scale: _focused ? 1.02 : 1,
               duration: const Duration(milliseconds: 100),
-              padding: widget.padding,
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(widget.radius),
-                border: Border.all(
-                  color: _focused
-                      ? LineupColors.focusBorder
-                      : Colors.transparent,
-                  width: 3,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 100),
+                padding: widget.padding,
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(widget.radius),
+                  border: Border.all(
+                    color: _focused
+                        ? LineupColors.focusBorder
+                        : Colors.transparent,
+                    width: 3,
+                  ),
                 ),
-              ),
-              child: DefaultTextStyle.merge(
-                style: TextStyle(color: fg),
-                child: IconTheme.merge(
-                  data: IconThemeData(color: fg),
-                  child: widget.child,
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: fg),
+                  child: IconTheme.merge(
+                    data: IconThemeData(color: fg),
+                    child: widget.child,
+                  ),
                 ),
               ),
             ),

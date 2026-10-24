@@ -63,6 +63,10 @@ documented.
 - [x] Favourites (hold OK, Menu key, long tap or right click), shown as a
       group; kept across re-syncs (database migration v1 → v2)
 - [x] Number-key zapping in the player
+- [x] Mouse and keyboard on desktop: Esc / mouse back button go back,
+      on-screen back arrow in pointer mode, hover moves the highlight,
+      Space/Enter activate, player buttons + wheel/Page Up/Down zapping,
+      guide paging buttons and horizontal wheel
 - [x] Channel search screen (prefix, accent-insensitive, live results)
 - [x] QR onboarding: while "Add a source" is open the TV serves a small
       form on the LAN (PIN required, locks after 5 wrong codes, no cloud);

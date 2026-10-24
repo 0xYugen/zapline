@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lineup_core/lineup_core.dart';
 
 import '../app_state.dart';
+import '../input_mode.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -167,19 +169,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (digit != null && e is KeyDownEvent) {
       _typeDigit(digit);
     } else if (k == LogicalKeyboardKey.arrowUp ||
-        k == LogicalKeyboardKey.channelUp) {
+        k == LogicalKeyboardKey.channelUp ||
+        k == LogicalKeyboardKey.pageUp) {
       _zap(-1);
     } else if (k == LogicalKeyboardKey.arrowDown ||
-        k == LogicalKeyboardKey.channelDown) {
+        k == LogicalKeyboardKey.channelDown ||
+        k == LogicalKeyboardKey.pageDown) {
       _zap(1);
     } else if (k == LogicalKeyboardKey.arrowLeft && _restartable != null) {
-      _replay = _restartable;
-      _open();
+      _restart();
     } else if (k == LogicalKeyboardKey.arrowRight && _replay != null) {
-      _replay = null;
-      _open();
+      _goLive();
     } else if (k == LogicalKeyboardKey.select ||
         k == LogicalKeyboardKey.enter ||
+        k == LogicalKeyboardKey.space ||
         k == LogicalKeyboardKey.arrowLeft ||
         k == LogicalKeyboardKey.arrowRight) {
       _overlay ? setState(() => _overlay = false) : _showOverlay();
@@ -187,6 +190,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return KeyEventResult.ignored;
     }
     return KeyEventResult.handled;
+  }
+
+  void _restart() {
+    _replay = _restartable;
+    _open();
+  }
+
+  void _goLive() {
+    _replay = null;
+    _open();
   }
 
   static String _hm(DateTime t) {
@@ -227,37 +240,53 @@ class _PlayerScreenState extends State<PlayerScreen> {
       body: Focus(
         autofocus: true,
         onKeyEvent: _onKey,
-        child: GestureDetector(
-          onTap: _showOverlay,
-          onVerticalDragEnd: (d) => _zap((d.primaryVelocity ?? 0) < 0 ? 1 : -1),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _engine.buildView(),
-              if (_error != null) _errorView(),
-              if (_digits.isNotEmpty)
-                Positioned(
-                  top: 40,
-                  right: 56,
-                  child: Text(
-                    _digits,
-                    style: const TextStyle(
-                      fontSize: 64,
-                      fontWeight: FontWeight.w800,
-                      color: LineupColors.focus,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                      shadows: [Shadow(blurRadius: 12)],
+        child: Listener(
+          // Mouse: moving shows the info bar, the wheel zaps.
+          onPointerHover: (_) {
+            if (!_overlay) _showOverlay();
+          },
+          onPointerSignal: (e) {
+            if (e is PointerScrollEvent && e.scrollDelta.dy != 0) {
+              _zap(e.scrollDelta.dy > 0 ? 1 : -1);
+            }
+          },
+          child: GestureDetector(
+            onTap: _showOverlay,
+            onVerticalDragEnd: (d) =>
+                _zap((d.primaryVelocity ?? 0) < 0 ? 1 : -1),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _engine.buildView(),
+                if (_error != null) _errorView(),
+                if (_digits.isNotEmpty)
+                  Positioned(
+                    top: 40,
+                    right: 56,
+                    child: Text(
+                      _digits,
+                      style: const TextStyle(
+                        fontSize: 64,
+                        fontWeight: FontWeight.w800,
+                        color: LineupColors.focus,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                        shadows: [Shadow(blurRadius: 12)],
+                      ),
                     ),
                   ),
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 180),
+                  left: 0,
+                  right: 0,
+                  bottom: _overlay ? 0 : -160,
+                  // Rebuild when switching between mouse and keys.
+                  child: ListenableBuilder(
+                    listenable: InputMode.instance,
+                    builder: (context, _) => _infoBar(c),
+                  ),
                 ),
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 180),
-                left: 0,
-                right: 0,
-                bottom: _overlay ? 0 : -160,
-                child: _infoBar(c),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -286,6 +315,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _error!,
           style: const TextStyle(fontSize: 14, color: LineupColors.textMuted),
         ),
+      ],
+    ),
+  );
+
+  /// Buttons for mouse and touch users. Not focusable: remote and keyboard
+  /// users have keys for all of these.
+  Widget _pointerControls() => ExcludeFocus(
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: () => _zap(-1),
+          icon: const Icon(Icons.keyboard_arrow_up_rounded),
+          tooltip: 'Previous channel (Page Up)',
+        ),
+        IconButton(
+          onPressed: () => _zap(1),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          tooltip: 'Next channel (Page Down)',
+        ),
+        if (_replay != null)
+          TextButton.icon(
+            onPressed: _goLive,
+            icon: const Icon(Icons.live_tv_rounded),
+            label: const Text('Back to live'),
+          )
+        else if (_restartable != null)
+          TextButton.icon(
+            onPressed: _restart,
+            icon: const Icon(Icons.replay_rounded),
+            label: const Text('From the start'),
+          ),
       ],
     ),
   );
@@ -345,7 +406,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (_hint case (final icon, final text))
+            if (InputMode.instance.pointer) _pointerControls(),
+            if (_hint case (final icon, final text)
+                when !InputMode.instance.pointer)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

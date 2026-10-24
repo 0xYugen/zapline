@@ -1,9 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lineup_core/lineup_core.dart';
 import 'package:lineup_data/lineup_data.dart';
 
 import '../app_state.dart';
+import '../input_mode.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
@@ -77,6 +79,10 @@ class _GuideScreenState extends State<GuideScreen> {
       _pendingFocus = (row, focusAt);
     });
   }
+
+  /// Pages without moving focus to a particular cell.
+  void _pagePointer(int steps) =>
+      _page(steps, row: _focusedRow, focusAt: _from.add(_step * steps));
 
   FocusNode _node(String key) {
     _usedNodes.add(key);
@@ -174,25 +180,75 @@ class _GuideScreenState extends State<GuideScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _Ruler(
-                        from: _from,
-                        span: _span,
-                        step: _step,
-                        labelWidth: _labelWidth,
-                        pxPerMin: pxPerMin,
+                      Stack(
+                        children: [
+                          _Ruler(
+                            from: _from,
+                            span: _span,
+                            step: _step,
+                            labelWidth: _labelWidth,
+                            pxPerMin: pxPerMin,
+                          ),
+                          // Mouse users page with these; the D-pad pages at
+                          // the grid edges.
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: ListenableBuilder(
+                              listenable: InputMode.instance,
+                              builder: (context, _) =>
+                                  InputMode.instance.pointer
+                                  ? ExcludeFocus(
+                                      child: Row(
+                                        children: [
+                                          IconButton(
+                                            iconSize: 22,
+                                            onPressed: () => _pagePointer(-1),
+                                            icon: const Icon(
+                                              Icons.chevron_left_rounded,
+                                              semanticLabel: 'Earlier',
+                                            ),
+                                          ),
+                                          IconButton(
+                                            iconSize: 22,
+                                            onPressed: () => _pagePointer(1),
+                                            icon: const Icon(
+                                              Icons.chevron_right_rounded,
+                                              semanticLabel: 'Later',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ),
+                        ],
                       ),
                       Expanded(
                         child: Stack(
                           children: [
-                            Focus(
-                              canRequestFocus: false,
-                              skipTraversal: true,
-                              onKeyEvent: _onKey,
-                              child: ListView.builder(
-                                itemCount: widget.channels.length,
-                                itemExtent: _rowHeight,
-                                itemBuilder: (context, i) =>
-                                    _buildRow(i, pxPerMin),
+                            Listener(
+                              // Horizontal wheel or Shift+wheel moves in time.
+                              onPointerSignal: (e) {
+                                if (e is! PointerScrollEvent) return;
+                                final dx = e.scrollDelta.dx != 0
+                                    ? e.scrollDelta.dx
+                                    : (HardwareKeyboard.instance.isShiftPressed
+                                          ? e.scrollDelta.dy
+                                          : 0.0);
+                                if (dx != 0) _pagePointer(dx > 0 ? 1 : -1);
+                              },
+                              child: Focus(
+                                canRequestFocus: false,
+                                skipTraversal: true,
+                                onKeyEvent: _onKey,
+                                child: ListView.builder(
+                                  itemCount: widget.channels.length,
+                                  itemExtent: _rowHeight,
+                                  itemBuilder: (context, i) =>
+                                      _buildRow(i, pxPerMin),
+                                ),
                               ),
                             ),
                             _NowLine(
