@@ -7,7 +7,9 @@ import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
 import '../input_mode.dart';
+import '../l10n.dart';
 import '../layout.dart';
+import '../mobile/programme_sheet.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -124,7 +126,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ? _channel.streamUrl
         : widget.state.catchupUrl(_channel, replay);
     setState(() {
-      _error = url == null ? 'No archive for this programme' : null;
+      _error = url == null ? _noArchive : null;
       _lastZap = null;
     });
     _showOverlay();
@@ -258,12 +260,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String _infoLine(Channel c) {
     final replay = _replay;
     if (replay != null) {
-      return 'Catch-up: ${replay.title}  ·  '
+      return '${context.l10n.catchUpLine(replay.title)}  ·  '
           '${_hm(replay.start)}–${_hm(replay.stop)}';
     }
     final (now, next) = widget.state.nowNext(c);
     return [
-      if (now != null) 'Now: ${now.title}',
+      if (now != null) context.l10n.nowLine(now.title),
       if (next != null) '${_hm(next.start)} ${next.title}',
       if (now == null && next == null) c.groupTitle ?? '',
     ].join('   ·   ');
@@ -272,9 +274,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// Remote hint as (icon, text); icons rather than ◀ ▶ characters, which
   /// Android renders as colour emoji.
   (IconData, String)? get _hint {
-    if (_replay != null) return (Icons.arrow_forward_rounded, 'Back to live');
+    if (_replay != null) {
+      return (Icons.arrow_forward_rounded, context.l10n.backToLive);
+    }
     if (_restartable != null) {
-      return (Icons.arrow_back_rounded, 'Watch from the start');
+      return (Icons.arrow_back_rounded, context.l10n.watchFromStart);
     }
     return null;
   }
@@ -398,12 +402,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _showOverlay();
   }
 
-  /// Touch controls on phones: back, channel and programme on top; big
-  /// previous/next channel buttons in the middle; progress and catch-up
-  /// below. Tapping the picture shows or hides them.
+  /// Touch controls on phones: back, channel and tools on top; previous
+  /// channel, from the start / back to live and next channel in the middle;
+  /// the programme with what comes next and its progress below. Tapping
+  /// the picture shows or hides them.
   Widget _phoneControls(Channel c) {
+    final l = context.l10n;
     final replay = _replay;
-    final (now, _) = widget.state.nowNext(c);
+    final (now, next) = widget.state.nowNext(c);
     final p = replay ?? now;
     final t = DateTime.now();
     final progress = p == null || replay != null
@@ -412,54 +418,94 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   p.stop.difference(p.start).inSeconds)
               .clamp(0.0, 1.0);
     const shadow = [Shadow(blurRadius: 8)];
-    Widget round(
-      IconData icon,
-      String tip,
-      VoidCallback onTap, {
-      double size = 36,
-    }) => Material(
-      color: Colors.black38,
-      shape: const CircleBorder(),
+
+    Widget tool(IconData icon, String tip, VoidCallback onTap) => Padding(
+      padding: const EdgeInsets.only(left: 6),
       child: IconButton(
         tooltip: tip,
-        iconSize: size,
-        color: Colors.white,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.white.withValues(alpha: 0.12),
+          foregroundColor: Colors.white,
+        ),
         onPressed: () {
+          _hideTimer?.cancel();
           onTap();
-          _showOverlay();
         },
         icon: Icon(icon),
       ),
     );
+
+    Widget round(
+      IconData icon,
+      String tip,
+      VoidCallback onTap, {
+      double size = 60,
+      String? caption,
+    }) => Material(
+      color: Colors.black.withValues(alpha: 0.42),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () {
+          onTap();
+          _showOverlay();
+        },
+        child: Tooltip(
+          message: tip,
+          child: SizedBox.square(
+            dimension: size,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: size * 0.46, color: Colors.white),
+                if (caption != null)
+                  Text(
+                    caption,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black87,
+            Color(0xC0000000),
             Colors.transparent,
             Colors.transparent,
-            Colors.black87,
+            Color(0xD9000000),
           ],
-          stops: [0, 0.3, 0.65, 1],
+          stops: [0, 0.32, 0.58, 1],
         ),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
+          padding: const EdgeInsets.fromLTRB(8, 4, 16, 10),
           child: Column(
             children: [
               Row(
                 children: [
                   IconButton(
-                    tooltip: 'Back',
+                    tooltip: l.back,
                     color: Colors.white,
                     onPressed: () => Navigator.of(context).maybePop(),
                     icon: const Icon(Icons.arrow_back_rounded),
                   ),
-                  ChannelLogo(channel: c, width: 48, height: 34),
-                  const SizedBox(width: 12),
+                  // Upright there is little room: the tools come first.
+                  if (MediaQuery.sizeOf(context).width >= 600) ...[
+                    ChannelLogo(channel: c, width: 52, height: 36),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,7 +514,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           children: [
                             Flexible(
                               child: Text(
-                                '${widget.state.channelNumber(c, _index)}  '
+                                '${widget.state.channelNumber(c, _index)} · '
                                 '${c.name}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -480,7 +526,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            _Badge(live: replay == null),
+                            Flexible(
+                              flex: 0,
+                              child: FittedBox(
+                                child: _Badge(live: replay == null),
+                              ),
+                            ),
                           ],
                         ),
                         if (c.groupTitle != null)
@@ -490,23 +541,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 12,
-                              color: ZaplineColors.textMuted,
+                              color: Color(0xFFC9D2DE),
                             ),
                           ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Picture: fit, zoom, stretch',
-                    color: Colors.white,
-                    onPressed: _cycleFit,
-                    icon: const Icon(Icons.aspect_ratio_rounded),
-                  ),
-                  IconButton(
-                    tooltip: 'Channels',
-                    color: Colors.white,
-                    onPressed: _openList,
-                    icon: const Icon(Icons.format_list_bulleted_rounded),
+                  if (p != null)
+                    tool(Icons.info_outline_rounded, l.programmeInfo, () {
+                      _showInfo(c, p);
+                    }),
+                  tool(Icons.subtitles_outlined, l.audioAndSubtitles, _tracks),
+                  tool(Icons.aspect_ratio_rounded, l.pictureSize, _cycleFit),
+                  tool(
+                    Icons.format_list_bulleted_rounded,
+                    l.channelList,
+                    _openList,
                   ),
                 ],
               ),
@@ -516,30 +566,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   children: [
                     round(
                       Icons.skip_previous_rounded,
-                      'Previous channel',
+                      l.previousChannel,
                       () => _zap(-1),
                     ),
                     const SizedBox(width: 48),
                     if (replay != null)
                       round(
                         Icons.live_tv_rounded,
-                        'Back to live',
+                        l.backToLive,
                         _goLive,
-                        size: 44,
+                        size: 76,
+                        caption: l.liveShort,
                       )
                     else if (_restartable != null)
                       round(
                         Icons.replay_rounded,
-                        'Watch from the start',
+                        l.watchFromStart,
                         _restart,
-                        size: 44,
+                        size: 76,
+                        caption: l.startShort,
                       )
                     else
-                      const SizedBox(width: 68),
+                      const SizedBox(width: 76),
                     const SizedBox(width: 48),
                     round(
                       Icons.skip_next_rounded,
-                      'Next channel',
+                      l.nextChannel,
                       () => _zap(1),
                     ),
                   ],
@@ -552,39 +604,105 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Expanded(
+                          Flexible(
                             child: Text(
                               p.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
                                 shadows: shadow,
                               ),
                             ),
                           ),
+                          const SizedBox(width: 12),
                           Text(
                             '${_hm(p.start)}–${_hm(p.stop)}',
                             style: const TextStyle(
                               fontSize: 13,
-                              shadows: shadow,
+                              color: Color(0xFFC9D2DE),
                               fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              replay == null && next != null
+                                  ? l.nextAt(_hm(next.start), next.title)
+                                  : '',
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFFC9D2DE),
+                              ),
                             ),
                           ),
                         ],
                       ),
                       if (progress != null) ...[
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            minHeight: 3,
-                            color: ZaplineColors.focus,
-                            backgroundColor: Colors.white24,
+                        const SizedBox(height: 8),
+                        LayoutBuilder(
+                          builder: (context, box) => Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.white24,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              Container(
+                                height: 4,
+                                width: box.maxWidth * progress,
+                                decoration: BoxDecoration(
+                                  color: ZaplineColors.focus,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              Positioned(
+                                left: box.maxWidth * progress - 7,
+                                top: -5,
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: const BoxDecoration(
+                                    color: ZaplineColors.focus,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l.swipeHint,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFFC9D2DE),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              l.timeLeft(p.stop.difference(t)),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFC9D2DE),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
@@ -597,26 +715,165 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
+  /// The programme's sheet; its actions act on this player.
+  void _showInfo(Channel c, Programme p) => showProgrammeSheet(
+    context,
+    state: widget.state,
+    channels: widget.channels,
+    index: _index,
+    programme: p,
+    onPlay: (replay) {
+      _replay = replay;
+      _open();
+    },
+  );
+
+  static const _languageNames = {
+    'ita': 'Italiano',
+    'it': 'Italiano',
+    'eng': 'English',
+    'en': 'English',
+    'deu': 'Deutsch',
+    'ger': 'Deutsch',
+    'de': 'Deutsch',
+    'fra': 'Français',
+    'fre': 'Français',
+    'fr': 'Français',
+    'spa': 'Español',
+    'es': 'Español',
+    'por': 'Português',
+    'pt': 'Português',
+  };
+
+  String _trackName(MediaTrack t, int n) {
+    final lang = _languageNames[t.language?.toLowerCase()] ?? t.language;
+    final label = t.label;
+    if (label != null && label.isNotEmpty && label != t.language) {
+      return lang == null || label.contains(lang) ? label : '$label ($lang)';
+    }
+    return lang?.toUpperCase() == lang && lang != null
+        ? lang
+        : lang ?? context.l10n.trackNumber(n);
+  }
+
+  /// Audio languages and, where the engine shows them, subtitles.
+  Future<void> _tracks() async {
+    final audio = await _engine.audioTracks();
+    final subtitles = await _engine.subtitleTracks();
+    if (!mounted) return;
+    final l = context.l10n;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (sheet) {
+        void pick(Future<void> Function() select) {
+          Navigator.of(sheet).pop();
+          select();
+          _showOverlay();
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Text(
+                  l.audio,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (audio.length < 2)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                  child: Text(
+                    l.noOtherTracks,
+                    style: const TextStyle(color: ZaplineColors.textMuted),
+                  ),
+                )
+              else
+                for (final (i, t) in audio.indexed)
+                  ListTile(
+                    leading: Icon(
+                      t.selected
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_off_rounded,
+                      color: t.selected ? ZaplineColors.focus : null,
+                    ),
+                    title: Text(_trackName(t, i + 1)),
+                    onTap: () => pick(() => _engine.selectAudioTrack(t.id)),
+                  ),
+              if (subtitles.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Text(
+                    l.subtitles,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(
+                    subtitles.any((t) => t.selected)
+                        ? Icons.radio_button_off_rounded
+                        : Icons.radio_button_checked_rounded,
+                  ),
+                  title: Text(l.subtitlesOff),
+                  onTap: () => pick(() => _engine.selectSubtitleTrack(null)),
+                ),
+                for (final (i, t) in subtitles.indexed)
+                  ListTile(
+                    leading: Icon(
+                      t.selected
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_off_rounded,
+                      color: t.selected ? ZaplineColors.focus : null,
+                    ),
+                    title: Text(_trackName(t, i + 1)),
+                    onTap: () => pick(() => _engine.selectSubtitleTrack(t.id)),
+                  ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Set as [_error] when a replay has no archive; translated when shown
+  /// (opening can happen before translations are available).
+  static const _noArchive = '\u0000no-archive';
+
   Widget _errorView() => Center(
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           _replay == null
-              ? 'This channel is not available right now'
-              : 'This programme is not available in the archive',
+              ? context.l10n.channelUnavailable
+              : context.l10n.archiveUnavailable,
           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
         Text(
           _replay == null
-              ? 'Press Up or Down to try another channel.'
-              : 'Press Right to go back to live.',
+              ? (InputMode.instance.touch
+                    ? context.l10n.tryAnotherChannelTouch
+                    : context.l10n.tryAnotherChannelKeys)
+              : context.l10n.pressRightForLive,
           style: const TextStyle(fontSize: 18, color: ZaplineColors.textMuted),
         ),
         const SizedBox(height: 16),
         Text(
-          _error!,
+          _error == _noArchive ? context.l10n.noArchive : _error!,
           style: const TextStyle(fontSize: 14, color: ZaplineColors.textMuted),
         ),
       ],
@@ -632,29 +889,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
         IconButton(
           onPressed: () => _zap(-1),
           icon: const Icon(Icons.keyboard_arrow_up_rounded),
-          tooltip: 'Previous channel (Page Up)',
+          tooltip: context.l10n.prevChannelKey,
         ),
         IconButton(
           onPressed: () => _zap(1),
           icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          tooltip: 'Next channel (Page Down)',
+          tooltip: context.l10n.nextChannelKey,
         ),
         IconButton(
           onPressed: _openList,
           icon: const Icon(Icons.list_rounded),
-          tooltip: 'Channel list (Enter)',
+          tooltip: context.l10n.channelListKey,
         ),
         if (_replay != null)
           TextButton.icon(
             onPressed: _goLive,
             icon: const Icon(Icons.live_tv_rounded),
-            label: const Text('Back to live'),
+            label: Text(context.l10n.backToLive),
           )
         else if (_restartable != null)
           TextButton.icon(
             onPressed: _restart,
             icon: const Icon(Icons.replay_rounded),
-            label: const Text('From the start'),
+            label: Text(context.l10n.fromTheStart),
           ),
       ],
     ),
@@ -874,7 +1131,7 @@ class _Badge extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
     ),
     child: Text(
-      live ? 'LIVE' : 'CATCH-UP',
+      live ? context.l10n.liveBadge : context.l10n.catchUpBadge,
       style: const TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w800,

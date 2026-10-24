@@ -43,4 +43,46 @@ class MpvEngine implements PlaybackEngine {
   @override
   Widget buildView({BoxFit fit = BoxFit.contain}) =>
       Video(controller: _video, controls: NoVideoControls, fit: fit);
+
+  // mpv lists the pseudo tracks "auto" and "no" first.
+  static bool _real(String id) => id != 'auto' && id != 'no';
+
+  @override
+  Future<List<MediaTrack>> audioTracks() async => [
+    for (final t in _player.state.tracks.audio)
+      if (_real(t.id))
+        MediaTrack(
+          id: t.id,
+          label: t.title,
+          language: t.language,
+          selected: _player.state.track.audio.id == t.id,
+        ),
+  ];
+
+  @override
+  Future<void> selectAudioTrack(String id) async {
+    final t = _player.state.tracks.audio.where((t) => t.id == id).firstOrNull;
+    if (t != null) await _player.setAudioTrack(t);
+  }
+
+  @override
+  Future<List<MediaTrack>> subtitleTracks() async => [
+    for (final t in _player.state.tracks.subtitle)
+      if (_real(t.id))
+        MediaTrack(
+          id: t.id,
+          label: t.title,
+          language: t.language,
+          selected: _player.state.track.subtitle.id == t.id,
+        ),
+  ];
+
+  @override
+  Future<void> selectSubtitleTrack(String? id) async {
+    if (id == null) return _player.setSubtitleTrack(SubtitleTrack.no());
+    final t = _player.state.tracks.subtitle
+        .where((t) => t.id == id)
+        .firstOrNull;
+    if (t != null) await _player.setSubtitleTrack(t);
+  }
 }

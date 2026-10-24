@@ -84,6 +84,34 @@ class NativeEngine implements PlaybackEngine {
   }
 
   @override
+  Future<List<MediaTrack>> audioTracks() async {
+    final c = _controller.value;
+    if (c == null || !c.value.isInitialized) return const [];
+    if (!c.isAudioTrackSupportAvailable()) return const [];
+    return [
+      for (final t in await c.getAudioTracks())
+        MediaTrack(
+          id: t.id,
+          label: t.label,
+          language: t.language,
+          selected: t.isSelected,
+        ),
+    ];
+  }
+
+  @override
+  Future<void> selectAudioTrack(String id) async =>
+      _controller.value?.selectAudioTrack(id);
+
+  // video_player shows only external caption files, not subtitles carried
+  // in the stream.
+  @override
+  Future<List<MediaTrack>> subtitleTracks() async => const [];
+
+  @override
+  Future<void> selectSubtitleTrack(String? id) async {}
+
+  @override
   Stream<Duration> get position => _position.stream;
 
   @override

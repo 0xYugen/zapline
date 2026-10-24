@@ -16,6 +16,7 @@ Future<void> showProgrammeSheet(
   required List<Channel> channels,
   required int index,
   required Programme programme,
+  void Function(Programme? replay)? onPlay,
 }) => showModalBottomSheet<void>(
   context: context,
   useSafeArea: true,
@@ -25,6 +26,7 @@ Future<void> showProgrammeSheet(
     channels: channels,
     index: index,
     programme: programme,
+    onPlay: onPlay,
   ),
 );
 
@@ -34,7 +36,11 @@ class _ProgrammeSheet extends StatefulWidget {
     required this.channels,
     required this.index,
     required this.programme,
+    this.onPlay,
   });
+
+  /// From inside the player: play here instead of opening another player.
+  final void Function(Programme? replay)? onPlay;
 
   final AppState state;
   final List<Channel> channels;
@@ -50,6 +56,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
 
   void _play({Programme? replay}) {
     Navigator.of(context).pop();
+    if (widget.onPlay case final play?) return play(replay);
     openPlayer(
       context,
       widget.state,

@@ -316,4 +316,111 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get lessThanAMinute => 'Sta finendo';
+
+  @override
+  String get back => 'Indietro';
+
+  @override
+  String get previousChannel => 'Canale precedente';
+
+  @override
+  String get nextChannel => 'Canale successivo';
+
+  @override
+  String get backToLive => 'Torna alla diretta';
+
+  @override
+  String get watchFromStart => 'Guarda dall\'inizio';
+
+  @override
+  String get startShort => 'INIZIO';
+
+  @override
+  String get liveShort => 'DIRETTA';
+
+  @override
+  String get liveBadge => 'LIVE';
+
+  @override
+  String get catchUpBadge => 'REPLAY';
+
+  @override
+  String get pictureSize => 'Immagine: adatta, zoom, estendi';
+
+  @override
+  String get channelList => 'Canali';
+
+  @override
+  String get programmeInfo => 'Info programma';
+
+  @override
+  String get audioAndSubtitles => 'Audio e sottotitoli';
+
+  @override
+  String get audio => 'Audio';
+
+  @override
+  String get subtitles => 'Sottotitoli';
+
+  @override
+  String get subtitlesOff => 'Disattivati';
+
+  @override
+  String trackNumber(int n) {
+    return 'Traccia $n';
+  }
+
+  @override
+  String get noOtherTracks => 'Questo canale ha una sola traccia audio.';
+
+  @override
+  String get swipeHint => 'Scorri su o giù per cambiare canale';
+
+  @override
+  String get noArchive => 'Nessun archivio per questo programma';
+
+  @override
+  String get channelUnavailable => 'Questo canale ora non è disponibile';
+
+  @override
+  String get archiveUnavailable =>
+      'Questo programma non è disponibile nell\'archivio';
+
+  @override
+  String get tryAnotherChannelKeys =>
+      'Premi Su o Giù per provare un altro canale.';
+
+  @override
+  String get tryAnotherChannelTouch =>
+      'Scorri su o giù per provare un altro canale.';
+
+  @override
+  String get pressRightForLive => 'Premi Destra per tornare alla diretta.';
+
+  @override
+  String catchUpLine(String title) {
+    return 'Replay: $title';
+  }
+
+  @override
+  String nowLine(String title) {
+    return 'Ora: $title';
+  }
+
+  @override
+  String get prevChannelKey => 'Canale precedente (Pag Su)';
+
+  @override
+  String get nextChannelKey => 'Canale successivo (Pag Giù)';
+
+  @override
+  String get channelListKey => 'Lista canali (Invio)';
+
+  @override
+  String get tuning => 'sintonizzazione…';
+
+  @override
+  String zapTime(int ms) {
+    return 'zap $ms ms';
+  }
 }

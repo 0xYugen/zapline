@@ -163,6 +163,21 @@ class FakeEngine implements PlaybackEngine {
   Stream<String> get errors => const Stream.empty();
 
   @override
+  Future<List<MediaTrack>> audioTracks() async => const [
+    MediaTrack(id: '1', label: 'Italiano', language: 'ita', selected: true),
+    MediaTrack(id: '2', label: 'English', language: 'eng', selected: false),
+  ];
+
+  @override
+  Future<void> selectAudioTrack(String id) async {}
+
+  @override
+  Future<List<MediaTrack>> subtitleTracks() async => const [];
+
+  @override
+  Future<void> selectSubtitleTrack(String? id) async {}
+
+  @override
   Widget buildView({BoxFit fit = BoxFit.contain}) => const DecoratedBox(
     decoration: BoxDecoration(
       gradient: LinearGradient(

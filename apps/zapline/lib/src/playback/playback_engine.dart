@@ -32,6 +32,35 @@ abstract class PlaybackEngine {
   /// The video surface, scaled to the screen as [fit] says. Rebuilds
   /// itself when the stream changes.
   Widget buildView({BoxFit fit = BoxFit.contain});
+
+  /// Audio tracks of the current stream (languages, audio description).
+  Future<List<MediaTrack>> audioTracks();
+
+  Future<void> selectAudioTrack(String id);
+
+  /// Subtitle tracks carried in the stream; empty where the engine can't
+  /// show them.
+  Future<List<MediaTrack>> subtitleTracks();
+
+  /// `null` turns subtitles off.
+  Future<void> selectSubtitleTrack(String? id);
+}
+
+/// An audio or subtitle track as the player shows it.
+class MediaTrack {
+  const MediaTrack({
+    required this.id,
+    required this.selected,
+    this.label,
+    this.language,
+  });
+
+  final String id;
+  final bool selected;
+  final String? label;
+
+  /// ISO 639 code as the stream reports it ("ita", "eng"), if any.
+  final String? language;
 }
 
 /// Tests and screenshots substitute a fake engine here.

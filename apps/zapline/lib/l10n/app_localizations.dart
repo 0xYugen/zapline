@@ -637,6 +637,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ending now'**
   String get lessThanAMinute;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
+  /// No description provided for @previousChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous channel'**
+  String get previousChannel;
+
+  /// No description provided for @nextChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Next channel'**
+  String get nextChannel;
+
+  /// No description provided for @backToLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to live'**
+  String get backToLive;
+
+  /// No description provided for @watchFromStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch from the start'**
+  String get watchFromStart;
+
+  /// No description provided for @startShort.
+  ///
+  /// In en, this message translates to:
+  /// **'START'**
+  String get startShort;
+
+  /// No description provided for @liveShort.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get liveShort;
+
+  /// No description provided for @liveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get liveBadge;
+
+  /// No description provided for @catchUpBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'CATCH-UP'**
+  String get catchUpBadge;
+
+  /// No description provided for @pictureSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture: fit, zoom, stretch'**
+  String get pictureSize;
+
+  /// No description provided for @channelList.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels'**
+  String get channelList;
+
+  /// No description provided for @programmeInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Programme info'**
+  String get programmeInfo;
+
+  /// No description provided for @audioAndSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio and subtitles'**
+  String get audioAndSubtitles;
+
+  /// No description provided for @audio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get audio;
+
+  /// No description provided for @subtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles'**
+  String get subtitles;
+
+  /// No description provided for @subtitlesOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get subtitlesOff;
+
+  /// No description provided for @trackNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Track {n}'**
+  String trackNumber(int n);
+
+  /// No description provided for @noOtherTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'This channel has a single audio track.'**
+  String get noOtherTracks;
+
+  /// No description provided for @swipeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe up or down to change channel'**
+  String get swipeHint;
+
+  /// No description provided for @noArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'No archive for this programme'**
+  String get noArchive;
+
+  /// No description provided for @channelUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This channel is not available right now'**
+  String get channelUnavailable;
+
+  /// No description provided for @archiveUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This programme is not available in the archive'**
+  String get archiveUnavailable;
+
+  /// No description provided for @tryAnotherChannelKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Press Up or Down to try another channel.'**
+  String get tryAnotherChannelKeys;
+
+  /// No description provided for @tryAnotherChannelTouch.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe up or down to try another channel.'**
+  String get tryAnotherChannelTouch;
+
+  /// No description provided for @pressRightForLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Press Right to go back to live.'**
+  String get pressRightForLive;
+
+  /// No description provided for @catchUpLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Catch-up: {title}'**
+  String catchUpLine(String title);
+
+  /// No description provided for @nowLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Now: {title}'**
+  String nowLine(String title);
+
+  /// No description provided for @prevChannelKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous channel (Page Up)'**
+  String get prevChannelKey;
+
+  /// No description provided for @nextChannelKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Next channel (Page Down)'**
+  String get nextChannelKey;
+
+  /// No description provided for @channelListKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel list (Enter)'**
+  String get channelListKey;
+
+  /// No description provided for @tuning.
+  ///
+  /// In en, this message translates to:
+  /// **'tuning…'**
+  String get tuning;
+
+  /// No description provided for @zapTime.
+  ///
+  /// In en, this message translates to:
+  /// **'zap {ms} ms'**
+  String zapTime(int ms);
 }
 
 class _AppLocalizationsDelegate

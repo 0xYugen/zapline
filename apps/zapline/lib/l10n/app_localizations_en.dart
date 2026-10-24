@@ -313,4 +313,111 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lessThanAMinute => 'Ending now';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get previousChannel => 'Previous channel';
+
+  @override
+  String get nextChannel => 'Next channel';
+
+  @override
+  String get backToLive => 'Back to live';
+
+  @override
+  String get watchFromStart => 'Watch from the start';
+
+  @override
+  String get startShort => 'START';
+
+  @override
+  String get liveShort => 'LIVE';
+
+  @override
+  String get liveBadge => 'LIVE';
+
+  @override
+  String get catchUpBadge => 'CATCH-UP';
+
+  @override
+  String get pictureSize => 'Picture: fit, zoom, stretch';
+
+  @override
+  String get channelList => 'Channels';
+
+  @override
+  String get programmeInfo => 'Programme info';
+
+  @override
+  String get audioAndSubtitles => 'Audio and subtitles';
+
+  @override
+  String get audio => 'Audio';
+
+  @override
+  String get subtitles => 'Subtitles';
+
+  @override
+  String get subtitlesOff => 'Off';
+
+  @override
+  String trackNumber(int n) {
+    return 'Track $n';
+  }
+
+  @override
+  String get noOtherTracks => 'This channel has a single audio track.';
+
+  @override
+  String get swipeHint => 'Swipe up or down to change channel';
+
+  @override
+  String get noArchive => 'No archive for this programme';
+
+  @override
+  String get channelUnavailable => 'This channel is not available right now';
+
+  @override
+  String get archiveUnavailable =>
+      'This programme is not available in the archive';
+
+  @override
+  String get tryAnotherChannelKeys =>
+      'Press Up or Down to try another channel.';
+
+  @override
+  String get tryAnotherChannelTouch =>
+      'Swipe up or down to try another channel.';
+
+  @override
+  String get pressRightForLive => 'Press Right to go back to live.';
+
+  @override
+  String catchUpLine(String title) {
+    return 'Catch-up: $title';
+  }
+
+  @override
+  String nowLine(String title) {
+    return 'Now: $title';
+  }
+
+  @override
+  String get prevChannelKey => 'Previous channel (Page Up)';
+
+  @override
+  String get nextChannelKey => 'Next channel (Page Down)';
+
+  @override
+  String get channelListKey => 'Channel list (Enter)';
+
+  @override
+  String get tuning => 'tuning…';
+
+  @override
+  String zapTime(int ms) {
+    return 'zap $ms ms';
+  }
 }
