@@ -210,8 +210,26 @@ class LineupDatabase {
       ),
   ];
 
+  /// Records a finished sync without rewriting the rest of the source (in
+  /// particular without ever writing a password that lives elsewhere).
+  void markSynced(String id, DateTime at, {Duration? serverOffset}) {
+    final row = _db.select('SELECT config FROM sources WHERE id = ?', [id]);
+    if (row.isEmpty) return;
+    final config =
+        jsonDecode(row.first['config'] as String) as Map<String, Object?>;
+    if (serverOffset != null) config['offsetMinutes'] = serverOffset.inMinutes;
+    _db.execute('UPDATE sources SET synced_at = ?, config = ? WHERE id = ?', [
+      _secs(at),
+      jsonEncode(config),
+      id,
+    ]);
+  }
+
   void deleteSource(String id) => _transaction(() {
     _db.execute("DELETE FROM epg_map WHERE channel_key LIKE ? || '/%'", [id]);
+    _db.execute("DELETE FROM epg_overrides WHERE channel_key LIKE ? || '/%'", [
+      id,
+    ]);
     _db.execute("DELETE FROM favourites WHERE channel_key LIKE ? || '/%'", [
       id,
     ]);
@@ -361,6 +379,22 @@ class LineupDatabase {
       r['channel_key'] as String,
   };
 
+  /// Adds a favourite by key, e.g. while restoring a backup before the
+  /// source's channels have been downloaded.
+  void addFavouriteKey(String channelKey) => _db.execute(
+    'INSERT OR IGNORE INTO favourites(channel_key, added_at) '
+    'VALUES (?, (SELECT coalesce(max(added_at), 0) + 1 FROM favourites))',
+    [channelKey],
+  );
+
+  /// Favourite keys in the order they were added.
+  List<String> favouriteKeysInOrder() => [
+    for (final r in _db.select(
+      'SELECT channel_key FROM favourites ORDER BY added_at',
+    ))
+      r['channel_key'] as String,
+  ];
+
   void setFavourite(Channel c, bool favourite) {
     if (favourite) {
       // A counter rather than a clock: consecutive adds can share a tick.
@@ -474,6 +508,18 @@ class LineupDatabase {
       ]);
     }
   }
+
+  Map<String, String> guideOverrides() => {
+    for (final r in _db.select(
+      'SELECT channel_key, guide_id FROM epg_overrides',
+    ))
+      r['channel_key'] as String: r['guide_id'] as String,
+  };
+
+  void setGuideOverrideKey(String channelKey, String guideId) => _db.execute(
+    'INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)',
+    [channelKey, guideId],
+  );
 
   /// Recomputes which guide channel each source channel uses.
   GuideCoverage rebuildGuideLinks() {

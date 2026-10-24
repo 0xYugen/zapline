@@ -68,8 +68,15 @@ documented.
       form on the LAN (PIN required, locks after 5 wrong codes, no cloud);
       verified on the emulator through a forwarded port
 - [x] Duplicate sources are refused
-- [ ] JSON backup/restore
-- [ ] Store credentials in the platform keystore instead of SQLite
+- [x] Backup and restore (JSON: sources with credentials, favourites,
+      manual guide links) through a PIN-protected page on the LAN, usable
+      from a phone (QR) or the desktop browser; "Restore from a backup" on
+      first run; verified end to end on the emulator
+- [x] Source passwords in the platform keystore (flutter_secure_storage),
+      migrated automatically, loaded after the first frame; database
+      fallback where no keystore exists
+- [ ] Xtream channel URLs still embed username/password in their path:
+      store URL templates and fill credentials at play time
 - [x] Logos: disk cache, in-flight dedup, decoded at display size, bounded
       image memory (48 MB), initials badge as fallback; in list, guide and
       player

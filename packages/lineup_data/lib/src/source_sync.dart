@@ -104,9 +104,7 @@ class SourceSync {
 
     onProgress?.call(const SyncProgress(SyncStage.linking));
     final coverage = db.rebuildGuideLinks();
-    db.saveSource(
-      source.copyWith(syncedAt: DateTime.now().toUtc(), serverOffset: offset),
-    );
+    db.markSynced(source.id, DateTime.now().toUtc(), serverOffset: offset);
     onProgress?.call(SyncProgress(SyncStage.done, count: coverage.matched));
     return SyncResult(
       channels: channels.length,

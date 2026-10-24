@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
+import 'src/secret_store.dart';
 import 'src/screens/add_source_screen.dart';
 import 'src/screens/channels_screen.dart';
 import 'src/theme.dart';
@@ -36,7 +37,12 @@ Future<void> main() async {
   final state = AppState(
     LineupDatabase.open(dbPath),
     syncRunner: isolateSyncRunner(dbPath),
+    secrets: const KeychainSecretStore(),
   );
+  // Show the UI at once; the keystore can take seconds on first use and
+  // passwords are only needed when syncing (which waits for them).
+  runApp(LineupApp(state: state, autoplayFirst: _devAutoplay));
+  await state.loadSecrets();
   if (_devSource.isNotEmpty && state.sources.isEmpty) {
     state
         .addSource(SourceInput(url: _devSource))
@@ -48,7 +54,6 @@ Future<void> main() async {
     // Startup shows cached data immediately; stale sources refresh behind it.
     state.refreshStale();
   }
-  runApp(LineupApp(state: state, autoplayFirst: _devAutoplay));
 }
 
 class LineupApp extends StatelessWidget {

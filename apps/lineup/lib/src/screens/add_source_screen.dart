@@ -2,13 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lineup_core/lineup_core.dart';
 import 'package:lineup_data/lineup_data.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../app_state.dart';
 import '../pairing/pairing_server.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/qr_panel.dart';
 import '../widgets/tv_text_field.dart';
+import 'backup_screen.dart';
 
 /// Add-source screen. A single URL field accepts an M3U link, an Xtream
 /// `get.php` link (credentials are extracted automatically) or a bare server
@@ -158,7 +159,13 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
               Flexible(child: _form(context, t)),
               if (wide && pairing != null) ...[
                 const SizedBox(width: 64),
-                _QrPanel(pairing: pairing),
+                QrPanel(
+                  server: pairing,
+                  title: 'Use your phone',
+                  subtitle:
+                      'Scan the code and paste your details there. '
+                      'No typing on the TV.',
+                ),
               ],
             ],
           ),
@@ -282,88 +289,28 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
             const SizedBox(height: 16),
             Text(_error!, style: const TextStyle(color: LineupColors.live)),
           ],
+          // First run on a new device: bring everything back at once.
+          if (!Navigator.of(context).canPop()) ...[
+            const SizedBox(height: 12),
+            FocusCard(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BackupScreen(state: widget.state),
+                ),
+              ),
+              child: const Center(
+                child: Text(
+                  'Restore from a backup',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 32),
           Text(
             'Lineup includes no channels or playlists. It only plays '
             'sources you add.',
             style: t.bodyMedium?.copyWith(color: LineupColors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QrPanel extends StatelessWidget {
-  const _QrPanel({required this.pairing});
-
-  final PairingServer pairing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 320,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: LineupColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: LineupColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Use your phone',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Scan the code and paste your details there. No typing on the TV.',
-            style: TextStyle(color: LineupColors.textMuted, height: 1.4),
-          ),
-          const SizedBox(height: 18),
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: QrImageView(
-                data: pairing.url.toString(),
-                size: 200,
-                padding: EdgeInsets.zero,
-                semanticsLabel: 'QR code to add a source from your phone',
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'Or open on your phone',
-            style: TextStyle(color: LineupColors.textMuted, fontSize: 14),
-          ),
-          Text(
-            pairing.shortUrl,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Code',
-            style: TextStyle(color: LineupColors.textMuted, fontSize: 14),
-          ),
-          Text(
-            pairing.pin,
-            style: const TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 6,
-              color: LineupColors.focus,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
           ),
         ],
       ),

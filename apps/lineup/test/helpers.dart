@@ -1,4 +1,5 @@
 import 'package:lineup/src/app_state.dart';
+import 'package:lineup/src/secret_store.dart';
 import 'package:lineup_core/lineup_core.dart';
 import 'package:lineup_data/lineup_data.dart';
 
@@ -6,10 +7,16 @@ import 'package:lineup_data/lineup_data.dart';
 /// fake channels and a guide instead of touching the network.
 /// Every channel whose number is in [unmatched] gets a name and no guide id
 /// that the automatic matcher cannot link.
-AppState fakeState({int count = 20, Set<int> unmatched = const {}}) {
-  final db = LineupDatabase.inMemory();
+AppState fakeState({
+  int count = 20,
+  Set<int> unmatched = const {},
+  LineupDatabase? database,
+  SecretStore? secrets,
+}) {
+  final db = database ?? LineupDatabase.inMemory();
   return AppState(
     db,
+    secrets: secrets,
     syncRunner: (source, onProgress) async {
       final channels = [
         for (var i = 1; i <= count; i++)
@@ -50,7 +57,7 @@ AppState fakeState({int count = 20, Set<int> unmatched = const {}}) {
 
       final g = await db.importGuide(guide());
       final cov = db.rebuildGuideLinks();
-      db.saveSource(source.copyWith(syncedAt: now));
+      db.markSynced(source.id, now);
       return SyncResult(channels: count, guide: g, coverage: cov);
     },
   );

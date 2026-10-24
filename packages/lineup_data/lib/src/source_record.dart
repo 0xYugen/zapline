@@ -37,6 +37,7 @@ class SourceRecord {
 
   SourceRecord copyWith({
     String? name,
+    String? password,
     DateTime? syncedAt,
     Duration? serverOffset,
   }) => SourceRecord(
@@ -45,7 +46,7 @@ class SourceRecord {
     name: name ?? this.name,
     url: url,
     username: username,
-    password: password,
+    password: password ?? this.password,
     extraGuideUrls: extraGuideUrls,
     syncedAt: syncedAt ?? this.syncedAt,
     serverOffset: serverOffset ?? this.serverOffset,

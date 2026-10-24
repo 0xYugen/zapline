@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:lineup_core/lineup_core.dart';
 import 'package:lineup_data/lineup_data.dart';
 
+import 'secret_store.dart';
+
 /// What the user typed or pasted on the "add source" screen.
 class SourceInput {
   const SourceInput({
@@ -99,12 +101,52 @@ Future<SyncResult> _syncInIsolate(
 
 /// App-wide state backed by the local database.
 class AppState extends ChangeNotifier {
-  AppState(this.db, {required this.syncRunner}) {
+  AppState(this.db, {required this.syncRunner, SecretStore? secrets})
+    : secrets = secrets ?? MemorySecretStore() {
     _reload();
   }
 
   final LineupDatabase db;
   final SyncRunner syncRunner;
+  final SecretStore secrets;
+
+  /// Passwords loaded from [secrets], by source id.
+  final _passwords = <String, String>{};
+
+  /// False when the platform keystore failed (e.g. no libsecret on a Linux
+  /// desktop); passwords then stay in the database as before.
+  bool _keystoreWorks = true;
+
+  static String _secretKey(String sourceId) => 'source:$sourceId:password';
+
+  /// Loads passwords from the keystore, moving any still stored in the
+  /// database (older versions) into it. Call once before showing the UI.
+  Future<void> loadSecrets() => _secretsLoading ??= _loadSecrets();
+
+  /// Set once loading starts; syncs wait for it so they never run with a
+  /// password that has not been read yet.
+  Future<void>? _secretsLoading;
+
+  Future<void> _loadSecrets() async {
+    for (final s in db.sources()) {
+      try {
+        if (s.password.isNotEmpty) {
+          await secrets.write(_secretKey(s.id), s.password);
+          db.saveSource(s.copyWith(password: ''));
+          _passwords[s.id] = s.password;
+        } else {
+          final pw = await secrets.read(_secretKey(s.id));
+          if (pw != null) _passwords[s.id] = pw;
+        }
+      } catch (e) {
+        _keystoreWorks = false;
+        debugPrint('Keystore unavailable, passwords stay local: $e');
+        break;
+      }
+    }
+    _reload();
+    notifyListeners();
+  }
 
   List<SourceRecord> sources = const [];
   Set<String> _favouriteKeys = const {};
@@ -124,7 +166,12 @@ class AppState extends ChangeNotifier {
 
   void _reload() {
     version++;
-    sources = db.sources();
+    sources = [
+      for (final s in db.sources())
+        s.password.isEmpty && _passwords.containsKey(s.id)
+            ? s.copyWith(password: _passwords[s.id])
+            : s,
+    ];
     groups = db.groups();
     channelCount = db.channelCount();
     _favouriteKeys = db.favouriteKeys();
@@ -216,25 +263,108 @@ class AppState extends ChangeNotifier {
   /// Saves and synchronises a new source. On failure nothing is kept and the
   /// error is rethrown for display.
   Future<SyncResult> addSource(SourceInput input) async {
-    final record = input.toRecord(
-      DateTime.now().microsecondsSinceEpoch.toRadixString(36),
-    );
-    final duplicate = sources.any(
-      (s) =>
-          s.kind == record.kind &&
-          s.url == record.url &&
-          s.username == record.username,
-    );
-    if (duplicate) throw Exception('This source is already added');
-    db.saveSource(record);
+    final record = input.toRecord(_newId());
+    if (_isDuplicate(record)) {
+      throw Exception('This source is already added');
+    }
+    return _addRecord(record);
+  }
+
+  static int _idCounter = 0;
+  static String _newId() =>
+      '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}'
+      '${(_idCounter++).toRadixString(36)}';
+
+  bool _isDuplicate(SourceRecord r) => sources.any(
+    (s) => s.kind == r.kind && s.url == r.url && s.username == r.username,
+  );
+
+  Future<SyncResult> _addRecord(SourceRecord record) async {
+    await _storeSource(record);
     try {
       return await _sync(record);
     } catch (_) {
-      db.deleteSource(record.id);
-      _reload();
-      notifyListeners();
+      deleteSource(record.id);
       rethrow;
     }
+  }
+
+  /// Saves [record], keeping its password in the keystore when possible.
+  Future<void> _storeSource(SourceRecord record) async {
+    var stored = record;
+    if (record.password.isNotEmpty && _keystoreWorks) {
+      try {
+        await secrets.write(_secretKey(record.id), record.password);
+        _passwords[record.id] = record.password;
+        stored = record.copyWith(password: '');
+      } catch (e) {
+        _keystoreWorks = false;
+        debugPrint('Keystore unavailable, password stays local: $e');
+      }
+    }
+    db.saveSource(stored);
+  }
+
+  // ------------------------------------------------------------- backup
+
+  /// The user's setup as JSON, passwords included.
+  String exportBackup() =>
+      Backup.export(db, passwordOf: (s) => _passwords[s.id] ?? s.password);
+
+  /// Adds the backup's sources (skipping ones already present), downloads
+  /// them, then restores favourites and manual guide links. Returns a
+  /// summary for display; sources that fail to connect are reported, not
+  /// fatal.
+  Future<String> restoreBackup(String json) async {
+    final contents = Backup.parse(json);
+    final ids = <int, String>{};
+    var added = 0, skipped = 0;
+    final failed = <String>[];
+    for (final (i, s) in contents.sources.indexed) {
+      final existing = sources
+          .where(
+            (e) =>
+                e.kind == s.kind && e.url == s.url && e.username == s.username,
+          )
+          .firstOrNull;
+      if (existing != null) {
+        ids[i] = existing.id;
+        skipped++;
+        continue;
+      }
+      final record = SourceRecord(
+        id: _newId(),
+        kind: s.kind,
+        name: s.name,
+        url: s.url,
+        username: s.username,
+        password: s.password,
+        extraGuideUrls: s.extraGuideUrls,
+      );
+      try {
+        await _addRecord(record);
+        ids[i] = record.id;
+        added++;
+      } catch (e) {
+        failed.add('${s.name} ($e)');
+      }
+    }
+    for (final (i, channel) in contents.favourites) {
+      final id = ids[i];
+      if (id != null) db.addFavouriteKey('$id/$channel');
+    }
+    for (final (i, channel, guide) in contents.guideOverrides) {
+      final id = ids[i];
+      if (id != null) db.setGuideOverrideKey('$id/$channel', guide);
+    }
+    db.rebuildGuideLinks();
+    _reload();
+    notifyListeners();
+    return [
+      '$added sources restored',
+      if (skipped > 0) '$skipped already present',
+      if (failed.isNotEmpty) 'could not connect to ${failed.join(', ')}',
+    ].join(', ');
   }
 
   Future<SyncResult> refresh(SourceRecord source) => _sync(source);
@@ -256,6 +386,8 @@ class AppState extends ChangeNotifier {
   }
 
   void deleteSource(String id) {
+    _passwords.remove(id);
+    secrets.delete(_secretKey(id)).catchError((Object _) {});
     db.deleteSource(id);
     db.rebuildGuideLinks();
     _reload();
@@ -263,6 +395,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<SyncResult> _sync(SourceRecord s) async {
+    await _secretsLoading;
+    // Re-read: the password may have arrived from the keystore meanwhile.
+    s = sources.where((e) => e.id == s.id).firstOrNull ?? s;
     syncingSourceId = s.id;
     progress = const SyncProgress(SyncStage.channels);
     notifyListeners();

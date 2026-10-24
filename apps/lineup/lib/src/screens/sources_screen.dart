@@ -8,6 +8,7 @@ import '../app_state.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import 'add_source_screen.dart';
+import 'backup_screen.dart';
 import 'guide_mapping_screen.dart';
 
 /// Lists the user's sources with their guide coverage, and lets them add,
@@ -107,26 +108,53 @@ class _SourcesScreenState extends State<SourcesScreen> {
                 canRequestFocus: false,
                 skipTraversal: true,
                 onKeyEvent: _addKey,
-                child: FocusCard(
-                  autofocus: true,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => AddSourceScreen(state: state),
-                    ),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.add),
-                      SizedBox(width: 12),
-                      Text(
-                        'Add a source',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FocusCard(
+                        autofocus: true,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => AddSourceScreen(state: state),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.add),
+                            SizedBox(width: 12),
+                            Text(
+                              'Add a source',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 16),
+                    FocusCard(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => BackupScreen(state: state),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.save_alt_rounded),
+                          SizedBox(width: 12),
+                          Text(
+                            'Backup and restore',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Padding(
