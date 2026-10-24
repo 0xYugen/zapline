@@ -4,6 +4,7 @@ import 'package:zapline_core/zapline_core.dart';
 import '../app_state.dart';
 import '../screens/guide_mapping_screen.dart';
 import '../layout.dart';
+import '../l10n.dart';
 import '../theme.dart';
 import 'channel_logo.dart';
 import 'focus_card.dart';
@@ -84,8 +85,8 @@ Future<void> showChannelActions(
                           ? Icons.star_outline_rounded
                           : Icons.star_rounded,
                       favourite
-                          ? 'Remove from favourites'
-                          : 'Add to favourites',
+                          ? context.l10n.removeFromFavourites
+                          : context.l10n.addToFavourites,
                       () {
                         state.toggleFavourite(channel);
                         done();
@@ -94,27 +95,31 @@ Future<void> showChannelActions(
                     ),
                     action(
                       Icons.visibility_off_outlined,
-                      'Hide this channel',
+                      context.l10n.hideChannel,
                       () {
                         state.setChannelHidden(channel, true);
                         done();
                       },
                     ),
-                    action(Icons.event_note_outlined, 'Fix its TV guide', () {
-                      done();
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => GuideMappingScreen(
-                            state: state,
-                            sourceId: channel.sourceId,
-                            only: channel,
+                    action(
+                      Icons.event_note_outlined,
+                      context.l10n.fixItsGuide,
+                      () {
+                        done();
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => GuideMappingScreen(
+                              state: state,
+                              sourceId: channel.sourceId,
+                              only: channel,
+                            ),
                           ),
-                        ),
-                      );
-                    }),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Hidden channels can be shown again from Sources → Manage.',
+                    Text(
+                      context.l10n.hiddenHint,
                       style: TextStyle(
                         fontSize: 13,
                         color: ZaplineColors.textMuted,
@@ -169,7 +174,9 @@ Future<void> _showSheet(
               favourite ? Icons.star_outline_rounded : Icons.star_rounded,
             ),
             title: Text(
-              favourite ? 'Remove from favourites' : 'Add to favourites',
+              favourite
+                  ? context.l10n.removeFromFavourites
+                  : context.l10n.addToFavourites,
             ),
             onTap: () {
               state.toggleFavourite(channel);
@@ -178,8 +185,8 @@ Future<void> _showSheet(
           ),
           ListTile(
             leading: const Icon(Icons.visibility_off_outlined),
-            title: const Text('Hide this channel'),
-            subtitle: const Text('Show it again from Sources → Manage'),
+            title: Text(context.l10n.hideChannel),
+            subtitle: Text(context.l10n.hiddenHint),
             onTap: () {
               state.setChannelHidden(channel, true);
               done();
@@ -187,7 +194,7 @@ Future<void> _showSheet(
           ),
           ListTile(
             leading: const Icon(Icons.event_note_outlined),
-            title: const Text('Fix its TV guide'),
+            title: Text(context.l10n.fixItsGuide),
             onTap: () {
               done();
               _fixGuide(context, state, channel);

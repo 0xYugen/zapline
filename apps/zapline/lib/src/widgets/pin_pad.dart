@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme.dart';
+import '../l10n.dart';
 import 'focus_card.dart';
 
 /// Asks for a 4-digit PIN. Works with the on-screen pad (D-pad), the
@@ -144,7 +145,7 @@ class _PinDialogState extends State<_PinDialog> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: key(
-                      'Delete',
+                      context.l10n.pinDelete,
                       icon: Icons.backspace_outlined,
                       onPressed: _erase,
                     ),
@@ -156,7 +157,7 @@ class _PinDialogState extends State<_PinDialog> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: key(
-                      'Cancel',
+                      context.l10n.cancel,
                       icon: Icons.close_rounded,
                       onPressed: () => Navigator.of(context).pop(),
                     ),

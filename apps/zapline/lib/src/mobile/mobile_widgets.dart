@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../channel_groups.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -9,11 +10,11 @@ import '../widgets/pin_pad.dart';
 
 /// Asks for the PIN and opens locked groups for this session.
 Future<bool> unlockWithPin(BuildContext context, AppState state) async {
-  final pin = await askPin(context, title: 'Enter the PIN');
+  final pin = await askPin(context, title: context.l10n.enterPin);
   if (pin == null || !context.mounted) return false;
   if (state.unlock(pin)) return true;
   ScaffoldMessenger.of(context)
-      .showSnackBar(const SnackBar(content: Text('Wrong PIN')));
+      .showSnackBar(SnackBar(content: Text(context.l10n.wrongPin)));
   return false;
 }
 
@@ -78,7 +79,7 @@ class _GroupBarState extends State<GroupBar> {
           Padding(
             padding: const EdgeInsets.only(left: 8),
             child: IconButton(
-              tooltip: 'All groups',
+              tooltip: context.l10n.allGroups,
               onPressed: _openSheet,
               icon: const Icon(Icons.segment_rounded),
             ),
@@ -95,7 +96,7 @@ class _GroupBarState extends State<GroupBar> {
                 final selected = g == widget.selected;
                 return _Pill(
                   key: selected ? _selectedKey : null,
-                  label: groupLabel(g),
+                  label: groupLabel(context.l10n, g),
                   icon: switch (g) {
                     favouritesGroup => Icons.star_rounded,
                     recentGroup => Icons.history_rounded,
@@ -202,7 +203,7 @@ class _GroupSheetState extends State<_GroupSheet> {
         ? all
         : [
             for (final g in all)
-              if (groupLabel(g).toLowerCase().contains(f)) g,
+              if (groupLabel(context.l10n, g).toLowerCase().contains(f)) g,
           ];
     return DraggableScrollableSheet(
       expand: false,
@@ -210,12 +211,12 @@ class _GroupSheetState extends State<_GroupSheet> {
       maxChildSize: 0.95,
       builder: (context, scroll) => Column(
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Groups',
+                context.l10n.groups,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
             ),
@@ -226,8 +227,8 @@ class _GroupSheetState extends State<_GroupSheet> {
               child: TextField(
                 autocorrect: false,
                 onChanged: (v) => setState(() => _filter = v),
-                decoration: const InputDecoration(
-                  hintText: 'Find a group',
+                decoration: InputDecoration(
+                  hintText: context.l10n.findGroup,
                   prefixIcon: Icon(Icons.search),
                   isDense: true,
                 ),
@@ -250,7 +251,7 @@ class _GroupSheetState extends State<_GroupSheet> {
                     _ => Icons.folder_outlined,
                   }),
                   title: Text(
-                    groupLabel(g),
+                    groupLabel(context.l10n, g),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -338,7 +339,7 @@ class MobileChannelRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    now?.title ?? 'No guide',
+                    now?.title ?? context.l10n.noGuide,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -396,15 +397,15 @@ class LockedGroupView extends StatelessWidget {
             color: ZaplineColors.textMuted,
           ),
           const SizedBox(height: 12),
-          const Text(
-            'This group is locked',
+          Text(
+            context.l10n.groupLocked,
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () => unlockWithPin(context, state),
             icon: const Icon(Icons.lock_open_rounded),
-            label: const Text('Unlock with PIN'),
+            label: Text(context.l10n.unlockWithPin),
           ),
         ],
       ),

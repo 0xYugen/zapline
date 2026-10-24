@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../theme.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_tile.dart';
@@ -119,11 +120,11 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   Future<void> _enterGroup(String? g) async {
     final state = widget.state;
     if (g != null && state.isLocked(g)) {
-      final pin = await askPin(context, title: 'Enter the PIN');
+      final pin = await askPin(context, title: context.l10n.enterPin);
       if (pin == null || !mounted) return;
       if (!state.unlock(pin)) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Wrong PIN')));
+            .showSnackBar(SnackBar(content: Text(context.l10n.wrongPin)));
         return;
       }
       // Rows are built on the next frame.
@@ -188,23 +189,23 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                   _MenuItem(
                     focusNode: _menuFirst,
                     icon: Icons.grid_view_rounded,
-                    label: 'TV guide',
+                    label: context.l10n.tvGuide,
                     onPressed: () =>
                         _open(GuideScreen(state: state, channels: visible)),
                   ),
                   _MenuItem(
                     icon: Icons.search,
-                    label: 'Search',
+                    label: context.l10n.search,
                     onPressed: () => _open(SearchScreen(state: state)),
                   ),
                   _MenuItem(
                     icon: Icons.dns_outlined,
-                    label: 'Sources',
+                    label: context.l10n.sources,
                     onPressed: () => _open(SourcesScreen(state: state)),
                   ),
                   _MenuItem(
                     icon: Icons.settings_outlined,
-                    label: 'Settings',
+                    label: context.l10n.settings,
                     onPressed: () => _open(SettingsScreen(state: state)),
                   ),
                   const Padding(
@@ -238,9 +239,9 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                                 Expanded(
                                   child: Text(
                                     switch (g) {
-                                      null => 'All channels',
-                                      _favourites => 'Favourites',
-                                      _recent => 'Recent',
+                                      null => context.l10n.allChannels,
+                                      _favourites => context.l10n.favourites,
+                                      _recent => context.l10n.recent,
                                       _ => g,
                                     },
                                     maxLines: 1,
@@ -265,11 +266,10 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       },
                     ),
                   ),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.fromLTRB(8, 12, 8, 0),
                     child: Text(
-                      'Hold OK on a channel for favourites, hiding and its '
-                      'guide',
+                      context.l10n.holdOkHint,
                       style: TextStyle(
                         fontSize: 13,
                         color: ZaplineColors.textMuted,
@@ -281,7 +281,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
             ),
           ),
           if (_group != null && state.isLocked(_group!))
-            const Expanded(
+            Expanded(
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -289,14 +289,14 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                     Icon(Icons.lock_outline_rounded, size: 48),
                     SizedBox(height: 12),
                     Text(
-                      'This group is locked',
+                      context.l10n.groupLocked,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
-                      'Press OK to enter the PIN.',
+                      context.l10n.pressOkForPin,
                       style: TextStyle(color: ZaplineColors.textMuted),
                     ),
                   ],

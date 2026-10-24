@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
 import 'src/input_mode.dart';
+import 'src/l10n.dart';
 import 'src/layout.dart';
 import 'src/mobile/mobile_home.dart';
 import 'src/secret_store.dart';
@@ -147,10 +148,23 @@ class _ZaplineAppState extends State<ZaplineApp> {
 
   Widget _app() {
     final state = widget.state;
+    // Rebuilds only when the language setting changes.
+    return ValueListenableBuilder<String?>(
+      valueListenable: state.settings.language,
+      builder: (context, language, _) => _materialApp(language),
+    );
+  }
+
+  Widget _materialApp(String? language) {
+    final state = widget.state;
     return MaterialApp(
+      locale: language == null ? null : Locale(language),
       title: 'Zapline',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      // Italian or English, following the device; English otherwise.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       navigatorKey: _navigator,
       navigatorObservers: [_backStack],
       // Desktop has no Back key: Esc and the browser back key go back. The

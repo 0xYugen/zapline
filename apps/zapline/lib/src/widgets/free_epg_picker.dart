@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../free_epg.dart';
+import '../l10n.dart';
 import '../layout.dart';
 import '../theme.dart';
 import 'focus_card.dart';
@@ -38,13 +39,13 @@ Future<FreeEpg?> pickFreeEpg(BuildContext context, {FreeEpg? first}) {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Free EPG by country',
+              Text(
+                context.l10n.freeEpgByCountry,
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
-              const Text(
-                _note,
+              Text(
+                context.l10n.freeEpgNote,
                 style: TextStyle(color: ZaplineColors.textMuted),
               ),
               const SizedBox(height: 16),
@@ -72,10 +73,6 @@ Future<FreeEpg?> pickFreeEpg(BuildContext context, {FreeEpg? first}) {
   );
 }
 
-const _note =
-    'Programme listings from public sources (iptv-epg.org, epgshare01), '
-    'free for legal use. Channels are matched by name.';
-
 class _PhonePicker extends StatefulWidget {
   const _PhonePicker({required this.list});
 
@@ -102,17 +99,17 @@ class _PhonePickerState extends State<_PhonePicker> {
       builder: (context, scroll) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
             child: Text(
-              'Free EPG by country',
+              context.l10n.freeEpgByCountry,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Text(
-              _note,
+              context.l10n.freeEpgNote,
               style: TextStyle(fontSize: 13, color: ZaplineColors.textMuted),
             ),
           ),
@@ -121,8 +118,8 @@ class _PhonePickerState extends State<_PhonePicker> {
             child: TextField(
               autocorrect: false,
               onChanged: (v) => setState(() => _filter = v),
-              decoration: const InputDecoration(
-                hintText: 'Find a country',
+              decoration: InputDecoration(
+                hintText: context.l10n.findCountry,
                 prefixIcon: Icon(Icons.search),
                 isDense: true,
               ),

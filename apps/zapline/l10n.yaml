@@ -1,0 +1,8 @@
+# UI strings: lib/l10n/app_en.arb is the source, app_it.arb the Italian
+# translation. `flutter gen-l10n` (run by `flutter pub get`) writes the
+# Dart classes next to them.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

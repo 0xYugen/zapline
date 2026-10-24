@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../layout.dart';
 import '../mobile/mobile_widgets.dart';
 import '../theme.dart';
@@ -141,7 +142,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ? const EdgeInsets.fromLTRB(16, 16, 16, 4)
               : const EdgeInsets.fromLTRB(4, 16, 0, 12),
           child: Text(
-            'In the TV guide',
+            context.l10n.inTheTvGuide,
             style: TextStyle(
               fontSize: Metrics.of(context).section,
               fontWeight: FontWeight.w800,
@@ -182,7 +183,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   ? const EdgeInsets.fromLTRB(20, 12, 20, 0)
                   : EdgeInsets.zero,
               child: Text(
-                'Search',
+                context.l10n.search,
                 style: TextStyle(
                   fontSize: phone ? 24 : 34,
                   fontWeight: FontWeight.w800,
@@ -202,8 +203,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   autocorrect: false,
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _run(),
-                  decoration: const InputDecoration(
-                    labelText: 'Channel or programme',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.channelOrProgramme,
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -211,10 +212,10 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             SizedBox(height: m.gap),
             if (empty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 24),
                 child: Text(
-                  'Nothing found.',
+                  context.l10n.nothingFound,
                   style: TextStyle(color: ZaplineColors.textMuted),
                 ),
               ),
@@ -296,7 +297,7 @@ class _ProgrammeRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                onAir ? 'ON NOW' : 'REPLAY',
+                onAir ? context.l10n.onNow : context.l10n.replay,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,

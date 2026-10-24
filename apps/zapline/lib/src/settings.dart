@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:zapline_data/zapline_data.dart';
 
@@ -44,6 +45,15 @@ class AppSettings {
     _ => BoxFit.contain,
   };
   set videoFit(BoxFit v) => _db.setSetting('videoFit', v.name);
+
+  /// The app's language: `null` follows the device, else a language code
+  /// ("it", "en"). Listen to [language] to rebuild on change.
+  late final language = ValueNotifier<String?>(_db.setting('language'));
+
+  void setLanguage(String? code) {
+    _db.setSetting('language', code);
+    language.value = code;
+  }
 
   /// Hash of the parental PIN; `null` when none is set.
   String? get pinHash => _db.setting('pinHash');

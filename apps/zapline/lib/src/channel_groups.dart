@@ -1,6 +1,7 @@
 import 'package:zapline_core/zapline_core.dart';
 
 import 'app_state.dart';
+import 'l10n.dart';
 
 /// Pseudo-groups shown before the provider's groups. `null` is "All
 /// channels". The NUL prefix keeps them from clashing with real titles.
@@ -15,11 +16,11 @@ List<String?> groupsOf(AppState state) => [
   ...state.groups,
 ];
 
-String groupLabel(String? group) => switch (group) {
-  null => 'All channels',
-  favouritesGroup => 'Favourites',
-  recentGroup => 'Recent',
-  '' => 'No group',
+String groupLabel(AppLocalizations l, String? group) => switch (group) {
+  null => l.allChannels,
+  favouritesGroup => l.favourites,
+  recentGroup => l.recent,
+  '' => l.noGroup,
   final g => g,
 };
 

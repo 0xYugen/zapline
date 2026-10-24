@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../pairing/backup_server.dart';
 import '../layout.dart';
 import '../theme.dart';
@@ -60,7 +61,7 @@ class _BackupScreenState extends State<BackupScreen> {
     final server = _server;
     final phone = context.isPhone;
     return Scaffold(
-      appBar: phone ? AppBar(title: const Text('Backup and restore')) : null,
+      appBar: phone ? AppBar(title: Text(context.l10n.backupTitle)) : null,
       body: Center(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(phone ? 20 : 40),
@@ -74,8 +75,8 @@ class _BackupScreenState extends State<BackupScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (!phone) ...[
-                      const Text(
-                        'Backup and restore',
+                      Text(
+                        context.l10n.backupTitle,
                         style: TextStyle(
                           fontSize: 34,
                           fontWeight: FontWeight.w800,
@@ -83,10 +84,8 @@ class _BackupScreenState extends State<BackupScreen> {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    const Text(
-                      'Save your sources, favourites and guide fixes to a '
-                      'file, or bring them back on a new device. Open the '
-                      'page shown here in a browser on the same network.',
+                    Text(
+                      context.l10n.backupIntro,
                       style: TextStyle(
                         fontSize: 18,
                         height: 1.45,
@@ -94,9 +93,8 @@ class _BackupScreenState extends State<BackupScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
-                      'The backup file contains your source passwords: keep '
-                      'it private.',
+                    Text(
+                      context.l10n.backupPrivate,
                       style: TextStyle(color: ZaplineColors.focus),
                     ),
                     // A TV has no browser of its own: only desktops get the
@@ -104,8 +102,8 @@ class _BackupScreenState extends State<BackupScreen> {
                     // On a phone, the page is opened from a computer.
                     if (server != null && phone) ...[
                       const SizedBox(height: 20),
-                      const Text(
-                        'On a computer on the same Wi-Fi, open',
+                      Text(
+                        context.l10n.backupOpenOnComputer,
                         style: TextStyle(color: ZaplineColors.textMuted),
                       ),
                       SelectableText(
@@ -116,7 +114,7 @@ class _BackupScreenState extends State<BackupScreen> {
                         ),
                       ),
                       Text(
-                        'Code ${server.pin}',
+                        context.l10n.backupCode(server.pin),
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -126,8 +124,8 @@ class _BackupScreenState extends State<BackupScreen> {
                     ],
                     if (server != null && _isDesktop) ...[
                       const SizedBox(height: 20),
-                      const Text(
-                        'On this computer, open',
+                      Text(
+                        context.l10n.backupOpenHere,
                         style: TextStyle(color: ZaplineColors.textMuted),
                       ),
                       SelectableText(
@@ -139,10 +137,10 @@ class _BackupScreenState extends State<BackupScreen> {
                       ),
                     ],
                     if (_failed)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(top: 20),
                         child: Text(
-                          'This device is not connected to a local network.',
+                          context.l10n.noLocalNetwork,
                           style: TextStyle(color: ZaplineColors.live),
                         ),
                       ),
@@ -154,10 +152,12 @@ class _BackupScreenState extends State<BackupScreen> {
                           listenable: widget.state,
                           builder: (context, _) => Text(
                             widget.state.isSyncing
-                                ? 'Restoring… ${widget.state.progress ?? ''}'
+                                ? context.l10n.restoring(
+                                    '${widget.state.progress ?? ''}',
+                                  )
                                 : phone
                                 ? ''
-                                : 'Press Back when you are done.',
+                                : context.l10n.pressBackWhenDone,
                             style: const TextStyle(
                               color: ZaplineColors.textMuted,
                             ),
@@ -172,8 +172,8 @@ class _BackupScreenState extends State<BackupScreen> {
                 const SizedBox(width: 40),
                 QrPanel(
                   server: server,
-                  title: 'Use your phone',
-                  subtitle: 'Scan to download a backup or restore one.',
+                  title: context.l10n.useYourPhone,
+                  subtitle: context.l10n.backupScan,
                 ),
               ],
             ],

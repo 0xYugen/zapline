@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   zapline_core:
     path: ../../packages/zapline_core
   http: ^1.2.0
@@ -34,6 +37,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
   # Inter (SIL Open Font License 1.1, assets/fonts/inter/OFL.txt).
   fonts:
     - family: Inter

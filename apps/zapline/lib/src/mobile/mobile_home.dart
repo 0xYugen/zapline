@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../channel_groups.dart';
 import '../screens/player_screen.dart';
 import '../screens/search_screen.dart';
@@ -219,7 +220,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
               child: locked
                   ? LockedGroupView(state: state)
                   : list.isEmpty
-                  ? const EmptyView('No channels in this group.')
+                  ? EmptyView(context.l10n.noChannelsInGroup)
                   : ListView.builder(
                       controller: _scroll,
                       itemCount: list.length,

@@ -5,6 +5,7 @@ import 'package:zapline_core/zapline_core.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../input_mode.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -208,17 +209,18 @@ class _GuideScreenState extends State<GuideScreen> {
                                           IconButton(
                                             iconSize: 22,
                                             onPressed: () => _pagePointer(-1),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.chevron_left_rounded,
-                                              semanticLabel: 'Earlier',
+                                              semanticLabel:
+                                                  context.l10n.earlier,
                                             ),
                                           ),
                                           IconButton(
                                             iconSize: 22,
                                             onPressed: () => _pagePointer(1),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.chevron_right_rounded,
-                                              semanticLabel: 'Later',
+                                              semanticLabel: context.l10n.later,
                                             ),
                                           ),
                                         ],
@@ -287,7 +289,7 @@ class _GuideScreenState extends State<GuideScreen> {
           nodeKey: '$key|none',
           left: 0,
           width: _span.inMinutes * pxPerMin,
-          label: 'No guide information',
+          label: context.l10n.noGuideInfo,
           dim: true,
           onFocus: () => _select(i, c, null),
           onPressed: () => _play(i),
@@ -458,7 +460,7 @@ class _Details extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          p?.title ?? 'No guide information',
+          p?.title ?? context.l10n.noGuideInfo,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
@@ -526,7 +528,7 @@ class _Ruler extends StatelessWidget {
           SizedBox(
             width: labelWidth,
             child: Text(
-              sameDay ? 'Today' : '${l.day}/${l.month}',
+              sameDay ? context.l10n.today : '${l.day}/${l.month}',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: ZaplineColors.textMuted,

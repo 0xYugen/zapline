@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../layout.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -77,7 +78,7 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
     final selected = _selected;
     final phone = context.isPhone;
     return Scaffold(
-      appBar: phone ? AppBar(title: const Text('Fix TV guide')) : null,
+      appBar: phone ? AppBar(title: Text(context.l10n.fixTvGuide)) : null,
       body: Padding(
         padding: phone
             ? const EdgeInsets.fromLTRB(16, 4, 16, 0)
@@ -86,8 +87,8 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!phone) ...[
-              const Text(
-                'Fix TV guide',
+              Text(
+                context.l10n.fixTvGuide,
                 style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
@@ -95,12 +96,9 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
             Text(
               _unmatched.isEmpty
                   ? (widget.only != null
-                        ? 'Done. Press Back to return.'
-                        : 'Every channel of this source has a guide.')
-                  : '${_unmatched.length} '
-                        '${_unmatched.length == 1 ? 'channel has' : 'channels have'}'
-                        ' no guide. Pick one, then choose the matching guide '
-                        'channel.',
+                        ? context.l10n.fixDone
+                        : context.l10n.fixAllMatched)
+                  : context.l10n.fixUnmatched(_unmatched.length),
               style: const TextStyle(color: ZaplineColors.textMuted),
             ),
             if (_message != null)
@@ -224,9 +222,9 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
         const SizedBox(height: 12),
         Expanded(
           child: selected == null
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'Pick a channel above.',
+                    context.l10n.pickChannelAbove,
                     style: TextStyle(color: ZaplineColors.textMuted),
                   ),
                 )
@@ -245,7 +243,9 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          q.isEmpty ? 'Suggestions for ${c.name}' : 'Guide channels',
+          q.isEmpty
+              ? context.l10n.suggestionsFor(c.name)
+              : context.l10n.guideChannels,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
@@ -255,16 +255,16 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
             controller: _query,
             focusNode: _search,
             autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: 'Search the guide',
+            decoration: InputDecoration(
+              labelText: context.l10n.searchTheGuide,
               prefixIcon: Icon(Icons.search),
             ),
           ),
         ),
         const SizedBox(height: 12),
         if (options.isEmpty)
-          const Text(
-            'Nothing found. Try another name.',
+          Text(
+            context.l10n.nothingFoundTryAnother,
             style: TextStyle(color: ZaplineColors.textMuted),
           ),
         Expanded(

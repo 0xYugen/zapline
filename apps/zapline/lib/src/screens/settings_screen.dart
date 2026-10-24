@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../l10n.dart';
 import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
@@ -100,6 +101,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+        PageSection(context.l10n.language),
+        ValueListenableBuilder<String?>(
+          valueListenable: s.language,
+          builder: (context, language, _) => _Choice<String?>(
+            title: context.l10n.language,
+            value: language,
+            options: {
+              null: context.l10n.languageDevice,
+              'it': 'Italiano',
+              'en': 'English',
+            },
+            onChanged: s.setLanguage,
+          ),
+        ),
         const PageSection('Channels'),
         _Toggle(
           autofocus: true,

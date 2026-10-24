@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
 import '../channel_groups.dart';
+import '../l10n.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
 import 'mobile_home.dart';
@@ -63,7 +65,7 @@ class _MobileGuideState extends State<MobileGuide> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            MobileHeader(state: state, title: 'TV guide'),
+            MobileHeader(state: state, title: context.l10n.tvGuide),
             SizedBox(
               height: 44,
               child: ListView(
@@ -71,20 +73,22 @@ class _MobileGuideState extends State<MobileGuide> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   _TimeChip(
-                    label: 'Now',
+                    label: context.l10n.now,
                     selected: at == null,
                     onTap: () => setState(() => _at = null),
                   ),
                   if (DateTime.now().isBefore(tonight))
                     _TimeChip(
-                      label: 'Tonight ${state.time(tonight.toUtc())}',
+                      label: context.l10n.tonightAt(
+                        state.time(tonight.toUtc()),
+                      ),
                       selected: at == tonight,
                       onTap: () => setState(() => _at = tonight),
                     ),
                   _TimeChip(
                     label: at == null || at == tonight
-                        ? 'Pick a time'
-                        : 'At ${state.time(at.toUtc())}',
+                        ? context.l10n.pickTime
+                        : context.l10n.atTime(state.time(at.toUtc())),
                     icon: Icons.schedule_rounded,
                     selected: at != null && at != tonight,
                     onTap: _pickTime,
@@ -102,7 +106,7 @@ class _MobileGuideState extends State<MobileGuide> {
               child: locked
                   ? LockedGroupView(state: state)
                   : list.isEmpty
-                  ? const EmptyView('No channels in this group.')
+                  ? EmptyView(context.l10n.noChannelsInGroup)
                   : ListView.builder(
                       itemCount: list.length,
                       itemExtent: 92,
@@ -233,7 +237,7 @@ class _WhatsOnRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    current?.title ?? 'No guide for this time',
+                    current?.title ?? context.l10n.noGuideAtTime,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -250,7 +254,7 @@ class _WhatsOnRow extends StatelessWidget {
                         '${state.time(current.start)}–'
                             '${state.time(current.stop)}',
                       if (next != null)
-                        'then ${state.time(next.start)} ${next.title}',
+                        context.l10n.thenAt(state.time(next.start), next.title),
                     ].join('  ·  '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -352,11 +356,14 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
   String _dayLabel(DateTime d) {
     final today = _dateOf(DateTime.now());
     final diff = d.difference(today).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == -1) return 'Yesterday';
-    if (diff == 1) return 'Tomorrow';
-    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return '${names[d.weekday - 1]} ${d.day}';
+    final l = context.l10n;
+    if (diff == 0) return l.today;
+    if (diff == -1) return l.yesterday;
+    if (diff == 1) return l.tomorrow;
+    // "Mon 27" / "lun 27" in the app's language.
+    return DateFormat.MEd(Localizations.localeOf(context).toString())
+        .format(d)
+        .replaceAll(RegExp(r'[/.]\d+$'), '');
   }
 
   void _open(Programme p) {
@@ -433,7 +440,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Watch live',
+            tooltip: context.l10n.watchLive,
             onPressed: () =>
                 openPlayer(context, state, widget.channels, widget.index),
             icon: const Icon(Icons.play_circle_fill_rounded, size: 32),
@@ -469,9 +476,8 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
           const Divider(height: 1, color: ZaplineColors.line),
           Expanded(
             child: list.isEmpty
-                ? const EmptyView(
-                    'No guide for this channel.\n'
-                    'You can link one from Settings → Sources → Fix TV guide.',
+                ? EmptyView(
+                    context.l10n.noGuideForChannel,
                     icon: Icons.event_busy_outlined,
                   )
                 : ListView.builder(
@@ -542,7 +548,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
                                 ),
                               ),
                               if (onAir)
-                                const _Badge('ON NOW', ZaplineColors.live)
+                                _Badge(context.l10n.onNow, ZaplineColors.live)
                               else if (replay)
                                 const Icon(
                                   Icons.replay_rounded,

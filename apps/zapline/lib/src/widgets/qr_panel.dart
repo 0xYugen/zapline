@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../pairing/pin_server.dart';
+import '../l10n.dart';
 import '../theme.dart';
 
 /// QR code, address and PIN of a [PinServer], for a phone or PC browser.
@@ -51,13 +52,13 @@ class QrPanel extends StatelessWidget {
                 data: server.url.toString(),
                 size: 200,
                 padding: EdgeInsets.zero,
-                semanticsLabel: 'QR code to add a source from your phone',
+                semanticsLabel: context.l10n.qrLabel,
               ),
             ),
           ),
           const SizedBox(height: 18),
-          const Text(
-            'Or open on your phone',
+          Text(
+            context.l10n.orOpenOnPhone,
             style: TextStyle(color: ZaplineColors.textMuted, fontSize: 14),
           ),
           Text(
@@ -69,8 +70,8 @@ class QrPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Code',
+          Text(
+            context.l10n.code,
             style: TextStyle(color: ZaplineColors.textMuted, fontSize: 14),
           ),
           Text(
