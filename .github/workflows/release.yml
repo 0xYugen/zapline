@@ -24,20 +24,20 @@ jobs:
           cache: true
       - name: Decode signing key
         env:
-          KEYSTORE_BASE64: ${{ secrets.LINEUP_KEYSTORE_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.ZAPLINE_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            echo "LINEUP_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "ZAPLINE_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           else
             echo "::warning::No signing key configured: APKs are debug-signed."
           fi
       - name: Build APKs and App Bundle
-        working-directory: apps/lineup
+        working-directory: apps/zapline
         env:
-          LINEUP_KEYSTORE_PASSWORD: ${{ secrets.LINEUP_KEYSTORE_PASSWORD }}
-          LINEUP_KEY_ALIAS: ${{ secrets.LINEUP_KEY_ALIAS }}
-          LINEUP_KEY_PASSWORD: ${{ secrets.LINEUP_KEY_PASSWORD }}
+          ZAPLINE_KEYSTORE_PASSWORD: ${{ secrets.ZAPLINE_KEYSTORE_PASSWORD }}
+          ZAPLINE_KEY_ALIAS: ${{ secrets.ZAPLINE_KEY_ALIAS }}
+          ZAPLINE_KEY_PASSWORD: ${{ secrets.ZAPLINE_KEY_PASSWORD }}
         run: |
           flutter build apk --release --split-per-abi
           flutter build appbundle --release
@@ -45,8 +45,8 @@ jobs:
         with:
           name: android
           path: |
-            apps/lineup/build/app/outputs/flutter-apk/*-release.apk
-            apps/lineup/build/app/outputs/bundle/release/app-release.aab
+            apps/zapline/build/app/outputs/flutter-apk/*-release.apk
+            apps/zapline/build/app/outputs/bundle/release/app-release.aab
 
   windows:
     runs-on: windows-latest
@@ -57,15 +57,15 @@ jobs:
           channel: stable
           cache: true
       - name: Build
-        working-directory: apps/lineup
+        working-directory: apps/zapline
         run: flutter build windows --release
       - name: Zip
         shell: pwsh
-        run: Compress-Archive -Path apps/lineup/build/windows/x64/runner/Release/* -DestinationPath lineup-windows-x64.zip
+        run: Compress-Archive -Path apps/zapline/build/windows/x64/runner/Release/* -DestinationPath zapline-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: lineup-windows-x64.zip
+          path: zapline-windows-x64.zip
 
   linux:
     runs-on: ubuntu-latest
@@ -81,14 +81,14 @@ jobs:
           channel: stable
           cache: true
       - name: Build
-        working-directory: apps/lineup
+        working-directory: apps/zapline
         run: flutter build linux --release
       - name: Tarball
-        run: tar -C apps/lineup/build/linux/x64/release/bundle -czf lineup-linux-x64.tar.gz .
+        run: tar -C apps/zapline/build/linux/x64/release/bundle -czf zapline-linux-x64.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: lineup-linux-x64.tar.gz
+          path: zapline-linux-x64.tar.gz
 
   macos:
     runs-on: macos-latest
@@ -99,14 +99,14 @@ jobs:
           channel: stable
           cache: true
       - name: Build
-        working-directory: apps/lineup
+        working-directory: apps/zapline
         run: flutter build macos --release
       - name: Zip (unsigned)
-        run: ditto -c -k --keepParent apps/lineup/build/macos/Build/Products/Release/lineup.app lineup-macos-unsigned.zip
+        run: ditto -c -k --keepParent apps/zapline/build/macos/Build/Products/Release/zapline.app zapline-macos-unsigned.zip
       - uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: lineup-macos-unsigned.zip
+          path: zapline-macos-unsigned.zip
 
   release:
     needs: [android, windows, linux, macos]

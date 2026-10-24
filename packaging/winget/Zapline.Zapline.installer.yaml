@@ -1,0 +1,13 @@
+PackageIdentifier: Zapline.Zapline
+PackageVersion: 0.1.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: zapline.exe
+    PortableCommandAlias: zapline
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/OWNER/zapline/releases/download/v0.1.0/zapline-windows-x64.zip
+    InstallerSha256: REPLACE_WITH_SHA256
+ManifestType: installer
+ManifestVersion: 1.6.0

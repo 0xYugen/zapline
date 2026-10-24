@@ -8,17 +8,17 @@ The key identifies the app on every store. **If it is lost, the app can
 never be updated again** under the same listing, so keep two offline copies.
 
 ```sh
-keytool -genkeypair -v -keystore lineup-release.jks -alias lineup \
+keytool -genkeypair -v -keystore zapline-release.jks -alias zapline \
   -keyalg RSA -keysize 4096 -validity 10000
 ```
 
-For local release builds create `apps/lineup/android/key.properties`
+For local release builds create `apps/zapline/android/key.properties`
 (already git-ignored):
 
 ```properties
-storeFile=/absolute/path/to/lineup-release.jks
+storeFile=/absolute/path/to/zapline-release.jks
 storePassword=...
-keyAlias=lineup
+keyAlias=zapline
 keyPassword=...
 ```
 
@@ -29,10 +29,10 @@ not for publishing).
 
 | Secret | Value |
 |---|---|
-| `LINEUP_KEYSTORE_BASE64` | `base64 -w0 lineup-release.jks` |
-| `LINEUP_KEYSTORE_PASSWORD` | store password |
-| `LINEUP_KEY_ALIAS` | `lineup` |
-| `LINEUP_KEY_PASSWORD` | key password |
+| `ZAPLINE_KEYSTORE_BASE64` | `base64 -w0 zapline-release.jks` |
+| `ZAPLINE_KEYSTORE_PASSWORD` | store password |
+| `ZAPLINE_KEY_ALIAS` | `zapline` |
+| `ZAPLINE_KEY_PASSWORD` | key password |
 
 ### 3. Placeholders to replace
 
@@ -40,16 +40,17 @@ not for publishing).
   requires an app id under a domain you control, or `io.github.OWNER.*`.
 - `REPLACE_WITH_SHA256` in the Flatpak and winget manifests (take the values
   from `SHA256SUMS.txt` of the release).
-- The final product name if "Lineup" changes: Android `applicationId`
+- The final product name if "Zapline" changes: Android `applicationId`
   (`android/app/build.gradle.kts`) must be fixed before the first store
   upload.
-- App icon and TV banner: the current ones are placeholders.
+- Icons and banner come from `tools/brand/generate.py`; rerun it after
+  changing the mark (`python -I tools/brand/generate.py`).
 
 ## Cutting a release
 
-1. Update `version:` in `apps/lineup/pubspec.yaml` (e.g. `0.2.0+2`; the
+1. Update `version:` in `apps/zapline/pubspec.yaml` (e.g. `0.2.0+2`; the
    number after `+` must increase for Android).
-2. Add `apps/lineup/fastlane/metadata/android/en-US/changelogs/<build>.txt`.
+2. Add `apps/zapline/fastlane/metadata/android/en-US/changelogs/<build>.txt`.
 3. `git tag v0.2.0 && git push --tags`.
 4. The **Release** workflow builds Android (split APKs + AAB), Windows (zip),
    Linux (tar.gz) and macOS (unsigned zip), and opens a **draft** GitHub

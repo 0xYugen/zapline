@@ -10,7 +10,7 @@ right to submit it under the MIT licence.
 
 ## Licences of dependencies
 
-Lineup is MIT and is distributed through app stores, so:
+Zapline is MIT and is distributed through app stores, so:
 
 - **Never copy code from GPL/AGPL projects** (Kodi add-ons, Hypnotix,
   Megacubo, Fred TV, OwnTV, M3UAndroid, Dispatcharr...). Reading them for
@@ -30,6 +30,6 @@ Lineup is MIT and is distributed through app stores, so:
 ## Code
 
 - Run `dart format .`, `dart analyze` and the tests before opening a PR.
-- Keep `lineup_core` free of Flutter and `dart:io` imports so it runs on
+- Keep `zapline_core` free of Flutter and `dart:io` imports so it runs on
   every platform, web included.
 - Everything in the repository is written in English.

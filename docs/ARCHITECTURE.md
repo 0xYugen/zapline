@@ -13,14 +13,14 @@
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│ apps/lineup (Flutter)                                     │
+│ apps/zapline (Flutter)                                     │
 │  UI: TV (D-pad focus) · mobile · desktop                  │
 │  PlaybackEngine ──► Media3 (Android, web) | libmpv (desktop/iOS) │
 │  Pairing server (QR onboarding over the LAN)              │
 ├───────────────────────────────────────────────────────────┤
 │ Data layer: SQLite (FTS5 search) + background sync jobs   │
 ├───────────────────────────────────────────────────────────┤
-│ packages/lineup_core (pure Dart, no Flutter, no dart:io)  │
+│ packages/zapline_core (pure Dart, no Flutter, no dart:io)  │
 │  M3U parser · Xtream-compatible client · Stalker client   │
 │  Streaming XMLTV parser · channel ↔ guide matcher         │
 └───────────────────────────────────────────────────────────┘

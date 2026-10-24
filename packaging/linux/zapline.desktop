@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Zapline
+GenericName=IPTV player
+Comment=Free, open-source player for your own IPTV sources
+Exec=zapline
+Icon=io.github.OWNER.Zapline
+Categories=AudioVideo;Video;Player;TV;
+Keywords=iptv;m3u;xtream;epg;tv;
+Terminal=false

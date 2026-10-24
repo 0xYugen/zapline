@@ -16,12 +16,12 @@ jobs:
           cache: true
       - run: dart pub get
       - run: dart format --output=none --set-exit-if-changed packages
-      - run: dart analyze --fatal-infos packages/lineup_core
+      - run: dart analyze --fatal-infos packages/zapline_core
       - run: dart test
-        working-directory: packages/lineup_core
-      - run: dart analyze --fatal-infos packages/lineup_data
+        working-directory: packages/zapline_core
+      - run: dart analyze --fatal-infos packages/zapline_data
       - run: dart test
-        working-directory: packages/lineup_data
+        working-directory: packages/zapline_data
 
   app:
     runs-on: ubuntu-latest
@@ -32,8 +32,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-        working-directory: apps/lineup
+        working-directory: apps/zapline
       - run: flutter analyze --fatal-infos
-        working-directory: apps/lineup
+        working-directory: apps/zapline
       - run: flutter test
-        working-directory: apps/lineup
+        working-directory: apps/zapline

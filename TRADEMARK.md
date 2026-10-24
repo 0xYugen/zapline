@@ -6,7 +6,7 @@ The project name and logo are not covered by the MIT licence. To protect users
 from look-alike builds bundled with ads, malware or pirated content:
 
 - Forks distributed to others must use a different name and logo.
-- You may say your product is "based on Lineup".
+- You may say your product is "based on Zapline".
 - Unmodified builds from the official repository may be redistributed under
   the original name.
 - Never use the name or logo together with playlists, channel bundles or

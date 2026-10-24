@@ -1,0 +1,51 @@
+# Flathub manifest. Packages the Linux release tarball built by
+# .github/workflows/release.yml. Before submitting: replace OWNER, set the
+# release URL and its sha256 (from SHA256SUMS.txt).
+app-id: io.github.OWNER.Zapline
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: zapline
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  # Streams, guides and the LAN pairing page.
+  - --share=network
+  # Source passwords via libsecret.
+  - --talk-name=org.freedesktop.secrets
+modules:
+  # libmpv for playback (LGPL build: no GPL-only options enabled).
+  - name: libmpv
+    buildsystem: meson
+    config-opts:
+      - -Dlibmpv=true
+      - -Dgpl=false
+      - -Dcplayer=false
+    sources:
+      - type: archive
+        url: https://github.com/mpv-player/mpv/archive/refs/tags/v0.40.0.tar.gz
+        sha256: REPLACE_WITH_SHA256
+  - name: zapline
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/lib/zapline
+      - cp -r bundle/* /app/lib/zapline/
+      - mkdir -p /app/bin && ln -s /app/lib/zapline/zapline /app/bin/zapline
+      - install -Dm644 zapline.desktop /app/share/applications/io.github.OWNER.Zapline.desktop
+      - install -Dm644 io.github.OWNER.Zapline.metainfo.xml /app/share/metainfo/io.github.OWNER.Zapline.metainfo.xml
+      - install -Dm644 io.github.OWNER.Zapline.png /app/share/icons/hicolor/256x256/apps/io.github.OWNER.Zapline.png
+    sources:
+      - type: archive
+        url: https://github.com/OWNER/zapline/releases/download/v0.1.0/zapline-linux-x64.tar.gz
+        sha256: REPLACE_WITH_SHA256
+        dest: bundle
+        strip-components: 0
+      - type: file
+        path: ../linux/zapline.desktop
+      - type: file
+        path: ../linux/io.github.OWNER.Zapline.metainfo.xml
+      - type: file
+        path: ../linux/io.github.OWNER.Zapline.png

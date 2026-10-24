@@ -6,7 +6,7 @@ bugs. Part-time (20 h/week) roughly doubles them.
 ## Phase 0 — Foundations (~6 weeks)
 
 - [x] Monorepo, MIT licence, contribution rules, trademark policy
-- [x] `lineup_core`: M3U parser, Xtream-compatible client, URL detection,
+- [x] `zapline_core`: M3U parser, Xtream-compatible client, URL detection,
       streaming XMLTV parser, channel ↔ guide matcher, unit tests
 - [x] CI (format, analyze, test for the core)
 - [x] Flutter app shell with D-pad focus navigation, add-source screen with
@@ -27,7 +27,7 @@ bugs. Part-time (20 h/week) roughly doubles them.
       Android TV emulator (API 36): onboarding, D-pad focus, channel list,
       zapping, playback
 - [x] Playback verified on Windows against the mock panel (HLS)
-- [x] Dev flags: `LINEUP_DEV_SOURCE`, `LINEUP_DEV_AUTOPLAY` (`--dart-define`)
+- [x] Dev flags: `ZAPLINE_DEV_SOURCE`, `ZAPLINE_DEV_AUTOPLAY` (`--dart-define`)
 - [ ] LGPL builds of libmpv/FFmpeg, licences of all binaries documented
 - [ ] Prototype measured on a real Fire TV Stick 4K: zapping time, memory,
       MPEG-TS + AC-3 + MP2 playback
@@ -38,7 +38,7 @@ documented.
 
 ## Phase 1 — MVP (~22 weeks, month 7)
 
-- [x] `lineup_data`: SQLite schema (sources, channels with FTS5 search,
+- [x] `zapline_data`: SQLite schema (sources, channels with FTS5 search,
       guide channels, programmes, guide links, manual overrides), batched
       guide import (48k programmes in ~0.25 s on desktop), retention window,
       guide coverage
@@ -89,7 +89,7 @@ documented.
       from key.properties or CI secrets, Flatpak/winget manifests, F-Droid
       fastlane metadata; see docs/RELEASING.md
 - [ ] First real release: signing key, GitHub repository, run Linux/macOS
-      jobs and a Flathub test build, final icon and TV banner
+      jobs and a Flathub test build, signing key
 
 SQLite data layer and sync · Xtream + M3U sources · automatic Xtream guide via
 `xmltv.php` + external XMLTV · virtualised guide grid and mini-guide ·

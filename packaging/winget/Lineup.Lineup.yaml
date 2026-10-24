@@ -1,7 +1,0 @@
-# winget manifest (version file). Submit the three files together to
-# microsoft/winget-pkgs under manifests/l/Lineup/Lineup/<version>/.
-PackageIdentifier: Lineup.Lineup
-PackageVersion: 0.1.0
-DefaultLocale: en-US
-ManifestType: version
-ManifestVersion: 1.6.0
