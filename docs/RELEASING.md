@@ -22,6 +22,10 @@ keyAlias=zapline
 keyPassword=...
 ```
 
+The key for this project was generated on 2026-10-24 and lives outside the
+repository, in the maintainer's `~/.zapline-signing/` (keystore, passwords
+and a README). Keep an offline backup of that folder.
+
 Without it, release builds are signed with the debug key (fine for testing,
 not for publishing).
 
@@ -80,3 +84,9 @@ store policy).
 - macOS builds are unsigned and not notarised: Gatekeeper will warn.
 - iOS is not packaged: App Store submission waits for the licence review of
   the bundled libmpv/FFmpeg (see docs/ARCHITECTURE.md).
+
+### Version codes
+
+`apps/zapline/tool/build_android.sh` builds with the commit count as the
+Android version code and shows `version (code)` in Settings → About, so
+every build installs over the previous one as an update.

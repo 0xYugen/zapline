@@ -10,6 +10,12 @@ import 'sources_screen.dart';
 
 /// App-wide preferences. Per-source options (guides, group filters, hidden
 /// channels) live in Sources → Manage.
+/// Set by release builds: `--dart-define=ZAPLINE_VERSION=0.1.0 (42)`.
+const appVersion = String.fromEnvironment(
+  'ZAPLINE_VERSION',
+  defaultValue: 'development build',
+);
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.state});
 
@@ -173,6 +179,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: const Text('Back up or move to another device'),
         ),
         const PageSection('About'),
+        const Text(
+          'Version $appVersion',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
         const Text(
           'Zapline is free and open source (MIT). It plays the sources you '
           'add and includes no channels or content.',

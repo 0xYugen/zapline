@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The version code is the commit count: needs full history.
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -39,8 +42,8 @@ jobs:
           ZAPLINE_KEY_ALIAS: ${{ secrets.ZAPLINE_KEY_ALIAS }}
           ZAPLINE_KEY_PASSWORD: ${{ secrets.ZAPLINE_KEY_PASSWORD }}
         run: |
-          flutter build apk --release --split-per-abi
-          flutter build appbundle --release
+          sh tool/build_android.sh apk
+          sh tool/build_android.sh appbundle
       - uses: actions/upload-artifact@v4
         with:
           name: android
