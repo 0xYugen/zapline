@@ -20,6 +20,7 @@ abstract final class ZaplineColors {
 ThemeData buildTheme() {
   final base = ThemeData(
     useMaterial3: true,
+    fontFamily: 'Inter',
     brightness: Brightness.dark,
     scaffoldBackgroundColor: ZaplineColors.ground,
     colorScheme: const ColorScheme.dark(

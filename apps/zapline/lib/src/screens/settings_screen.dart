@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/brand.dart';
 import '../widgets/pin_pad.dart';
 import 'backup_screen.dart';
 import 'sources_screen.dart';
@@ -179,11 +180,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: const Text('Back up or move to another device'),
         ),
         const PageSection('About'),
-        const Text(
-          'Version $appVersion',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        const Row(
+          children: [
+            ZaplineLockup(height: 26),
+            SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                appVersion,
+                style: TextStyle(color: ZaplineColors.textMuted),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         const Text(
           'Zapline is free and open source (MIT). It plays the sources you '
           'add and includes no channels or content.',

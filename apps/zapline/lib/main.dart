@@ -27,6 +27,10 @@ const _devAutoplay = bool.fromEnvironment('ZAPLINE_DEV_AUTOPLAY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    final text = await rootBundle.loadString('assets/fonts/inter/OFL.txt');
+    yield LicenseEntryWithLineBreaks(['Inter'], text);
+  });
   await FormFactor.detectTv();
   // Draw behind the system bars; screens keep content inside safe areas.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

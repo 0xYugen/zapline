@@ -6,6 +6,7 @@ import '../app_state.dart';
 import '../theme.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_tile.dart';
+import '../widgets/brand.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/pin_pad.dart';
 import 'guide_screen.dart';
@@ -173,14 +174,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Row(
                       children: [
-                        const Text(
-                          'Zapline',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: ZaplineColors.focus,
-                          ),
-                        ),
+                        const ZaplineLockup(height: 26),
                         const Spacer(),
                         if (state.isSyncing)
                           const SizedBox.square(

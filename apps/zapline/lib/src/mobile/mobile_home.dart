@@ -8,6 +8,7 @@ import '../screens/search_screen.dart';
 import '../screens/settings_screen.dart';
 import '../theme.dart';
 import '../widgets/channel_actions.dart';
+import '../widgets/brand.dart';
 import 'mobile_guide.dart';
 import 'mobile_widgets.dart';
 
@@ -126,10 +127,12 @@ void openPlayer(
 
 /// A header with the brand and a sync indicator, shared by the tabs.
 class MobileHeader extends StatelessWidget {
-  const MobileHeader({super.key, required this.state, required this.title});
+  const MobileHeader({super.key, required this.state, this.title});
 
   final AppState state;
-  final String title;
+
+  /// `null` shows the Zapline logo.
+  final String? title;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -141,13 +144,19 @@ class MobileHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: isLandscape(context) ? 20 : 24,
-                fontWeight: FontWeight.w800,
+            child: switch (title) {
+              final t? => Text(
+                t,
+                style: TextStyle(
+                  fontSize: isLandscape(context) ? 20 : 24,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
+              null => Align(
+                alignment: Alignment.centerLeft,
+                child: ZaplineLockup(height: isLandscape(context) ? 22 : 26),
+              ),
+            },
           ),
           if (state.isSyncing)
             const Padding(
@@ -203,7 +212,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            MobileHeader(state: state, title: 'Zapline'),
+            MobileHeader(state: state),
             GroupBar(state: state, selected: _group, onSelected: _select),
             const Divider(height: 1, color: ZaplineColors.line),
             Expanded(

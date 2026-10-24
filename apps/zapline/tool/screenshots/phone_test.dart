@@ -12,7 +12,9 @@ final problems = <String>[];
 
 void drain(WidgetTester tester) {
   for (Object? e; (e = tester.takeException()) != null;) {
-    problems.add('after $lastShot: ${'$e'.split(String.fromCharCode(10)).first}');
+    problems.add(
+      'after $lastShot: ${'$e'.split(String.fromCharCode(10)).first}',
+    );
   }
 }
 

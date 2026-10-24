@@ -8,6 +8,7 @@ import '../pairing/pairing_server.dart';
 import '../layout.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/brand.dart';
 import '../widgets/qr_panel.dart';
 import '../widgets/tv_text_field.dart';
 import 'backup_screen.dart';
@@ -186,12 +187,9 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Zapline',
-            style: t.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: ZaplineColors.focus,
-            ),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: ZaplineLockup(height: 32),
           ),
           const SizedBox(height: 16),
           Text(
