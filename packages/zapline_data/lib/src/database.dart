@@ -871,6 +871,51 @@ class ZaplineDatabase {
     return out;
   }
 
+  /// Programmes whose title contains [query] (case-insensitive) that have
+  /// not ended before [from], soonest first, with the channel showing them.
+  List<(Channel, Programme)> searchProgrammes(
+    String query, {
+    required DateTime from,
+    int limit = 60,
+    ChannelVisibility visibility = ChannelVisibility.visible,
+  }) {
+    final q = query.trim();
+    if (q.length < 2) return const [];
+    // LIKE wildcards in the query are literal; '!' is the escape character.
+    final escaped = q
+        .replaceAll('!', '!!')
+        .replaceAll('%', '!%')
+        .replaceAll('_', '!_');
+    return [
+      for (final r in _db.select(
+        'SELECT $_cols, p.guide_id AS pg, p.start AS ps, p.stop AS pe, '
+        'p.title AS pt, p.description AS pd, p.category AS pc, '
+        'p.episode AS pep, p.icon AS pi '
+        'FROM programmes p JOIN epg_map m ON m.guide_id = p.guide_id '
+        "JOIN channels c ON m.channel_key = c.source_id || '/' || c.id "
+        "WHERE p.title LIKE ? ESCAPE '!' AND p.stop > ? "
+        'AND ${_visibleSql(visibility)} ORDER BY p.start LIMIT ?',
+        ['%$escaped%', _secs(from), limit],
+      ))
+        (
+          _channel(r),
+          Programme(
+            channelId: r['pg'] as String,
+            start: _time(r['ps'] as int),
+            stop: _time(r['pe'] as int),
+            title: r['pt'] as String,
+            description: r['pd'] as String?,
+            category: r['pc'] as String?,
+            episode: r['pep'] as String?,
+            iconUrl: switch (r['pi'] as String?) {
+              final i? => Uri.tryParse(i),
+              null => null,
+            },
+          ),
+        ),
+    ];
+  }
+
   /// The programme airing at [at] and the one after it.
   (Programme?, Programme?) nowNext(Channel c, DateTime at) {
     final list =

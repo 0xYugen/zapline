@@ -13,7 +13,7 @@ class ChannelTile extends StatelessWidget {
     super.key,
     required this.state,
     required this.channel,
-    required this.fallbackNumber,
+    required this.number,
     required this.onPressed,
     required this.onLongPress,
     this.focusNode,
@@ -21,7 +21,7 @@ class ChannelTile extends StatelessWidget {
 
   final AppState state;
   final Channel channel;
-  final int fallbackNumber;
+  final int number;
   final VoidCallback onPressed;
   final VoidCallback onLongPress;
   final FocusNode? focusNode;
@@ -43,7 +43,7 @@ class ChannelTile extends StatelessWidget {
           SizedBox(
             width: 48,
             child: Text(
-              '${c.number ?? fallbackNumber}',
+              '$number',
               style: const TextStyle(
                 fontSize: 16,
                 fontFeatures: [FontFeature.tabularFigures()],

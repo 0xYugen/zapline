@@ -4,11 +4,14 @@ import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
+import '../widgets/channel_actions.dart';
 import '../widgets/channel_tile.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/pin_pad.dart';
 import 'guide_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
+import 'settings_screen.dart';
 import 'sources_screen.dart';
 
 /// Menu and groups on the left, channels on the right. Both lists are built
@@ -29,11 +32,13 @@ class ChannelsScreen extends StatefulWidget {
   State<ChannelsScreen> createState() => _ChannelsScreenState();
 }
 
-/// Pseudo-group for favourites; cannot clash with a real group title.
+/// Pseudo-groups; they cannot clash with a real group title.
 const _favourites = '\u0000favourites';
+const _recent = '\u0000recent';
 
 class _ChannelsScreenState extends State<ChannelsScreen> {
-  /// `null` means all channels, [_favourites] the favourites list.
+  /// `null` means all channels, [_favourites] and [_recent] the
+  /// pseudo-groups.
   String? _group;
 
   final _firstChannel = FocusNode(debugLabel: 'first channel');
@@ -50,7 +55,15 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _firstChannel.requestFocus();
-      if (widget.autoplayFirst && _visible.isNotEmpty) _play(_visible, 0);
+      if (widget.autoplayFirst && _visible.isNotEmpty) {
+        _play(_visible, 0);
+      } else if (widget.state.resumeChannel case final last?) {
+        final all = widget.state.channels();
+        final i = all.indexWhere(
+          (c) => c.sourceId == last.sourceId && c.id == last.id,
+        );
+        if (i >= 0) _play(all, i);
+      }
     });
   }
 
@@ -79,9 +92,11 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     final key = (_group, widget.state.version);
     if (key != _cacheKey) {
       _cacheKey = key;
-      _cache = _group == _favourites
-          ? widget.state.favourites()
-          : widget.state.channels(group: _group);
+      _cache = switch (_group) {
+        _favourites => widget.state.favourites(),
+        _recent => widget.state.recents(),
+        final g => widget.state.channels(group: g),
+      };
     }
     return _cache;
   }
@@ -96,6 +111,27 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
         ),
       ),
     );
+  }
+
+  /// Select on a group: enter its channels, asking for the PIN first when
+  /// it is locked.
+  Future<void> _enterGroup(String? g) async {
+    final state = widget.state;
+    if (g != null && state.isLocked(g)) {
+      final pin = await askPin(context, title: 'Enter the PIN');
+      if (pin == null || !mounted) return;
+      if (!state.unlock(pin)) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Wrong PIN')));
+        return;
+      }
+      // Rows are built on the next frame.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _firstChannel.requestFocus(),
+      );
+      return;
+    }
+    _firstChannel.requestFocus();
   }
 
   void _open(Widget screen) =>
@@ -114,6 +150,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     final state = widget.state;
     final groups = <String?>[
       null,
+      if (state.hasRecents) _recent,
       if (state.hasFavourites) _favourites,
       ...state.groups,
     ];
@@ -171,6 +208,11 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                     label: 'Sources',
                     onPressed: () => _open(SourcesScreen(state: state)),
                   ),
+                  _MenuItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    onPressed: () => _open(SettingsScreen(state: state)),
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Divider(color: ZaplineColors.line, height: 1),
@@ -187,11 +229,16 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                             // Moving focus over a group previews it, like
                             // most TV apps; Select jumps into the list.
                             onFocused: () => setState(() => _group = g),
-                            onPressed: () => _firstChannel.requestFocus(),
+                            onPressed: () => _enterGroup(g),
                             child: Row(
                               children: [
-                                if (g == _favourites) ...[
-                                  const Icon(Icons.star_rounded, size: 20),
+                                if (switch (g) {
+                                      _favourites => Icons.star_rounded,
+                                      _recent => Icons.history_rounded,
+                                      _ => null,
+                                    }
+                                    case final icon?) ...[
+                                  Icon(icon, size: 20),
                                   const SizedBox(width: 10),
                                 ],
                                 Expanded(
@@ -199,6 +246,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                                     switch (g) {
                                       null => 'All channels',
                                       _favourites => 'Favourites',
+                                      _recent => 'Recent',
                                       _ => g,
                                     },
                                     maxLines: 1,
@@ -209,6 +257,13 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                                     ),
                                   ),
                                 ),
+                                if (g != null && state.lockedGroups.contains(g))
+                                  Icon(
+                                    state.isLocked(g)
+                                        ? Icons.lock_outline_rounded
+                                        : Icons.lock_open_rounded,
+                                    size: 18,
+                                  ),
                               ],
                             ),
                           ),
@@ -219,7 +274,8 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                   const Padding(
                     padding: EdgeInsets.fromLTRB(8, 12, 8, 0),
                     child: Text(
-                      'Hold OK on a channel to add it to favourites',
+                      'Hold OK on a channel for favourites, hiding and its '
+                      'guide',
                       style: TextStyle(
                         fontSize: 13,
                         color: ZaplineColors.textMuted,
@@ -230,31 +286,56 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: Focus(
-              canRequestFocus: false,
-              skipTraversal: true,
-              onKeyEvent: _listKey,
-              child: FocusTraversalGroup(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),
-                  itemCount: visible.length,
-                  itemExtent: 86,
-                  itemBuilder: (context, i) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: ChannelTile(
-                      state: state,
-                      channel: visible[i],
-                      fallbackNumber: i + 1,
-                      focusNode: i == 0 ? _firstChannel : null,
-                      onPressed: () => _play(visible, i),
-                      onLongPress: () => state.toggleFavourite(visible[i]),
+          if (_group != null && state.isLocked(_group!))
+            const Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.lock_outline_rounded, size: 48),
+                    SizedBox(height: 12),
+                    Text(
+                      'This group is locked',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Press OK to enter the PIN.',
+                      style: TextStyle(color: ZaplineColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: Focus(
+                canRequestFocus: false,
+                skipTraversal: true,
+                onKeyEvent: _listKey,
+                child: FocusTraversalGroup(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),
+                    itemCount: visible.length,
+                    itemExtent: 86,
+                    itemBuilder: (context, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ChannelTile(
+                        state: state,
+                        channel: visible[i],
+                        number: state.channelNumber(visible[i], i),
+                        focusNode: i == 0 ? _firstChannel : null,
+                        onPressed: () => _play(visible, i),
+                        onLongPress: () =>
+                            showChannelActions(context, state, visible[i]),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

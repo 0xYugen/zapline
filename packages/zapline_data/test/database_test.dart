@@ -128,6 +128,10 @@ void main() {
     expect(next?.title, 'sport.example 1');
 
     // Ended strictly before now: slots -4..-2 on two channels.
+    final found = db.searchProgrammes('SPORT.EXAMPLE 1', from: now);
+    expect(found.single.$1.id, '2');
+    expect(found.single.$2.title, 'sport.example 1');
+    expect(db.searchProgrammes('50%', from: now), isEmpty);
     expect(db.pruneProgrammes(now), 6);
     expect(db.unmatchedChannels(sourceId: 'a').single.id, '3');
     db.setGuideOverride(chans[2], 'news.example');

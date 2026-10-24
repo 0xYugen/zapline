@@ -170,7 +170,10 @@ class _GuideScreenState extends State<GuideScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(height: 150, child: _Details(selected: _selected)),
+            SizedBox(
+              height: 150,
+              child: _Details(selected: _selected, time: widget.state.time),
+            ),
             const SizedBox(height: 12),
             Expanded(
               child: LayoutBuilder(
@@ -183,6 +186,7 @@ class _GuideScreenState extends State<GuideScreen> {
                       Stack(
                         children: [
                           _Ruler(
+                            time: widget.state.time,
                             from: _from,
                             span: _span,
                             step: _step,
@@ -324,7 +328,7 @@ class _GuideScreenState extends State<GuideScreen> {
                 SizedBox(
                   width: 36,
                   child: Text(
-                    '${c.number ?? i + 1}',
+                    '${widget.state.channelNumber(c, i)}',
                     style: const TextStyle(
                       color: ZaplineColors.textMuted,
                       fontFeatures: [FontFeature.tabularFigures()],
@@ -429,28 +433,23 @@ class _GuideScreenState extends State<GuideScreen> {
 }
 
 class _Details extends StatelessWidget {
-  const _Details({required this.selected});
+  const _Details({required this.selected, required this.time});
 
   final ({Channel channel, Programme? programme})? selected;
+  final String Function(DateTime) time;
 
   @override
   Widget build(BuildContext context) {
     final s = selected;
     if (s == null) return const SizedBox.shrink();
     final p = s.programme;
-    String hm(DateTime t) {
-      final l = t.toLocal();
-      return '${l.hour.toString().padLeft(2, '0')}:'
-          '${l.minute.toString().padLeft(2, '0')}';
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           p == null
               ? s.channel.name
-              : '${s.channel.name} · ${hm(p.start)}–${hm(p.stop)}',
+              : '${s.channel.name} · ${time(p.start)}–${time(p.stop)}',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -484,6 +483,7 @@ class _Details extends StatelessWidget {
 
 class _Ruler extends StatelessWidget {
   const _Ruler({
+    required this.time,
     required this.from,
     required this.span,
     required this.step,
@@ -491,6 +491,7 @@ class _Ruler extends StatelessWidget {
     required this.pxPerMin,
   });
 
+  final String Function(DateTime) time;
   final DateTime from;
   final Duration span;
   final Duration step;
@@ -504,14 +505,12 @@ class _Ruler extends StatelessWidget {
     final sameDay = l.day == today.day && l.month == today.month;
     final marks = <Widget>[];
     for (var t = from; t.isBefore(from.add(span)); t = t.add(step)) {
-      final lt = t.toLocal();
       marks.add(
         Positioned(
           left: t.difference(from).inMinutes * pxPerMin,
           top: 8,
           child: Text(
-            '${lt.hour.toString().padLeft(2, '0')}:'
-            '${lt.minute.toString().padLeft(2, '0')}',
+            time(t),
             style: const TextStyle(
               color: ZaplineColors.textMuted,
               fontFeatures: [FontFeature.tabularFigures()],

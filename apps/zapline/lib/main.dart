@@ -36,9 +36,13 @@ Future<void> main() async {
   await LogoCache.init(await getApplicationCacheDirectory());
   final dir = await getApplicationSupportDirectory();
   final dbPath = '${dir.path}${Platform.pathSeparator}zapline.db';
-  final state = AppState(
+  late final AppState state;
+  state = AppState(
     ZaplineDatabase.open(dbPath),
-    syncRunner: isolateSyncRunner(dbPath),
+    syncRunner: isolateSyncRunner(
+      dbPath,
+      guideDays: () => state.settings.guideDays,
+    ),
     secrets: const KeychainSecretStore(),
   );
   // Show the UI at once; the keystore can take seconds on first use and
@@ -137,13 +141,14 @@ class _ZaplineAppState extends State<ZaplineApp> {
       theme: buildTheme(),
       navigatorKey: _navigator,
       navigatorObservers: [_backStack],
-      // Desktop has no Back key: Esc (and browser/remote back keys) go back.
+      // Desktop has no Back key: Esc and the browser back key go back. The
+      // Android Back key is left to the system, which pops the route itself;
+      // handling it here too would pop twice and close the app on Android 16.
       shortcuts: {
         ...WidgetsApp.defaultShortcuts,
         const SingleActivator(LogicalKeyboardKey.escape): const BackIntent(),
         const SingleActivator(LogicalKeyboardKey.browserBack):
             const BackIntent(),
-        const SingleActivator(LogicalKeyboardKey.goBack): const BackIntent(),
       },
       actions: {
         ...WidgetsApp.defaultActions,

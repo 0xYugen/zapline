@@ -10,12 +10,14 @@ import '../input_mode.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
+import '../widgets/focus_card.dart';
 
 /// Full-screen player for live channels and catch-up.
 ///
 /// Remote keys: Up/Down and Channel+/- zap, digits jump to a channel number,
 /// Left restarts the current programme from the archive, Right returns to
-/// live, Select toggles the info bar, Back exits. The info bar shows the
+/// live, Select opens the channel list, Info toggles the info bar, Back
+/// exits. The info bar shows the
 /// measured zap time (request → first frame) to compare engines and devices.
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({
@@ -48,6 +50,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Duration? _lastZap;
   String? _error;
   bool _overlay = true;
+
+  /// The channel list over the picture.
+  bool _list = false;
+  final _focus = FocusNode(debugLabel: 'player');
   Timer? _hideTimer;
   final _subs = <StreamSubscription<Object?>>[];
 
@@ -87,6 +93,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       s.cancel();
     }
     _engine.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -105,6 +112,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _zapWatch.stop();
     await _engine.stop();
     if (url == null) return;
+    if (replay == null) widget.state.markWatched(_channel);
     _zapWatch
       ..reset()
       ..start();
@@ -148,8 +156,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final n = int.tryParse(_digits);
       setState(() => _digits = '');
       if (n == null) return;
-      final i = widget.channels.indexWhere((c) => c.number == n);
-      if (i >= 0) _goTo(i);
+      final channels = widget.channels;
+      for (var i = 0; i < channels.length; i++) {
+        if (widget.state.channelNumber(channels[i], i) == n) return _goTo(i);
+      }
     });
   }
 
@@ -161,6 +171,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   };
 
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
+    // The channel list moves focus itself.
+    if (_list) return KeyEventResult.ignored;
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
@@ -180,8 +192,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _restart();
     } else if (k == LogicalKeyboardKey.arrowRight && _replay != null) {
       _goLive();
-    } else if (k == LogicalKeyboardKey.select ||
-        k == LogicalKeyboardKey.enter ||
+    } else if (e is KeyDownEvent &&
+        (k == LogicalKeyboardKey.select ||
+            k == LogicalKeyboardKey.enter ||
+            k == LogicalKeyboardKey.contextMenu)) {
+      _openList();
+    } else if (k == LogicalKeyboardKey.info ||
+        k == LogicalKeyboardKey.keyI ||
         k == LogicalKeyboardKey.space ||
         k == LogicalKeyboardKey.arrowLeft ||
         k == LogicalKeyboardKey.arrowRight) {
@@ -190,6 +207,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return KeyEventResult.ignored;
     }
     return KeyEventResult.handled;
+  }
+
+  void _openList() {
+    _hideTimer?.cancel();
+    setState(() {
+      _list = true;
+      _overlay = false;
+    });
+  }
+
+  void _closeList() {
+    setState(() => _list = false);
+    _focus.requestFocus();
   }
 
   void _restart() {
@@ -202,11 +232,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _open();
   }
 
-  static String _hm(DateTime t) {
-    final l = t.toLocal();
-    return '${l.hour.toString().padLeft(2, '0')}:'
-        '${l.minute.toString().padLeft(2, '0')}';
-  }
+  String _hm(DateTime t) => widget.state.time(t);
 
   String _infoLine(Channel c) {
     final replay = _replay;
@@ -235,57 +261,81 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final c = _channel;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Focus(
-        autofocus: true,
-        onKeyEvent: _onKey,
-        child: Listener(
-          // Mouse: moving shows the info bar, the wheel zaps.
-          onPointerHover: (_) {
-            if (!_overlay) _showOverlay();
-          },
-          onPointerSignal: (e) {
-            if (e is PointerScrollEvent && e.scrollDelta.dy != 0) {
-              _zap(e.scrollDelta.dy > 0 ? 1 : -1);
-            }
-          },
-          child: GestureDetector(
-            onTap: _showOverlay,
-            onVerticalDragEnd: (d) =>
-                _zap((d.primaryVelocity ?? 0) < 0 ? 1 : -1),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _engine.buildView(),
-                if (_error != null) _errorView(),
-                if (_digits.isNotEmpty)
-                  Positioned(
-                    top: 40,
-                    right: 56,
-                    child: Text(
-                      _digits,
-                      style: const TextStyle(
-                        fontSize: 64,
-                        fontWeight: FontWeight.w800,
-                        color: ZaplineColors.focus,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                        shadows: [Shadow(blurRadius: 12)],
+    return PopScope(
+      // Back closes the channel list before leaving the player.
+      canPop: !_list,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _list) _closeList();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Focus(
+          focusNode: _focus,
+          autofocus: true,
+          onKeyEvent: _onKey,
+          child: Listener(
+            // Mouse: moving shows the info bar, the wheel zaps.
+            onPointerHover: (_) {
+              if (!_overlay) _showOverlay();
+            },
+            onPointerSignal: (e) {
+              if (e is PointerScrollEvent && e.scrollDelta.dy != 0) {
+                _zap(e.scrollDelta.dy > 0 ? 1 : -1);
+              }
+            },
+            child: GestureDetector(
+              onTap: _showOverlay,
+              onVerticalDragEnd: (d) =>
+                  _zap((d.primaryVelocity ?? 0) < 0 ? 1 : -1),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _engine.buildView(fit: widget.state.settings.videoFit),
+                  if (_error != null) _errorView(),
+                  if (_digits.isNotEmpty)
+                    Positioned(
+                      top: 40,
+                      right: 56,
+                      child: Text(
+                        _digits,
+                        style: const TextStyle(
+                          fontSize: 64,
+                          fontWeight: FontWeight.w800,
+                          color: ZaplineColors.focus,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                          shadows: [Shadow(blurRadius: 12)],
+                        ),
                       ),
                     ),
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 180),
+                    left: 0,
+                    right: 0,
+                    bottom: _overlay ? 0 : -160,
+                    // Rebuild when switching between mouse and keys.
+                    child: ListenableBuilder(
+                      listenable: InputMode.instance,
+                      builder: (context, _) => _infoBar(c),
+                    ),
                   ),
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 180),
-                  left: 0,
-                  right: 0,
-                  bottom: _overlay ? 0 : -160,
-                  // Rebuild when switching between mouse and keys.
-                  child: ListenableBuilder(
-                    listenable: InputMode.instance,
-                    builder: (context, _) => _infoBar(c),
-                  ),
-                ),
-              ],
+                  if (_list)
+                    Positioned(
+                      top: 0,
+                      bottom: 0,
+                      left: 0,
+                      width: 400,
+                      child: _ChannelList(
+                        state: widget.state,
+                        channels: widget.channels,
+                        current: _index,
+                        onSelected: (i) {
+                          _closeList();
+                          _goTo(i);
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -335,6 +385,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           icon: const Icon(Icons.keyboard_arrow_down_rounded),
           tooltip: 'Next channel (Page Down)',
         ),
+        IconButton(
+          onPressed: _openList,
+          icon: const Icon(Icons.list_rounded),
+          tooltip: 'Channel list (Enter)',
+        ),
         if (_replay != null)
           TextButton.icon(
             onPressed: _goLive,
@@ -358,7 +413,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     child: Row(
       children: [
         Text(
-          '${c.number ?? _index + 1}',
+          '${widget.state.channelNumber(c, _index)}',
           style: const TextStyle(
             fontSize: 44,
             fontWeight: FontWeight.w800,
@@ -436,6 +491,118 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ],
         ),
       ],
+    ),
+  );
+}
+
+/// Channels of the list being watched, over the left of the picture. Opens
+/// on the current channel; OK switches, Back closes.
+class _ChannelList extends StatefulWidget {
+  const _ChannelList({
+    required this.state,
+    required this.channels,
+    required this.current,
+    required this.onSelected,
+  });
+
+  final AppState state;
+  final List<Channel> channels;
+  final int current;
+  final ValueChanged<int> onSelected;
+
+  @override
+  State<_ChannelList> createState() => _ChannelListState();
+}
+
+class _ChannelListState extends State<_ChannelList> {
+  static const _rowHeight = 72.0;
+
+  late final _scroll = ScrollController(
+    initialScrollOffset: (widget.current - 3).clamp(0, 1 << 30) * _rowHeight,
+  );
+
+  final _currentFocus = FocusNode(debugLabel: 'current channel');
+
+  @override
+  void initState() {
+    super.initState();
+    // The player holds focus, so autofocus alone would not move it here.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _currentFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _currentFocus.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: ZaplineColors.ground.withValues(alpha: 0.94),
+    child: FocusTraversalGroup(
+      child: ListView.builder(
+        controller: _scroll,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        itemCount: widget.channels.length,
+        itemExtent: _rowHeight,
+        itemBuilder: (context, i) {
+          final c = widget.channels[i];
+          final (now, _) = widget.state.nowNext(c);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: FocusCard(
+              focusNode: i == widget.current ? _currentFocus : null,
+              selected: i == widget.current,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              onPressed: () => widget.onSelected(i),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      '${widget.state.channelNumber(c, i)}',
+                      style: const TextStyle(
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  ChannelLogo(channel: c, width: 48, height: 34),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        if (now != null)
+                          // Inherits the card's colour so it stays readable
+                          // on the focused row.
+                          Opacity(
+                            opacity: 0.75,
+                            child: Text(
+                              now.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     ),
   );
 }

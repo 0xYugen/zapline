@@ -90,18 +90,40 @@ class NativeEngine implements PlaybackEngine {
   Stream<String> get errors => _errors.stream;
 
   @override
-  Widget buildView() => ValueListenableBuilder<VideoPlayerController?>(
-    valueListenable: _controller,
-    builder: (context, c, _) {
-      if (c == null || !c.value.isInitialized) return const SizedBox.expand();
-      return Center(
-        child: AspectRatio(
-          aspectRatio: c.value.aspectRatio,
-          child: VideoPlayer(c),
-        ),
+  Widget buildView({BoxFit fit = BoxFit.contain}) =>
+      ValueListenableBuilder<VideoPlayerController?>(
+        valueListenable: _controller,
+        builder: (context, c, _) {
+          if (c == null || !c.value.isInitialized) {
+            return const SizedBox.expand();
+          }
+          if (fit == BoxFit.fill) return SizedBox.expand(child: VideoPlayer(c));
+          // Sized by layout, not scaled with a transform: Android draws the
+          // picture in a platform view, and transformed platform views leave
+          // stale pixels in the widgets drawn over them.
+          return LayoutBuilder(
+            builder: (context, box) {
+              final ratio = c.value.aspectRatio;
+              var w = box.maxWidth, h = box.maxHeight;
+              final wider = ratio > w / h;
+              if (wider == (fit == BoxFit.contain)) {
+                h = w / ratio;
+              } else {
+                w = h * ratio;
+              }
+              final view = OverflowBox(
+                minWidth: w,
+                maxWidth: w,
+                minHeight: h,
+                maxHeight: h,
+                child: VideoPlayer(c),
+              );
+              // Only zoom spills over the edges; clip nothing otherwise.
+              return fit == BoxFit.cover ? ClipRect(child: view) : view;
+            },
+          );
+        },
       );
-    },
-  );
 
   /// Turns `PlatformException(VideoError, Video player had error fk: Source
   /// error, ...)` into `Source error`. The class name before the colon is

@@ -17,19 +17,25 @@ class GuideMappingScreen extends StatefulWidget {
     super.key,
     required this.state,
     required this.sourceId,
+    this.only,
   });
 
   final AppState state;
   final String sourceId;
+
+  /// Fix just this channel (from its menu), even if it already has a guide.
+  final Channel? only;
 
   @override
   State<GuideMappingScreen> createState() => _GuideMappingScreenState();
 }
 
 class _GuideMappingScreenState extends State<GuideMappingScreen> {
-  late List<Channel> _unmatched = widget.state.unmatchedChannels(
-    widget.sourceId,
-  );
+  late List<Channel> _unmatched = _load();
+
+  List<Channel> _load() => widget.only != null
+      ? [widget.only!]
+      : widget.state.unmatchedChannels(widget.sourceId);
   Channel? _selected;
   final _query = TextEditingController();
   final _firstOption = FocusNode();
@@ -57,7 +63,9 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
     widget.state.assignGuide(c, g.id);
     setState(() {
       _message = '${c.name} now uses the guide of ${g.displayName}.';
-      _unmatched = widget.state.unmatchedChannels(widget.sourceId);
+      _unmatched = widget.only != null
+          ? const []
+          : widget.state.unmatchedChannels(widget.sourceId);
       _selected = _unmatched.firstOrNull;
       _query.clear();
     });
@@ -79,7 +87,9 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
             const SizedBox(height: 6),
             Text(
               _unmatched.isEmpty
-                  ? 'Every channel of this source has a guide.'
+                  ? (widget.only != null
+                        ? 'Done. Press Back to return.'
+                        : 'Every channel of this source has a guide.')
                   : '${_unmatched.length} '
                         '${_unmatched.length == 1 ? 'channel has' : 'channels have'}'
                         ' no guide. Pick one, then choose the matching guide '
@@ -181,7 +191,8 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
         ),
         const SizedBox(height: 12),
         TvTextField(
-          child: TextField(
+          builder: (readOnly) => TextField(
+            readOnly: readOnly,
             controller: _query,
             focusNode: _search,
             autocorrect: false,

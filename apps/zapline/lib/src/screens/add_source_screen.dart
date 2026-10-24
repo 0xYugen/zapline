@@ -203,7 +203,8 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
           ),
           const SizedBox(height: 32),
           TvTextField(
-            child: TextField(
+            builder: (readOnly) => TextField(
+              readOnly: readOnly,
               controller: _url,
               autofocus: true,
               keyboardType: TextInputType.url,
@@ -231,7 +232,8 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
               children: [
                 Expanded(
                   child: TvTextField(
-                    child: TextField(
+                    builder: (readOnly) => TextField(
+                      readOnly: readOnly,
                       controller: _user,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
@@ -243,7 +245,8 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TvTextField(
-                    child: TextField(
+                    builder: (readOnly) => TextField(
+                      readOnly: readOnly,
                       controller: _pass,
                       obscureText: true,
                       onSubmitted: (_) => _submit(),

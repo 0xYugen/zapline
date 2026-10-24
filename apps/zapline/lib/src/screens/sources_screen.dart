@@ -10,6 +10,7 @@ import '../widgets/focus_card.dart';
 import 'add_source_screen.dart';
 import 'backup_screen.dart';
 import 'guide_mapping_screen.dart';
+import 'manage_source_screen.dart';
 
 /// Lists the user's sources with their guide coverage, and lets them add,
 /// refresh or remove one.
@@ -222,8 +223,7 @@ class _SourcesScreenState extends State<SourcesScreen> {
                     : synced == null
                     ? 'Never synced'
                     : 'Synced ${synced.day}/${synced.month} '
-                          '${synced.hour.toString().padLeft(2, '0')}:'
-                          '${synced.minute.toString().padLeft(2, '0')}',
+                          '${state.time(synced)}',
                 style: const TextStyle(color: ZaplineColors.textMuted),
               ),
             ],
@@ -255,6 +255,20 @@ class _SourcesScreenState extends State<SourcesScreen> {
                     : () => _refresh(s),
                 child: const Text(
                   'Refresh',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 12),
+              FocusCard(
+                key: ValueKey('manage-${s.id}'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        ManageSourceScreen(state: state, sourceId: s.id),
+                  ),
+                ),
+                child: const Text(
+                  'Manage',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),

@@ -80,7 +80,7 @@ void main() {
     expect(_focusedLabel(), startsWith('Show 2.'));
   });
 
-  testWidgets('Menu key toggles a favourite and the group appears', (
+  testWidgets('Menu key opens the channel menu; OK adds a favourite', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1920, 1080));
@@ -89,15 +89,25 @@ void main() {
     await _connect(tester);
     expect(find.text('Favourites'), findsNothing);
 
+    Future<void> menuThenOk() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+    }
+
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.pumpAndSettle();
+    expect(find.text('Add to favourites'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
     expect(find.text('Favourites'), findsOneWidget);
     expect(state.favourites().single.name, 'Channel 2');
     expect(find.byIcon(Icons.star_rounded), findsNWidgets(2));
+    expect(_focusedLabel(), contains('Channel 2'), reason: 'focus returns');
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
-    await tester.pumpAndSettle();
+    await menuThenOk();
     expect(find.text('Favourites'), findsNothing);
   });
 

@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:zapline_core/zapline_core.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import 'secret_store.dart';
+import 'format.dart';
+import 'settings.dart';
 
 /// What the user typed or pasted on the "add source" screen.
 class SourceInput {
@@ -72,17 +76,25 @@ typedef SyncRunner = Future<SyncResult> Function(
 
 /// Runs [SourceSync] on a background isolate with its own database
 /// connection, so parsing a large guide never blocks the UI.
-SyncRunner isolateSyncRunner(String dbPath) => (source, onProgress) async {
-  final port = ReceivePort();
-  final send = port.sendPort;
-  final sub = port.listen((m) => onProgress(m as SyncProgress));
-  try {
-    return await _syncInIsolate(dbPath, source, send);
-  } finally {
-    await sub.cancel();
-    port.close();
-  }
-};
+/// [guideDays] is read at each sync, so a settings change applies to the
+/// next refresh.
+SyncRunner isolateSyncRunner(String dbPath, {int Function()? guideDays}) =>
+    (source, onProgress) async {
+      final port = ReceivePort();
+      final send = port.sendPort;
+      final sub = port.listen((m) => onProgress(m as SyncProgress));
+      try {
+        return await _syncInIsolate(
+          dbPath,
+          source,
+          send,
+          guideDays?.call() ?? 7,
+        );
+      } finally {
+        await sub.cancel();
+        port.close();
+      }
+    };
 
 // Kept separate so the closure sent to the isolate captures only these three
 // sendable values, not the caller's scope (which holds the app state).
@@ -90,10 +102,14 @@ Future<SyncResult> _syncInIsolate(
   String dbPath,
   SourceRecord source,
   SendPort progress,
+  int guideDays,
 ) => Isolate.run(() async {
   final db = ZaplineDatabase.open(dbPath);
   try {
-    return await SourceSync(db).sync(source, onProgress: progress.send);
+    return await SourceSync(
+      db,
+      guideAhead: Duration(days: guideDays),
+    ).sync(source, onProgress: progress.send);
   } finally {
     db.close();
   }
@@ -173,15 +189,153 @@ class AppState extends ChangeNotifier {
             : s,
     ];
     groups = db.groups();
+    lockedGroups = db.lockedGroups();
     channelCount = db.channelCount();
     _favouriteKeys = db.favouriteKeys();
   }
 
-  List<Channel> channels({String? group}) => db.channels(group: group);
+  // ------------------------------------------------------ preferences
 
-  List<Channel> search(String query) => db.search(query);
+  /// User preferences, stored in the database.
+  late final settings = AppSettings(db);
 
-  List<Channel> favourites() => db.favourites();
+  /// Parental lock opened with the PIN for this session.
+  bool unlocked = false;
+
+  Set<String> lockedGroups = const {};
+
+  ChannelVisibility get _visibility =>
+      unlocked ? ChannelVisibility.unlocked : ChannelVisibility.visible;
+
+  bool isLocked(String group) => !unlocked && lockedGroups.contains(group);
+
+  bool get hasPin => settings.pinHash != null;
+
+  static String _hash(String pin) =>
+      sha256.convert(utf8.encode('zapline-pin:$pin')).toString();
+
+  void setPin(String? pin) {
+    settings.pinHash = pin == null ? null : _hash(pin);
+    if (pin == null) {
+      // No PIN means nothing can stay locked.
+      for (final s in sources) {
+        for (final g in db.groupInfo(s.id)) {
+          if (g.locked) db.setGroupLocked(s.id, g.title, false);
+        }
+      }
+    }
+    _reload();
+    notifyListeners();
+  }
+
+  /// Opens locked groups for this session when [pin] is right.
+  bool unlock(String pin) {
+    if (settings.pinHash != _hash(pin)) return false;
+    unlocked = true;
+    _reload();
+    notifyListeners();
+    return true;
+  }
+
+  void lock() {
+    unlocked = false;
+    _reload();
+    notifyListeners();
+  }
+
+  /// Redraws screens after a preference changed.
+  void settingsChanged() {
+    _reload();
+    notifyListeners();
+  }
+
+  /// Clock time in the user's 12/24-hour format.
+  String time(DateTime t) => formatTime(t, h24: settings.clock24h);
+
+  /// Number shown and dialled for [c] at [index] in its list.
+  int channelNumber(Channel c, int index) =>
+      settings.sequentialNumbers ? index + 1 : (c.number ?? index + 1);
+
+  // --------------------------------------------------------- channels
+
+  List<Channel> channels({String? group}) =>
+      db.channels(group: group, visibility: _visibility);
+
+  List<Channel> search(String query) =>
+      db.search(query, visibility: _visibility);
+
+  List<(Channel, Programme)> searchProgrammes(String query) =>
+      db.searchProgrammes(
+        query,
+        from: DateTime.now().toUtc().subtract(const Duration(days: 1)),
+        visibility: _visibility,
+      );
+
+  List<Channel> favourites() => db.favourites(
+    visibility: ChannelVisibility(hidden: true, locked: unlocked),
+  );
+
+  List<Channel> recents() => db.recents(visibility: _visibility);
+
+  bool get hasRecents => db.recents(limit: 1).isNotEmpty;
+
+  void markWatched(Channel c) => db.markWatched(c);
+
+  /// The channel to reopen at startup, if the user wants that.
+  Channel? get resumeChannel =>
+      settings.resumeLastChannel ? recents().firstOrNull : null;
+
+  void setChannelHidden(Channel c, bool hidden) {
+    db.setChannelHidden(c, hidden);
+    _reload();
+    notifyListeners();
+  }
+
+  List<Channel> hiddenChannels(String sourceId) =>
+      db.hiddenChannels(sourceId: sourceId);
+
+  // ----------------------------------------------------- managing sources
+
+  List<GroupInfo> groupInfo(String sourceId) => db.groupInfo(sourceId);
+
+  /// Saves edits to a source (name, guides, filter, guide shift). The
+  /// password stays wherever it already lives.
+  void updateSource(SourceRecord record) {
+    final keepPassword = !_passwords.containsKey(record.id);
+    db.saveSource(keepPassword ? record : record.copyWith(password: ''));
+    db.applyGroupVisibility(record.id, record.groupFilter);
+    _reload();
+    notifyListeners();
+  }
+
+  void setGroupHidden(SourceRecord s, String group, bool? hidden) {
+    db.setGroupHidden(s.id, group, hidden);
+    db.applyGroupVisibility(s.id, s.groupFilter);
+    _reload();
+    notifyListeners();
+  }
+
+  void setGroupLocked(SourceRecord s, String group, bool locked) {
+    db.setGroupLocked(s.id, group, locked);
+    _reload();
+    notifyListeners();
+  }
+
+  /// What [filter] would leave visible on [sourceId], counting the user's
+  /// explicit choices: (visible groups, all groups, visible channels).
+  (int, int, int) previewFilter(String sourceId, GroupFilter filter) {
+    var groups = 0, channels = 0;
+    final all = db.groupInfo(sourceId);
+    for (final g in all) {
+      final hidden =
+          g.explicit ?? filter.hides(g.title.isEmpty ? null : g.title);
+      if (!hidden) {
+        groups++;
+        channels += g.channels;
+      }
+    }
+    return (groups, all.length, channels);
+  }
 
   bool get hasFavourites => _favouriteKeys.isNotEmpty;
 
@@ -371,9 +525,10 @@ class AppState extends ChangeNotifier {
 
   /// Re-syncs sources not refreshed within [maxAge]; errors are ignored so a
   /// temporarily unreachable server never blocks startup.
-  Future<void> refreshStale({
-    Duration maxAge = const Duration(hours: 12),
-  }) async {
+  Future<void> refreshStale({Duration? maxAge}) async {
+    final hours = settings.refreshHours;
+    if (maxAge == null && hours == 0) return; // automatic refresh is off
+    maxAge ??= Duration(hours: hours);
     final cutoff = DateTime.now().toUtc().subtract(maxAge);
     for (final s in List.of(sources)) {
       if (s.syncedAt != null && s.syncedAt!.isAfter(cutoff)) continue;

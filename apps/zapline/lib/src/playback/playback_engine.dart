@@ -30,7 +30,8 @@ abstract class PlaybackEngine {
   Stream<String> get errors;
 
   /// The video surface. Rebuilds itself when the stream changes.
-  Widget buildView();
+  /// The picture, scaled to the screen as [fit] says.
+  Widget buildView({BoxFit fit = BoxFit.contain});
 }
 
 PlaybackEngine createDefaultEngine() {
