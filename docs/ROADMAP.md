@@ -102,16 +102,39 @@ Xtream login.
 
 ## Phase 2 — Feature parity (~20 weeks, month 12)
 
-Stalker portals · multiple guides with manual mapping and time offset ·
-logical channels with fallback across sources · movies/series with resume ·
-parental PIN · selectable video engine · Google Play and Amazon Appstore
-(Fire OS) · iOS after licence review.
+- [x] Sources > Manage: rename, extra XMLTV guides, guide time shift,
+      group filter (whole-word / `prefix*` / literal terms, include and
+      exclude, presets such as "Italian only" and "Hide adult", live
+      preview), per-group show/hide that wins over the filter, hidden
+      channels (database migration v2 → v3)
+- [x] Parental PIN: lock groups; locked groups stay out of lists, search
+      and the guide until the PIN is entered for the session
+- [x] Settings: sequential or provider numbering, open the last channel at
+      startup, picture fit (fit/zoom/stretch), 12/24-hour clock, days of
+      guide, auto-refresh interval
+- [x] Channel menu (hold OK): favourite, hide, fix its guide
+- [x] Recent channels group; channel list over the player (OK), Info key
+      toggles the info bar
+- [x] Programme search in the guide: plays live, replays from the archive,
+      or opens the channel
+- [x] Android TV: keyboard opens only on OK in text fields; Back no longer
+      closes the app on Android 16 (it popped twice)
+- [ ] Audio and subtitle track selection
+- [ ] Programme reminders (notify / switch when a programme starts)
+- [ ] Picture-in-picture (Android, desktop mini-player)
+- [ ] Stalker portals
+- [ ] Logical channels with fallback across sources
+- [ ] Movies/series with resume
+- [ ] Selectable video engine
+- [ ] Translations (Italian first)
+- [ ] Google Play and Amazon Appstore (Fire OS); iOS after licence review
 
 ## Phase 3 — Differentiation (~18 weeks, month 16)
 
 Web PWA with self-hosted relay · recording · multi-view · device sync
 (end-to-end encrypted or self-hosted) · Dispatcharr as a source.
-Decision on tvOS (separate SwiftUI app, +10 weeks).
+Design: [PHASE3.md](PHASE3.md). tvOS and Fire TV Vega OS are out of scope
+for now.
 
 ## Later
 
