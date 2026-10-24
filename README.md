@@ -15,7 +15,7 @@ paywall.
 
 ## Status
 
-Phase 0 (foundations). See [docs/ROADMAP.md](docs/ROADMAP.md).
+Phase 1 (MVP) in progress. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Targets
 
@@ -32,8 +32,12 @@ Phase 0 (foundations). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ```
 apps/lineup/          Flutter app (TV, mobile, desktop)
-packages/lineup_core/ Pure Dart core: M3U, Xtream-compatible API, XMLTV, EPG matching
-docs/                 Architecture and roadmap
+packages/lineup_core/ Pure Dart core: M3U, Xtream-compatible API, XMLTV,
+                      EPG matching, catch-up URLs
+packages/lineup_data/ SQLite storage, source sync, backup format
+tools/mock_panel/     Local Xtream-compatible test server (demo/demo)
+packaging/            Flatpak, winget and desktop metadata
+docs/                 Architecture, roadmap, releasing
 ```
 
 `lineup_core` has no Flutter dependency and can be reused by other clients.
@@ -47,6 +51,10 @@ dart pub get                      # resolves the whole workspace
 dart test packages/lineup_core    # core unit tests
 cd apps/lineup && flutter run     # run the app
 ```
+
+## Releasing
+
+See [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Contributing
 

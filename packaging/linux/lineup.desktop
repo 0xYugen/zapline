@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Lineup
+GenericName=IPTV player
+Comment=Free, open-source player for your own IPTV sources
+Exec=lineup
+Icon=io.github.OWNER.Lineup
+Categories=AudioVideo;Video;Player;TV;
+Keywords=iptv;m3u;xtream;epg;tv;
+Terminal=false

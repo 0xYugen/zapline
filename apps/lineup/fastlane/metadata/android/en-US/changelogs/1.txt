@@ -1,0 +1,1 @@
+First public preview: Xtream and M3U sources, TV guide, catch-up, favourites, QR setup, backup and restore.

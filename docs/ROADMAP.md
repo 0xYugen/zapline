@@ -80,7 +80,12 @@ documented.
 - [x] Logos: disk cache, in-flight dedup, decoded at display size, bounded
       image memory (48 MB), initials badge as fallback; in list, guide and
       player
-- [ ] Packaging: GitHub releases, F-Droid, Flathub, winget
+- [x] Packaging prepared: release workflow (Android APK/AAB, Windows,
+      Linux, macOS → draft GitHub release with checksums), Android signing
+      from key.properties or CI secrets, Flatpak/winget manifests, F-Droid
+      fastlane metadata; see docs/RELEASING.md
+- [ ] First real release: signing key, GitHub repository, run Linux/macOS
+      jobs and a Flathub test build, final icon and TV banner
 
 SQLite data layer and sync · Xtream + M3U sources · automatic Xtream guide via
 `xmltv.php` + external XMLTV · virtualised guide grid and mini-guide ·
