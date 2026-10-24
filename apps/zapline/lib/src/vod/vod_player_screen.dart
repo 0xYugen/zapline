@@ -261,7 +261,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _engine.buildView(fit: _fit),
+                // The native video view would swallow taps otherwise.
+                IgnorePointer(child: _engine.buildView(fit: _fit)),
                 if (_error != null) _errorView(_error!),
                 if (_duration == Duration.zero && _error == null)
                   const Center(

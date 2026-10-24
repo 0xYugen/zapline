@@ -62,9 +62,9 @@ class _MobileHomeState extends State<MobileHome> {
     // are a pill in the TV tab.
     final tabs = [
       _Tab.tv,
+      _Tab.guide,
       if (state.hasMovies) _Tab.movies,
       if (state.hasShows) _Tab.shows,
-      _Tab.guide,
       if (!vod) _Tab.favourites,
       _Tab.settings,
     ];

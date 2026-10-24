@@ -310,6 +310,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               }
             },
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => context.isPhone && _overlay
                   ? setState(() => _overlay = false)
                   : _showOverlay(),
@@ -318,7 +319,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _engine.buildView(fit: widget.state.settings.videoFit),
+                  // Android draws the picture in a native view that would
+                  // swallow taps, leaving no way to bring the controls back.
+                  IgnorePointer(
+                    child: _engine.buildView(
+                      fit: widget.state.settings.videoFit,
+                    ),
+                  ),
                   if (_error != null) _errorView(),
                   if (_digits.isNotEmpty)
                     Positioned(

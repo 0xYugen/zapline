@@ -60,9 +60,11 @@ ThemeData buildTheme() {
               : ZaplineColors.textMuted,
         ),
       ),
+      // Small enough for five tabs and "Impostazioni" on one line.
       labelTextStyle: WidgetStateProperty.resolveWith(
         (states) => TextStyle(
-          fontSize: 12,
+          fontSize: 11,
+          letterSpacing: -0.1,
           fontWeight: FontWeight.w700,
           color: states.contains(WidgetState.selected)
               ? ZaplineColors.text
