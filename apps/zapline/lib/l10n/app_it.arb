@@ -435,7 +435,7 @@
   "receivedTitle": "Ricevuto",
   "downloadingChannels": "Scarico canali e guida…",
   "startWatching": "Inizia a guardare",
-  "deviceNotFound": "Non raggiungo quel dispositivo. Siete sulla stessa rete Wi-Fi, con il codice sullo schermo?",
+  "deviceNotFound": "Non riesco a raggiungere la TV. Controlla che telefono e TV siano sulla stessa rete di casa e che sul telefono non sia attiva una VPN, poi riprova.",
   "notAZaplineCode": "Questo non è un codice di Zapline.",
   "typeCode": "Scrivi il codice a mano",
   "deviceAddress": "Indirizzo mostrato sulla TV",

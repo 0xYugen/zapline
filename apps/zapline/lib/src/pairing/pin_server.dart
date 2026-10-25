@@ -29,6 +29,11 @@ abstract class PinServer {
   /// LAN address to open, e.g. `192.168.1.24`.
   final String address;
 
+  /// This device's other LAN addresses, best first: the QR code carries
+  /// them too, for when [address] isn't the one the phone can reach (a TV
+  /// with Ethernet and Wi-Fi, Wi-Fi Direct, a VPN).
+  List<String> alternates = const [];
+
   /// Wrong codes by the device that sent them: one device guessing can't
   /// lock everyone else out.
   final _failures = <String, int>{};
@@ -45,58 +50,79 @@ abstract class PinServer {
     host: address,
     port: port,
     path: '/',
-    queryParameters: {'pin': pin},
+    queryParameters: {
+      'pin': pin,
+      if (alternates.isNotEmpty) 'alt': alternates.join(','),
+    },
     fragment: fragmentKey == null ? null : 'k=$fragmentKey',
   );
 
   /// Address to type by hand (PIN entered on the page).
   String get shortUrl => '$address:$port';
 
-  /// Binds a server and returns `(server, address, pin)`, or `null` when the
-  /// device has no LAN address.
-  static Future<(HttpServer, String, String)?> bind({
+  /// Binds a server and returns `(server, address, pin, other addresses)`,
+  /// or `null` when the device has no LAN address.
+  static Future<(HttpServer, String, String, List<String>)?> bind({
     String? pin,
     InternetAddress? bindTo,
   }) async {
-    final address = bindTo?.address ?? await lanAddress();
-    if (address == null) return null;
+    final all = bindTo != null ? [bindTo.address] : await lanAddresses();
+    if (all.isEmpty) return null;
     final server = await HttpServer.bind(bindTo ?? InternetAddress.anyIPv4, 0);
     return (
       server,
-      address,
+      all.first,
       pin ?? (Random.secure().nextInt(9000) + 1000).toString(),
+      all.sublist(1, all.length.clamp(1, 4)),
     );
   }
 
   /// Stops listening. Requests already being answered still complete.
   Future<void> close() => _server.close();
 
-  /// Best guess at this device's LAN IPv4 address: private ranges first.
-  static Future<String?> lanAddress() async {
+  /// Best guess at this device's LAN IPv4 address.
+  static Future<String?> lanAddress() async =>
+      (await lanAddresses()).firstOrNull;
+
+  /// This device's IPv4 addresses, the home network's first: Wi-Fi and
+  /// Ethernet before Wi-Fi Direct, hotspots, VPNs and virtual machines,
+  /// which a phone on the same Wi-Fi can't reach.
+  static Future<List<String>> lanAddresses() async {
     final List<NetworkInterface> ifaces;
     try {
       ifaces = await NetworkInterface.list(type: InternetAddressType.IPv4);
     } catch (_) {
-      return null;
+      return const [];
     }
-    final candidates = [
+    final ranked = <(int, int, String)>[
       for (final i in ifaces)
         for (final a in i.addresses)
-          if (!a.isLoopback && !a.isLinkLocal) a.address,
+          if (!a.isLoopback && !a.isLinkLocal)
+            (addressRank(i.name, a), 0, a.address),
     ];
-    int rank(String ip) {
-      if (ip.startsWith('192.168.')) return 0;
-      if (ip.startsWith('10.')) return 1;
-      final m = RegExp(r'^172\.(\d+)\.').firstMatch(ip);
-      if (m != null) {
-        final n = int.parse(m.group(1)!);
-        if (n >= 16 && n <= 31) return 2;
-      }
-      return 3;
-    }
+    // Equal ranks keep the system's order.
+    final ordered = [for (final (i, (r, _, ip)) in ranked.indexed) (r, i, ip)]
+      ..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2 - b.$2);
+    return [for (final (_, _, ip) in ordered) ip];
+  }
 
-    candidates.sort((a, b) => rank(a).compareTo(rank(b)));
-    return candidates.firstOrNull;
+  static final _virtual = RegExp(
+    r'^(p2p|ap\d|swlan|softap|tun|tap|ppp|wg|ipsec|rmnet|ccmni|docker|veth|'
+    r'br-|virbr|dummy|vboxnet|vmnet|utun|zt)|vethernet|virtualbox|vmware|'
+    r'hyper-v|tailscale|wireguard|vpn',
+  );
+
+  /// Lower is likelier to be the home network.
+  static int addressRank(String interface, InternetAddress a) {
+    var rank = 0;
+    if (!isLocalAddress(a)) rank += 20;
+    if (_virtual.hasMatch(interface.toLowerCase())) rank += 10;
+    // Android's Wi-Fi Direct and hotspot networks.
+    final ip = a.address;
+    if (ip.startsWith('192.168.49.') || ip.startsWith('192.168.43.')) {
+      rank += 5;
+    }
+    return rank;
   }
 
   Future<void> _handle(HttpRequest req) async {

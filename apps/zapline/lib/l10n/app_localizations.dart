@@ -2651,7 +2651,7 @@ abstract class AppLocalizations {
   /// No description provided for @deviceNotFound.
   ///
   /// In en, this message translates to:
-  /// **'Can\'t reach that device. Are both on the same Wi-Fi, with its code on screen?'**
+  /// **'Can\'t reach the TV. Check the phone and the TV are on the same home network and no VPN is on on the phone, then try again.'**
   String get deviceNotFound;
 
   /// No description provided for @notAZaplineCode.

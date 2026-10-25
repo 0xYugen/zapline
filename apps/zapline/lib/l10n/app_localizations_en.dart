@@ -1591,7 +1591,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deviceNotFound =>
-      'Can\'t reach that device. Are both on the same Wi-Fi, with its code on screen?';
+      'Can\'t reach the TV. Check the phone and the TV are on the same home network and no VPN is on on the phone, then try again.';
 
   @override
   String get notAZaplineCode => 'That isn\'t a Zapline code.';

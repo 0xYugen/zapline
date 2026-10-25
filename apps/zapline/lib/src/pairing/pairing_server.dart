@@ -41,8 +41,8 @@ class PairingServer extends PinServer {
   }) async {
     final b = await PinServer.bind(pin: pin, bindTo: bindTo);
     if (b == null) return null;
-    final (server, address, p) = b;
-    return PairingServer._(server, p, address, onSubmit);
+    final (server, address, p, others) = b;
+    return PairingServer._(server, p, address, onSubmit)..alternates = others;
   }
 
   @override

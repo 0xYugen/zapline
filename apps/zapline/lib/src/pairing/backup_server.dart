@@ -42,7 +42,7 @@ class BackupServer extends PinServer {
   }) async {
     final b = await PinServer.bind(pin: pin, bindTo: bindTo);
     if (b == null) return null;
-    final (server, address, p) = b;
+    final (server, address, p, others) = b;
     return BackupServer._(
       server,
       p,
@@ -51,7 +51,7 @@ class BackupServer extends PinServer {
       restore,
       name ?? Platform.localHostname,
       encrypted ? TransferCipher.newKey() : null,
-    );
+    )..alternates = others;
   }
 
   @override

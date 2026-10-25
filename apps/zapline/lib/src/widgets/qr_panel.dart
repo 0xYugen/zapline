@@ -22,7 +22,7 @@ class QrPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 320,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: ZaplineColors.surface,
         borderRadius: BorderRadius.circular(20),
@@ -50,7 +50,7 @@ class QrPanel extends StatelessWidget {
               ),
               child: QrImageView(
                 data: server.url.toString(),
-                size: 200,
+                size: 180,
                 padding: EdgeInsets.zero,
                 semanticsLabel: context.l10n.qrLabel,
               ),
@@ -69,6 +69,16 @@ class QrPanel extends StatelessWidget {
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
+          // If the first doesn't work by hand, one of these may.
+          for (final ip in server.alternates)
+            Text(
+              '$ip:${server.port}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: ZaplineColors.textMuted,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
           const SizedBox(height: 10),
           Text(
             context.l10n.code,

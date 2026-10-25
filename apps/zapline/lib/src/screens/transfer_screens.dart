@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
+import '../cast/cast_link.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../pairing/backup_server.dart';
@@ -252,6 +254,12 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
   }
 }
 
+/// A device that answered but turned the code down.
+class _Refused implements Exception {
+  const _Refused(this.message);
+  final String message;
+}
+
 /// The device found by scanning: where to send and what it is called.
 typedef _Target = ({Uri base, String pin, String name, String? key});
 
@@ -275,8 +283,11 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
   final _parts = {...BackupPart.values};
   bool _pin = false;
 
-  /// Checks a scanned or typed address answers as a Zapline device.
-  Future<void> _connect(Uri base, String pin, {String? key}) async {
+  /// Finds the device behind a scanned or typed code: the addresses it
+  /// gave are tried together, and when none answers (a TV showing the
+  /// address of a network the phone isn't on, such as Wi-Fi Direct) the
+  /// Zapline devices answering on this network are tried on the same port.
+  Future<void> _connect(List<Uri> bases, String pin, {String? key}) async {
     if (_checking || _target != null) return;
     setState(() {
       _checking = true;
@@ -284,25 +295,65 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
     });
     final l = context.l10n;
     try {
-      final res = await http
-          .get(base.replace(path: '/hello'), headers: {'x-zapline-pin': pin})
-          .timeout(const Duration(seconds: 6));
-      final body = jsonDecode(res.body) as Map;
-      if (body['ok'] != true) throw Exception(body['message']);
+      var found = await _firstAnswering(bases, pin);
+      if (found == null) {
+        final port = bases.first.port;
+        final nearby = await CastClient.discover();
+        found = await _firstAnswering([
+          for (final d in nearby)
+            Uri(scheme: 'http', host: d.address.address, port: port, path: '/'),
+        ], pin);
+      }
+      if (!mounted) return;
+      if (found == null) {
+        setState(() => _error = l.deviceNotFound);
+        return;
+      }
       HapticFeedback.mediumImpact();
-      setState(
-        () => _target = (
-          base: base,
-          pin: pin,
-          name: '${body['message']}',
-          key: key,
-        ),
-      );
-    } catch (_) {
-      setState(() => _error = l.deviceNotFound);
+      final (base, name) = found;
+      setState(() => _target = (base: base, pin: pin, name: name, key: key));
+    } on _Refused catch (e) {
+      // It answered but said no: a wrong or locked code.
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _checking = false);
     }
+  }
+
+  /// The first of [bases] answering as a Zapline device, with its name;
+  /// null when none does.
+  static Future<(Uri, String)?> _firstAnswering(
+    List<Uri> bases,
+    String pin,
+  ) async {
+    if (bases.isEmpty) return null;
+    final result = Completer<(Uri, String)?>();
+    var left = bases.length;
+    for (final base in bases) {
+      _hello(base, pin).then(
+        (name) {
+          if (!result.isCompleted) result.complete((base, name));
+        },
+        onError: (Object e) {
+          if (result.isCompleted) return;
+          if (e is _Refused) {
+            result.completeError(e);
+          } else if (--left == 0) {
+            result.complete(null);
+          }
+        },
+      );
+    }
+    return result.future;
+  }
+
+  static Future<String> _hello(Uri base, String pin) async {
+    final res = await http
+        .get(base.replace(path: '/hello'), headers: {'x-zapline-pin': pin})
+        .timeout(const Duration(seconds: 4));
+    final body = jsonDecode(res.body) as Map;
+    if (body['ok'] != true) throw _Refused('${body['message']}');
+    return '${body['message']}';
   }
 
   void _scanned(Code code) {
@@ -313,8 +364,13 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
       return;
     }
     final key = Uri.splitQueryString(uri.fragment)['k'];
+    final base = Uri(scheme: 'http', host: uri.host, port: uri.port, path: '/');
     _connect(
-      uri.replace(path: '/', query: '', fragment: ''),
+      [
+        base,
+        for (final ip in (uri.queryParameters['alt'] ?? '').split(','))
+          if (ip.isNotEmpty) base.replace(host: ip),
+      ],
       pin,
       key: key,
     );
@@ -377,7 +433,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
       setState(() => _error = l.deviceNotFound);
       return;
     }
-    await _connect(base.replace(path: '/'), p);
+    await _connect([base.replace(path: '/')], p);
   }
 
   Future<void> _send() async {
