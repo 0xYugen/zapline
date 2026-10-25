@@ -7,6 +7,9 @@
 // The guide is generated around the current time.
 //
 // From the Android emulator the host is reachable at http://10.0.2.2:<port>.
+//
+// `--big` serves a catalogue the size of a real provider's (12,000 channels,
+// 40,000 films, 8,000 series, a three-day guide) to test low-end devices.
 
 import 'dart:convert';
 import 'dart:io';
@@ -15,7 +18,7 @@ import 'dart:typed_data';
 const _user = 'demo';
 const _pass = 'demo';
 
-const _channels = [
+const _demoChannels = [
   (
     1,
     'Big Buck Bunny',
@@ -62,10 +65,76 @@ const _channels = [
   ),
 ];
 
-const _categories = {'1': 'Test Patterns', '2': 'Demo Channels'};
+const _demoCategories = {'1': 'Test Patterns', '2': 'Demo Channels'};
+
+var _channels = _demoChannels;
+var _categories = _demoCategories;
+var _movies = <Map<String, Object?>>[];
+var _series = <Map<String, Object?>>[];
+var _vodCategories = <String, String>{};
+var _guideChannels = 0;
+
+/// A provider-sized catalogue: Italian-looking names in country groups,
+/// all playing the demo streams.
+void _makeBig() {
+  const countries = ['IT', 'UK', 'DE', 'FR', 'ES', 'US', 'PT', 'NL'];
+  const kinds = ['Generalisti', 'Sport', 'Cinema', 'News', 'Kids', 'Doc', 'Music', 'Adult'];
+  _categories = {
+    for (var i = 0; i < countries.length * kinds.length; i++)
+      '${i + 10}': '${countries[i ~/ kinds.length]} | ${kinds[i % kinds.length]}',
+  };
+  final ids = _categories.keys.toList();
+  const tags = ['', ' HD', ' FHD', ' 4K'];
+  _channels = [
+    for (var i = 1; i <= 12000; i++)
+      (
+        i,
+        '${_categories[ids[i % ids.length]]!.split(' | ').first} | '
+            'Canale ${i ~/ 4}${tags[i % 4]}',
+        ids[i % ids.length],
+        i <= 3000 ? 'ch$i.test' : '',
+        _demoChannels[i % 5].$5,
+      ),
+  ];
+  _guideChannels = 3000;
+  _vodCategories = {
+    for (var i = 0; i < 60; i++) '${i + 100}': '${countries[i % 8]} | Genere $i',
+  };
+  final vids = _vodCategories.keys.toList();
+  _movies = [
+    for (var i = 1; i <= 40000; i++)
+      {
+        'num': i,
+        'name': 'Film $i (${1980 + i % 45})',
+        'stream_type': 'movie',
+        'stream_id': i,
+        'stream_icon': '',
+        'rating': '${(i % 90) / 10}',
+        'added': '${1700000000 + i * 60}',
+        'category_id': vids[i % vids.length],
+        'container_extension': 'mp4',
+      },
+  ];
+  _series = [
+    for (var i = 1; i <= 8000; i++)
+      {
+        'num': i,
+        'name': 'Serie $i',
+        'series_id': i,
+        'cover': '',
+        'plot': 'Trama della serie $i.',
+        'rating': '7.${i % 10}',
+        'last_modified': '${1700000000 + i * 60}',
+        'category_id': vids[i % vids.length],
+      },
+  ];
+}
 
 Future<void> main(List<String> args) async {
-  final port = args.isEmpty ? 8099 : int.parse(args.first);
+  final big = args.contains('--big');
+  final rest = [for (final a in args) if (a != '--big') a];
+  final port = rest.isEmpty ? 8099 : int.parse(rest.first);
+  if (big) _makeBig();
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
   stdout
       .writeln('Mock panel on http://localhost:$port  (user/pass: demo/demo)');
@@ -224,9 +293,15 @@ Object? _api(String? action, Map<String, String> q, HttpRequest req) {
             },
       ];
     case 'get_vod_categories' || 'get_series_categories':
-      return <Object>[];
-    case 'get_vod_streams' || 'get_series':
-      return <String, Object>{}; // some panels return {} instead of []
+      return [
+        for (final e in _vodCategories.entries)
+          {'category_id': e.key, 'category_name': e.value, 'parent_id': 0},
+      ];
+    case 'get_vod_streams':
+      // Some panels return {} instead of [] when there is nothing.
+      return _movies.isEmpty ? <String, Object>{} : _movies;
+    case 'get_series':
+      return _series.isEmpty ? <String, Object>{} : _series;
     case 'get_short_epg':
       final id = int.tryParse(q['stream_id'] ?? '');
       final ch = _channels.where((c) => c.$1 == id).firstOrNull;
@@ -254,7 +329,7 @@ Iterable<(DateTime, String, String)> _programmes(
   final now = DateTime.now().toUtc();
   var t = DateTime.utc(now.year, now.month, now.day, now.hour)
       .subtract(const Duration(hours: 2));
-  final end = now.add(const Duration(hours: 24));
+  final end = now.add(Duration(hours: _guideChannels > 0 ? 72 : 24));
   var n = 1;
   while (t.isBefore(end)) {
     yield (t, '${ch.$2} — Part $n', 'Generated programme $n on ${ch.$2}.');
@@ -278,7 +353,7 @@ String _xmltv() {
   final guide = [
     for (final c in _channels)
       if (c.$4.isNotEmpty) c,
-    (0, 'Cinema 1', '2', 'cinema1.test', ''),
+    if (_guideChannels == 0) (0, 'Cinema 1', '2', 'cinema1.test', ''),
   ];
   for (final c in guide) {
     b.writeln(

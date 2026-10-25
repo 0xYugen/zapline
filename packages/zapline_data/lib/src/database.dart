@@ -7,7 +7,7 @@ import 'source_record.dart';
 
 part 'vod_store.dart';
 
-const _schemaVersion = 7;
+const _schemaVersion = 8;
 
 /// Migrations from version N to N+1, applied in order.
 const _migrations = <List<String>>[
@@ -65,6 +65,15 @@ const _migrations = <List<String>>[
     "DELETE FROM programmes WHERE guide_id NOT LIKE 'xc/%'",
     "DELETE FROM guide_channels WHERE guide_id NOT LIKE 'xc/%'",
     "DELETE FROM epg_map WHERE kind != 'source'",
+  ],
+  // 7 -> 8: a programme by its title and time, for telling which guide
+  // channel airs what a provider says a channel is showing. The guides
+  // are emptied first (the next sync brings them back): indexing a full
+  // one would hold up the first start on a TV stick.
+  [
+    'DELETE FROM programmes',
+    'CREATE INDEX IF NOT EXISTS programmes_title '
+        'ON programmes(lower(trim(title)), start)',
   ],
 ];
 
@@ -963,21 +972,29 @@ class ZaplineDatabase {
   /// other guide channel does as well.
   String? _guideAiring(List<Programme> programmes) {
     final votes = <String, int>{};
-    for (final p in programmes.take(8)) {
-      final title = _titleKey(p.title);
-      if (title.length < 3) continue;
-      final at = _secs(p.start);
-      final seen = <String>{};
-      for (final r in _db.select(
-        'SELECT guide_id, title FROM programmes WHERE start BETWEEN ? AND ? '
-        "AND guide_id NOT LIKE '$channelGuidePrefix%'",
-        [at - 300, at + 300],
-      )) {
-        final id = r['guide_id'] as String;
-        if (_titleKey(r['title'] as String) == title && seen.add(id)) {
+    // The database compares the titles: with big guides thousands of
+    // programmes start in any ten minutes, too many to read one by one on
+    // a TV stick for every channel asked about.
+    final airing = _db.prepare(
+      'SELECT DISTINCT guide_id FROM programmes WHERE start BETWEEN ? AND ? '
+      'AND lower(trim(title)) = ? '
+      "AND guide_id NOT LIKE '$channelGuidePrefix%'",
+    );
+    try {
+      for (final p in programmes.take(8)) {
+        if (_titleKey(p.title).length < 3) continue;
+        final at = _secs(p.start);
+        for (final r in airing.select([
+          at - 300,
+          at + 300,
+          p.title.trim().toLowerCase(),
+        ])) {
+          final id = r['guide_id'] as String;
           votes[id] = (votes[id] ?? 0) + 1;
         }
       }
+    } finally {
+      airing.close();
     }
     if (votes.isEmpty) return null;
     final ranked = votes.entries.toList()

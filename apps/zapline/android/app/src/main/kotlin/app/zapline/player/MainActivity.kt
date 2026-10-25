@@ -12,12 +12,22 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterShellArgs
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     // Lets the app hear phones looking for it on the network ("Send to TV"):
     // many devices drop broadcast packets without it.
     private var multicastLock: WifiManager.MulticastLock? = null
+
+    // TVs draw with Skia: Impeller shows broken pictures and stalls on the
+    // PowerVR graphics of Fire TV sticks and many TV boxes (flutter/181315),
+    // and a TV's simple screens don't need it.
+    override fun getFlutterShellArgs(): FlutterShellArgs {
+        val args = super.getFlutterShellArgs()
+        if (isTv()) args.add(FlutterShellArgs.ARG_DISABLE_IMPELLER)
+        return args
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -30,15 +40,7 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "zapline/device")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    // Android TV, Google TV and Fire TV report television mode;
-                    // leanback covers older TV boxes that don't.
-                    "isTv" -> {
-                        val uiMode = getSystemService(UI_MODE_SERVICE) as UiModeManager
-                        result.success(
-                            uiMode.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
-                                packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-                        )
-                    }
+                    "isTv" -> result.success(isTv())
                     "deviceName" -> result.success(
                         Settings.Global.getString(contentResolver, "device_name")
                             ?: "${Build.MANUFACTURER} ${Build.MODEL}"
@@ -49,6 +51,18 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    // Android TV and Google TV report television mode; leanback covers older
+    // TV boxes that don't, and Fire TV is told apart by Amazon's own feature
+    // and its model names ("AFT…"), as not every Fire OS reports either.
+    private fun isTv(): Boolean {
+        val uiMode = getSystemService(UI_MODE_SERVICE) as UiModeManager
+        return uiMode.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+            packageManager.hasSystemFeature("android.hardware.type.television") ||
+            packageManager.hasSystemFeature("amazon.hardware.fire_tv") ||
+            Build.MODEL.startsWith("AFT")
     }
 
     // An update downloaded by the app goes to Android's installer, which
