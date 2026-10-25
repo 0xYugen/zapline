@@ -113,8 +113,8 @@ class _Builder {
             channelIcon = null;
           case 'programme':
             progChannel = attr('channel');
-            progStart = parseXmltvTime(attr('start'));
-            progStop = parseXmltvTime(attr('stop'));
+            progStart = parseXmltvTime(attr('start'), channelId: progChannel);
+            progStop = parseXmltvTime(attr('stop'), channelId: progChannel);
             title = desc = category = episode = null;
             progIcon = null;
           case 'icon':
@@ -192,7 +192,12 @@ class _Builder {
 ///
 /// Seconds and the offset are optional; without an offset the time is UTC,
 /// as the XMLTV DTD specifies.
-DateTime? parseXmltvTime(String? raw) {
+///
+/// With the guide [channelId], a local time whose offset is the wrong one
+/// of its European country's pair is fixed: guides are often left on
+/// summer time after the clocks change (`+0200` for Italy in November),
+/// which puts every programme an hour off. See [fixEuropeanOffset].
+DateTime? parseXmltvTime(String? raw, {String? channelId}) {
   if (raw == null) return null;
   final m = RegExp(
           r'^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?\s*([+-]\d{2}:?\d{2})?')
@@ -205,7 +210,52 @@ DateTime? parseXmltvTime(String? raw) {
   if (off == null) return base;
   final digits = off.replaceAll(':', '');
   final sign = digits.startsWith('-') ? -1 : 1;
-  final minutes = int.parse(digits.substring(1, 3)) * 60 +
-      int.parse(digits.substring(3, 5));
-  return base.subtract(Duration(minutes: sign * minutes));
+  var minutes = sign *
+      (int.parse(digits.substring(1, 3)) * 60 +
+          int.parse(digits.substring(3, 5)));
+  if (channelId != null) {
+    minutes = fixEuropeanOffset(base, minutes, channelId);
+  }
+  return base.subtract(Duration(minutes: minutes));
+}
+
+/// Standard offsets, in minutes, of the countries on the EU summer time
+/// rule, by the country suffix guides put on channel ids (`Rai1.it`).
+const _europeanZones = {
+  'uk': 0, 'gb': 0, 'ie': 0, 'pt': 0, //
+  'it': 60, 'de': 60, 'fr': 60, 'es': 60, 'at': 60, 'ch': 60, 'nl': 60,
+  'be': 60, 'lu': 60, 'pl': 60, 'cz': 60, 'sk': 60, 'hu': 60, 'si': 60,
+  'hr': 60, 'ba': 60, 'rs': 60, 'me': 60, 'mk': 60, 'al': 60, 'dk': 60,
+  'se': 60, 'no': 60, 'mt': 60, 'sm': 60, 'va': 60, 'ad': 60, 'mc': 60,
+  'li': 60, //
+  'gr': 120, 'ro': 120, 'bg': 120, 'fi': 120, 'ee': 120, 'lv': 120,
+  'lt': 120, 'cy': 120, 'ua': 120,
+};
+
+/// The offset (minutes) [local] really has in the country of [channelId].
+///
+/// Only an offset that is one of the country's two (standard or summer)
+/// but wrong for the date is changed; anything else, including channels of
+/// other countries or regions with their own time (`+0000` for the Canary
+/// Islands), is returned as given.
+int fixEuropeanOffset(DateTime local, int offset, String channelId) {
+  final dot = channelId.lastIndexOf('.');
+  if (dot < 0) return offset;
+  final std = _europeanZones[channelId.substring(dot + 1).toLowerCase()];
+  if (std == null || (offset != std && offset != std + 60)) return offset;
+  final valid = _isSummer(local.subtract(Duration(minutes: offset))) ==
+      (offset == std + 60);
+  if (valid) return offset;
+  return offset == std ? std + 60 : std;
+}
+
+/// EU summer time: from 01:00 UTC on the last Sunday of March to 01:00 UTC
+/// on the last Sunday of October.
+bool _isSummer(DateTime utc) {
+  DateTime lastSunday(int month) {
+    final last = DateTime.utc(utc.year, month + 1, 0, 1);
+    return last.subtract(Duration(days: last.weekday % 7));
+  }
+
+  return !utc.isBefore(lastSunday(3)) && utc.isBefore(lastSunday(10));
 }

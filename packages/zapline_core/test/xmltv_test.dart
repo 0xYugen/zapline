@@ -127,4 +127,34 @@ void main() {
     expect(rankGuideCandidates('News 24 FHD', guide).first.$2, 1.0);
     expect(rankGuideCandidates('Something else', guide), isEmpty);
   });
+
+  group('European offsets left on the wrong time', () {
+    DateTime t(String raw, String ch) => parseXmltvTime(raw, channelId: ch)!;
+
+    test('summer offset after the clocks go back is fixed', () {
+      // Tg2 at 20:30 Italian time on 26 Oct 2026, published as +0200.
+      expect(t('20261026203000 +0200', 'Rai2.it'),
+          DateTime.utc(2026, 10, 26, 19, 30));
+      expect(t('20261026203000 +0100', 'Rai2.it'),
+          DateTime.utc(2026, 10, 26, 19, 30));
+    });
+
+    test('winter offset in summer is fixed', () {
+      expect(t('20260701210000 +0100', 'TF1.fr'),
+          DateTime.utc(2026, 7, 1, 19));
+      expect(t('20260701210000 +0000', 'BBCOne.uk'),
+          DateTime.utc(2026, 7, 1, 20));
+    });
+
+    test('correct, UTC and foreign offsets stay as given', () {
+      expect(t('20261025010000 +0200', 'Rai1.it'),
+          DateTime.utc(2026, 10, 24, 23)); // before the change
+      expect(t('20261026193000 +0000', 'Rai2.it'),
+          DateTime.utc(2026, 10, 26, 19, 30));
+      expect(t('20261026203000 +0200', 'News.example'),
+          DateTime.utc(2026, 10, 26, 18, 30));
+      expect(parseXmltvTime('20261026203000 +0200'),
+          DateTime.utc(2026, 10, 26, 18, 30));
+    });
+  });
 }
