@@ -13,8 +13,6 @@ paywall.
 > channels or links, and the project does not endorse any provider. You are
 > responsible for the legality of the sources you add.
 
-> The name still needs a formal trademark search before the first store release.
-
 ## Install
 
 Builds are on the [releases page](https://github.com/0xYugen/zapline/releases/latest).
