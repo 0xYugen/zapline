@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
@@ -145,22 +147,64 @@ class _MobileHomeState extends State<MobileHome> {
         ),
       );
     }
+    final bar = NavigationBarTheme.of(context);
+    final labelSize = _labelSize(context, [
+      for (final (_, _, label) in destinations) label,
+    ]);
     return Scaffold(
       body: body,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: select,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          for (final (icon, selected, label) in destinations)
-            NavigationDestination(
-              icon: _dotted(icon, label),
-              selectedIcon: _dotted(selected, label),
-              label: label,
-            ),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: bar.copyWith(
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => bar.labelTextStyle
+                ?.resolve(states)
+                ?.copyWith(fontSize: labelSize),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: select,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: [
+            for (final (icon, selected, label) in destinations)
+              NavigationDestination(
+                icon: _dotted(icon, label),
+                selectedIcon: _dotted(selected, label),
+                label: label,
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// The tab labels' size: 11, or smaller when the longest ("Impostazioni")
+  /// wouldn't fit its tab on one line, on a narrow phone or with the
+  /// system's text made larger.
+  static double _labelSize(BuildContext context, List<String> labels) {
+    const base = 11.0;
+    final perTab = MediaQuery.sizeOf(context).width / labels.length - 10;
+    var widest = 0.0;
+    for (final label in labels) {
+      final p = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: base,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
+        ),
+        textScaler: MediaQuery.textScalerOf(context),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      widest = math.max(widest, p.width);
+      p.dispose();
+    }
+    if (widest <= perTab) return base;
+    return math.max(7.5, base * perTab / widest);
   }
 
   /// The settings icon carries a dot while a new version waits.
