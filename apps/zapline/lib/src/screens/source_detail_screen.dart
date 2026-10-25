@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:zapline_core/zapline_core.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
@@ -55,7 +56,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
             : l.refreshGuideFailed(r.guideErrors.join('; ')),
       );
     } catch (e) {
-      if (mounted) _snack(l.refreshFailed('$e'));
+      if (mounted) _snack(l.refreshFailed(redactSecrets('$e')));
     }
   }
 
@@ -75,7 +76,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
         );
       }
     } catch (e) {
-      if (mounted) _snack(l.refreshFailed('$e'));
+      if (mounted) _snack(l.refreshFailed(redactSecrets('$e')));
     }
   }
 

@@ -7,6 +7,7 @@ export 'src/m3u/m3u_parser.dart';
 export 'src/m3u/m3u_vod.dart';
 export 'src/models/channel.dart';
 export 'src/models/channel_variant.dart';
+export 'src/models/credentials.dart';
 export 'src/models/group_filter.dart';
 export 'src/models/source.dart';
 export 'src/models/vod.dart';

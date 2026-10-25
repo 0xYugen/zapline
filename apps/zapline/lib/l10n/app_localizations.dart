@@ -2929,6 +2929,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Phones unpaired'**
   String get castUnpaired;
+
+  /// No description provided for @noKeystoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords kept in Zapline only'**
+  String get noKeystoreTitle;
+
+  /// No description provided for @noKeystoreHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This system has no working keystore, so source passwords are saved in Zapline\'s own data on this device.'**
+  String get noKeystoreHint;
 }
 
 class _AppLocalizationsDelegate

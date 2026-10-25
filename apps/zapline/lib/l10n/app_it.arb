@@ -481,5 +481,7 @@
   "castPairedPhones": "Telefoni abbinati",
   "castPairedCount": "{count, plural, =1{1 telefono può trasmettere qui} other{{count} telefoni possono trasmettere qui}}",
   "castUnpairAll": "Scollega tutti",
-  "castUnpaired": "Telefoni scollegati"
+  "castUnpaired": "Telefoni scollegati",
+  "noKeystoreTitle": "Password salvate solo in Zapline",
+  "noKeystoreHint": "Questo sistema non ha un portachiavi funzionante: le password delle sorgenti restano nei dati di Zapline su questo dispositivo."
 }

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:zapline_core/zapline_core.dart' show redactSecrets;
 import 'package:zapline_data/zapline_data.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
@@ -73,7 +74,8 @@ Future<void> main() async {
         .addSource(SourceInput(url: _devSource))
         .then(
           (_) {},
-          onError: (Object e) => debugPrint('ZAPLINE_DEV_SOURCE failed: $e'),
+          onError: (Object e) =>
+              debugPrint(redactSecrets('ZAPLINE_DEV_SOURCE failed: $e')),
         );
   } else {
     // Startup shows cached data immediately; stale sources refresh behind it.

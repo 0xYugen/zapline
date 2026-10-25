@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
 import '../l10n.dart';
@@ -85,6 +86,8 @@ Future<void> offerFreeEpgIfUseful(BuildContext context, AppState state) async {
         ),
       );
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text(l.refreshFailed('$e'))));
+    messenger.showSnackBar(
+      SnackBar(content: Text(l.refreshFailed(redactSecrets('$e')))),
+    );
   }
 }

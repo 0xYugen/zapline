@@ -127,7 +127,12 @@ void main() {
       expect(r.guideErrors.single, contains('HTTP 500'));
       final c = db.channels().single;
       expect(c.groupTitle, 'News');
-      expect(c.streamUrl.toString(), 'http://panel.example:8080/live/u/p/7.ts');
+      // Stored without the account's credentials; back at play time.
+      expect(c.streamUrl.toString(), isNot(contains('/u/p/')));
+      expect(
+        revealCredentials(c.streamUrl, 'u', 'p').toString(),
+        'http://panel.example:8080/live/u/p/7.ts',
+      );
     },
   );
 

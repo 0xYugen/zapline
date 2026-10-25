@@ -182,13 +182,18 @@ class AppState extends ChangeNotifier {
         }
       } catch (e) {
         _keystoreWorks = false;
-        debugPrint('Keystore unavailable, passwords stay local: $e');
+        debugPrint('Keystore unavailable, passwords stay local');
         break;
       }
     }
     _reload();
+    _hideOldCredentials();
     notifyListeners();
   }
+
+  /// Whether passwords are in the system's keystore; when it doesn't work
+  /// they stay in Zapline's own database, and Settings says so.
+  bool get passwordsInKeystore => _keystoreWorks;
 
   List<SourceRecord> sources = const [];
   Set<String> _favouriteKeys = const {};
@@ -738,11 +743,56 @@ class AppState extends ChangeNotifier {
       db.airingOn(guideId, DateTime.now().toUtc());
 
   /// The archive URL for [p] on [c], or `null` if it cannot be replayed.
+  /// The account's user name and password for [sourceId]'s stream
+  /// addresses, which are stored without them.
+  (String, String)? _credentials(String sourceId) {
+    final s = sources.where((s) => s.id == sourceId).firstOrNull;
+    if (s == null) return null;
+    if (s.username.isNotEmpty && s.password.isNotEmpty) {
+      return (s.username, s.password);
+    }
+    return credentialsInLink(s.url);
+  }
+
+  Uri _reveal(String sourceId, Uri u) {
+    final c = _credentials(sourceId);
+    return c == null ? u : revealCredentials(u, c.$1, c.$2);
+  }
+
+  /// [c] with its stream address ready to open.
+  Channel playable(Channel c) {
+    final url = _reveal(c.sourceId, c.streamUrl);
+    if (identical(url, c.streamUrl)) return c;
+    return Channel(
+      sourceId: c.sourceId,
+      id: c.id,
+      name: c.name,
+      streamUrl: url,
+      number: c.number,
+      groupTitle: c.groupTitle,
+      logoUrl: c.logoUrl,
+      epgChannelId: c.epgChannelId,
+      catchup: c.catchup,
+      httpHeaders: c.httpHeaders,
+    );
+  }
+
+  /// One-time clean-up of addresses saved with credentials by older
+  /// versions.
+  void _hideOldCredentials() {
+    if (db.setting('credentialsHidden') == '1') return;
+    for (final s in sources) {
+      final c = _credentials(s.id);
+      if (c != null) db.hideStoredCredentials(s.id, c.$1, c.$2);
+    }
+    db.setSetting('credentialsHidden', '1');
+  }
+
   Uri? catchupUrl(Channel c, Programme p) {
     if (!canReplay(c, p)) return null;
     final source = sources.where((s) => s.id == c.sourceId).firstOrNull;
     return buildCatchupUrl(
-      c,
+      playable(c),
       start: p.start,
       stop: p.stop,
       serverOffset: source?.serverOffset ?? Duration.zero,
@@ -1115,14 +1165,18 @@ class AppState extends ChangeNotifier {
 
   Uri? movieUrl(Movie m, [MovieDetails? details]) {
     final source = _source(m.sourceId);
-    if (source == null || vod == null) return m.streamUrl;
-    return vod!.movieUrl(source, m, details: details);
+    final url = source == null || vod == null
+        ? m.streamUrl
+        : vod!.movieUrl(source, m, details: details);
+    return url == null ? null : _reveal(m.sourceId, url);
   }
 
   Uri? episodeUrl(Show s, Episode e) {
     final source = _source(s.sourceId);
-    if (source == null || vod == null) return e.streamUrl;
-    return vod!.episodeUrl(source, e);
+    final url = source == null || vod == null
+        ? e.streamUrl
+        : vod!.episodeUrl(source, e);
+    return url == null ? null : _reveal(s.sourceId, url);
   }
 
   PlaybackPosition? positionOf(String key) => db.position(key);
@@ -1291,7 +1345,7 @@ class AppState extends ChangeNotifier {
         stored = record.copyWith(password: '');
       } catch (e) {
         _keystoreWorks = false;
-        debugPrint('Keystore unavailable, password stays local: $e');
+        debugPrint('Keystore unavailable, password stays local');
       }
     }
     db.saveSource(stored);
@@ -1381,7 +1435,7 @@ class AppState extends ChangeNotifier {
         ids[i] = record.id;
         added++;
       } catch (e) {
-        failed.add('${s.name} ($e)');
+        failed.add(redactSecrets('${s.name} ($e)'));
       }
     }
     for (final (i, channel) in contents.favourites) {
@@ -1484,7 +1538,7 @@ class AppState extends ChangeNotifier {
       try {
         await _sync(s);
       } catch (e) {
-        debugPrint('Background refresh of ${s.name} failed: $e');
+        debugPrint(redactSecrets('Background refresh of ${s.name} failed: $e'));
       }
     }
   }

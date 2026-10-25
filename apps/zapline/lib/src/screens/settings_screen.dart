@@ -274,6 +274,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SettingsGroup(
               title: l.privacyAndSafety,
               children: [
+                if (!_state.passwordsInKeystore)
+                  SettingsTile(
+                    icon: Icons.warning_amber_rounded,
+                    iconColor: ZaplineColors.focus,
+                    title: l.noKeystoreTitle,
+                    subtitle: l.noKeystoreHint,
+                    chevron: false,
+                    onTap: () {},
+                  ),
                 SettingsTile(
                   icon: Icons.lock_outline_rounded,
                   title: l.parentalPin,

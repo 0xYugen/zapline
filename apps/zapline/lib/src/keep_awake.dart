@@ -9,6 +9,6 @@ Future<void> keepScreenAwake(bool on) async {
     await WakelockPlus.toggle(enable: on);
   } catch (e) {
     // No plugin in tests, or a platform without it: nothing to keep.
-    debugPrint('wakelock unavailable: $e');
+    debugPrint('wakelock unavailable');
   }
 }

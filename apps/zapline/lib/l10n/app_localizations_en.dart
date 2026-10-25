@@ -1772,4 +1772,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get castUnpaired => 'Phones unpaired';
+
+  @override
+  String get noKeystoreTitle => 'Passwords kept in Zapline only';
+
+  @override
+  String get noKeystoreHint =>
+      'This system has no working keystore, so source passwords are saved in Zapline\'s own data on this device.';
 }

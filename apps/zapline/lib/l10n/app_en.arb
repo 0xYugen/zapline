@@ -574,5 +574,7 @@
   "castPairedCount": "{count, plural, =1{1 phone can send to this screen} other{{count} phones can send to this screen}}",
   "@castPairedCount": {"placeholders": {"count": {"type": "int"}}},
   "castUnpairAll": "Unpair all",
-  "castUnpaired": "Phones unpaired"
+  "castUnpaired": "Phones unpaired",
+  "noKeystoreTitle": "Passwords kept in Zapline only",
+  "noKeystoreHint": "This system has no working keystore, so source passwords are saved in Zapline's own data on this device."
 }

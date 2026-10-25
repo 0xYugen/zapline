@@ -121,7 +121,7 @@ class SourceSync {
             programmes: guide.programmes + r.programmes,
           );
         } catch (e) {
-          errors.add('${url.host}: $e');
+          errors.add(redactSecrets('${url.host}: $e'));
         }
       }
       db.pruneProgrammes(now.subtract(guidePast));
@@ -164,7 +164,13 @@ class SourceSync {
             id: '${st.streamId}',
             name: st.name,
             number: st.number,
-            streamUrl: client.liveUrl(st.streamId, extension: ext),
+            // Stored without the account's credentials (see
+            // hideCredentials); they go back in when the stream opens.
+            streamUrl: hideCredentials(
+              client.liveUrl(st.streamId, extension: ext),
+              s.username,
+              s.password,
+            ),
             groupTitle: categories[st.categoryId],
             logoUrl: (st.iconUrl == null || st.iconUrl!.isEmpty)
                 ? null
@@ -266,10 +272,17 @@ class SourceSync {
     final movies = <Movie>[];
     final shows = <String, Show>{};
     final episodes = <(String, Episode)>[];
+    // Panels' playlists carry the account in every stream address.
+    final creds = s.username.isNotEmpty && s.password.isNotEmpty
+        ? (s.username, s.password)
+        : credentialsInLink(s.url);
     var i = 0;
     await for (final e in parser.parseBytes(res.stream)) {
-      final stream = Uri.tryParse(e.url);
-      if (stream == null) continue;
+      final raw = Uri.tryParse(e.url);
+      if (raw == null) continue;
+      final stream = creds == null
+          ? raw
+          : hideCredentials(raw, creds.$1, creds.$2);
       i++;
       final logo = e.tvgLogo == null ? null : Uri.tryParse(e.tvgLogo!);
       // Films and episodes are not channels.

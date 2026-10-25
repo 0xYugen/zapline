@@ -157,7 +157,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _open() async {
     final replay = _replay;
     final url = replay == null
-        ? _channel.streamUrl
+        ? widget.state.playable(_channel).streamUrl
         : widget.state.catchupUrl(_channel, replay);
     setState(() {
       _error = url == null ? _noArchive : null;

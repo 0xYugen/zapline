@@ -1777,4 +1777,11 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get castUnpaired => 'Telefoni scollegati';
+
+  @override
+  String get noKeystoreTitle => 'Password salvate solo in Zapline';
+
+  @override
+  String get noKeystoreHint =>
+      'Questo sistema non ha un portachiavi funzionante: le password delle sorgenti restano nei dati di Zapline su questo dispositivo.';
 }

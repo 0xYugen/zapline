@@ -287,7 +287,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
   /// Turns network and server errors into something a viewer can act on.
   String _friendly(Object e) {
     final l = context.l10n;
-    final raw = e.toString().replaceFirst('Exception: ', '');
+    final raw = redactSecrets(e.toString().replaceFirst('Exception: ', ''));
     final lower = raw.toLowerCase();
     if (lower.contains('already added')) return l.errorDuplicate;
     if (lower.contains('failed host lookup') ||

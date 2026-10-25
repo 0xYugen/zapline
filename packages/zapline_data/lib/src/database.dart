@@ -819,6 +819,25 @@ class ZaplineDatabase {
     return best.key;
   }
 
+  /// Rewrites stream addresses saved before Zapline stopped storing
+  /// credentials: [user] and [pass] become placeholders (see
+  /// hideCredentials). The next sync rewrites them anyway.
+  void hideStoredCredentials(String sourceId, String user, String pass) {
+    if (user.isEmpty || pass.isEmpty) return;
+    String seg(String v) => Uri(pathSegments: [v]).toString();
+    final from = '/${seg(user)}/${seg(pass)}/';
+    final to = '/${seg(credentialUser)}/${seg(credentialPass)}/';
+    _transaction(() {
+      for (final table in ['channels', 'movies', 'playlist_episodes']) {
+        _db.execute(
+          'UPDATE $table SET stream_url = replace(stream_url, ?, ?) '
+          'WHERE source_id = ? AND instr(stream_url, ?) > 0',
+          [from, to, sourceId, from],
+        );
+      }
+    });
+  }
+
   /// Drops programmes that ended before [before].
   int pruneProgrammes(DateTime before) {
     _db.execute('DELETE FROM programmes WHERE stop < ?', [_secs(before)]);
