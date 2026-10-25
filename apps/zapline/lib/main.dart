@@ -126,7 +126,19 @@ class _ZaplineAppState extends State<ZaplineApp>
       (_) => _checkReminders(),
     );
     widget.state.addListener(_announceUpdate);
+    // A TV can stay on for days: look again now and then.
+    _updateTimer = Timer.periodic(
+      const Duration(hours: 6),
+      (_) => _checkForUpdate(),
+    );
   }
+
+  Timer? _updateTimer;
+
+  /// Offline or GitHub busy: no update this time, nothing to say.
+  void _checkForUpdate() => unawaited(
+    widget.state.checkForUpdate().then((_) {}, onError: (Object _) {}),
+  );
 
   /// Says once per release that a new version is out, with a shortcut to
   /// the settings row that installs it.
@@ -156,6 +168,7 @@ class _ZaplineAppState extends State<ZaplineApp>
   @override
   void dispose() {
     widget.state.removeListener(_announceUpdate);
+    _updateTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _cast?.close();
     _reminderTimer?.cancel();
@@ -316,6 +329,7 @@ class _ZaplineAppState extends State<ZaplineApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       keepScreenAwake(widget.state.settings.keepScreenOn);
+      _checkForUpdate();
     }
   }
 

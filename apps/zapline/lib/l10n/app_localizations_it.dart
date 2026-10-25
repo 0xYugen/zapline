@@ -1836,7 +1836,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get checkUpdatesHint =>
-      'Una volta al giorno chiede a GitHub l’ultima versione. Non invia nulla su di te';
+      'All’apertura e ogni tanto chiede a GitHub l’ultima versione. Non invia nulla su di te';
 
   @override
   String get checkUpdatesNow => 'Controlla adesso';

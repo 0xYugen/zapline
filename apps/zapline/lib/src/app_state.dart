@@ -1117,8 +1117,8 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Looks for a newer release: at most once a day unless [now] (asked by
-  /// hand), and never when turned off, in store builds or in development
+  /// Looks for a newer release: at most once an hour unless [now] (asked
+  /// by hand), and never when turned off, in store builds or in development
   /// builds. Returns the update, or null when Zapline is up to date.
   Future<AppUpdate?> checkForUpdate({bool now = false}) async {
     final u = updater, build = buildOf(appVersion);
@@ -1128,7 +1128,7 @@ class AppState extends ChangeNotifier {
       final last = DateTime.fromMillisecondsSinceEpoch(
         settings.updateCheckedAt,
       );
-      if (DateTime.now().difference(last) < const Duration(hours: 20)) {
+      if (DateTime.now().difference(last) < const Duration(hours: 1)) {
         return update;
       }
     }

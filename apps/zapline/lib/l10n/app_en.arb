@@ -594,7 +594,7 @@
   "@updateFailed": {"placeholders": {"error": {"type": "String"}}},
   "updateAnnounce": "A new version of Zapline is out",
   "checkUpdates": "Check for updates",
-  "checkUpdatesHint": "Once a day, asks GitHub for the latest version. Nothing about you is sent",
+  "checkUpdatesHint": "When it opens and now and then, asks GitHub for the latest version. Nothing about you is sent",
   "checkUpdatesNow": "Check now",
   "checkingUpdates": "Checking…",
   "upToDate": "Zapline is up to date",

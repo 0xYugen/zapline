@@ -3029,7 +3029,7 @@ abstract class AppLocalizations {
   /// No description provided for @checkUpdatesHint.
   ///
   /// In en, this message translates to:
-  /// **'Once a day, asks GitHub for the latest version. Nothing about you is sent'**
+  /// **'When it opens and now and then, asks GitHub for the latest version. Nothing about you is sent'**
   String get checkUpdatesHint;
 
   /// No description provided for @checkUpdatesNow.

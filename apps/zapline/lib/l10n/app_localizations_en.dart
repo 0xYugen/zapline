@@ -1832,7 +1832,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checkUpdatesHint =>
-      'Once a day, asks GitHub for the latest version. Nothing about you is sent';
+      'When it opens and now and then, asks GitHub for the latest version. Nothing about you is sent';
 
   @override
   String get checkUpdatesNow => 'Check now';
