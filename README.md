@@ -15,6 +15,24 @@ paywall.
 
 > The name still needs a formal trademark search before the first store release.
 
+## Install
+
+Builds are on the [releases page](https://github.com/0xYugen/zapline/releases/latest).
+
+**Android TV and Fire TV**: install the free *Downloader* app from the
+store on the TV, open it and type:
+
+```
+https://github.com/0xYugen/zapline/releases/latest/download/zapline-tv.apk
+```
+
+Then open Zapline on the TV, choose *Receive* and scan the code with Zapline
+on your phone: sources, guides and settings come across.
+
+**Android phones**: download
+[zapline-phone.apk](https://github.com/0xYugen/zapline/releases/latest/download/zapline-phone.apk)
+(64-bit) and open it.
+
 ## Status
 
 Phase 1 (MVP) in progress. See [docs/ROADMAP.md](docs/ROADMAP.md).
