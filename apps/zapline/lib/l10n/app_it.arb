@@ -469,5 +469,17 @@
   "castLost": "Contatto perso con la TV",
   "castStopped": "Fermato",
   "castWatchHere": "Guarda qui",
-  "castStop": "Ferma sulla TV"
+  "castStop": "Ferma sulla TV",
+  "pinWait": "Troppi PIN sbagliati. Riprova tra {seconds} s.",
+  "castLocked": "Quel canale è bloccato col PIN su {device}.",
+  "castCodeExpired": "Il codice è scaduto. Chiudi e riprova.",
+  "castPairTitle": "Abbina {device}",
+  "castPairHint": "Scrivi il codice che compare adesso su {device}. Si fa una volta sola.",
+  "castPairing": "Abbina un telefono",
+  "castPairingAsk": "{phone} vuole mandare quello che guarda su questo schermo. Scrivi questo codice sul telefono:",
+  "castAPhone": "Un telefono",
+  "castPairedPhones": "Telefoni abbinati",
+  "castPairedCount": "{count, plural, =1{1 telefono può trasmettere qui} other{{count} telefoni possono trasmettere qui}}",
+  "castUnpairAll": "Scollega tutti",
+  "castUnpaired": "Telefoni scollegati"
 }

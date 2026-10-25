@@ -3,13 +3,18 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'transfer_crypto.dart';
+
 /// Base for the small LAN servers that let a phone or a PC browser talk to
 /// the TV (pairing, backup). They run only while their screen is open, bind
-/// to the LAN, require the PIN shown on screen, and lock after repeated
-/// wrong PINs. Nothing leaves the local network.
+/// to the LAN, answer only devices on it, require the PIN shown on screen,
+/// and stop answering a device after repeated wrong PINs. Nothing leaves
+/// the local network.
 abstract class PinServer {
   PinServer(this._server, this.pin, this.address) {
-    _server.listen(_handle, onError: (Object _) {});
+    _server
+      ..idleTimeout = const Duration(seconds: 20)
+      ..listen(_handle, onError: (Object _) {});
   }
 
   static const maxFailures = 5;
@@ -23,7 +28,14 @@ abstract class PinServer {
 
   /// LAN address to open, e.g. `192.168.1.24`.
   final String address;
-  int _failures = 0;
+
+  /// Wrong codes by the device that sent them: one device guessing can't
+  /// lock everyone else out.
+  final _failures = <String, int>{};
+
+  /// Extra secret carried in the QR code's fragment (never sent over the
+  /// network by browsers); `null` when the server doesn't need one.
+  String? get fragmentKey => null;
 
   int get port => _server.port;
 
@@ -34,6 +46,7 @@ abstract class PinServer {
     port: port,
     path: '/',
     queryParameters: {'pin': pin},
+    fragment: fragmentKey == null ? null : 'k=$fragmentKey',
   );
 
   /// Address to type by hand (PIN entered on the page).
@@ -88,6 +101,12 @@ abstract class PinServer {
 
   Future<void> _handle(HttpRequest req) async {
     final res = req.response;
+    final from = req.connectionInfo?.remoteAddress;
+    if (from == null || !isLocalAddress(from)) {
+      res.statusCode = HttpStatus.forbidden;
+      await res.close();
+      return;
+    }
     res.headers
       ..set('Cache-Control', 'no-store')
       ..set('X-Content-Type-Options', 'nosniff')
@@ -103,20 +122,27 @@ abstract class PinServer {
   /// Serves one request; the response is closed afterwards.
   Future<void> handle(HttpRequest req);
 
-  /// Checks [candidate] against the PIN, counting failures. On failure the
+  /// The PIN a request carries: the `x-zapline-pin` header (apps) or the
+  /// `pin` query parameter (the browser page).
+  static String? pinOf(HttpRequest req) =>
+      req.headers.value('x-zapline-pin') ?? req.uri.queryParameters['pin'];
+
+  /// Checks the request's PIN, counting failures per device. On failure the
   /// JSON error has been written and `false` is returned.
-  bool checkPin(String? candidate, HttpResponse res) {
-    if (_failures >= maxFailures) {
+  bool checkPin(HttpRequest req, HttpResponse res, {String? candidate}) {
+    final who = req.connectionInfo?.remoteAddress.address ?? '';
+    final failures = _failures[who] ?? 0;
+    if (failures >= maxFailures) {
       writeJson(res, HttpStatus.tooManyRequests, false, lockedMessage);
       return false;
     }
-    if (candidate == pin) return true;
-    _failures++;
+    if ((candidate ?? pinOf(req)) == pin) return true;
+    _failures[who] = failures + 1;
     writeJson(
       res,
       HttpStatus.forbidden,
       false,
-      _failures >= maxFailures
+      failures + 1 >= maxFailures
           ? lockedMessage
           : 'Wrong code. Check the 4 digits shown on the TV.',
     );

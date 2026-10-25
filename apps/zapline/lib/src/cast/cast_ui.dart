@@ -6,6 +6,7 @@ import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
 import '../l10n.dart';
+import '../layout.dart';
 import '../screens/player_screen.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -73,27 +74,38 @@ Future<void> sendToTv(
   );
   if (device == null || !context.mounted) return;
   final l = context.l10n;
-  String? error;
-  try {
-    error = await CastClient.play(device, request);
-  } catch (_) {
-    error = 'unreachable';
+  void say(String text) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
+
+  String? token;
+  for (var attempt = 0; attempt < 2; attempt++) {
+    if (!context.mounted) return;
+    token = await _pairedToken(context, state, device);
+    if (token == null || !context.mounted) return;
+    try {
+      await CastClient.play(device, token, request);
+      break;
+    } on CastException catch (e) {
+      if (!context.mounted) return;
+      if (e.code == 'unpaired' && attempt == 0) {
+        // The TV forgot this phone: pair again.
+        state.settings.castPairs = {...state.settings.castPairs}
+          ..remove(device.id);
+        continue;
+      }
+      say(switch (e.code) {
+        'unknown-source' => l.castNoList(device.name),
+        'locked' => l.castLocked(device.name),
+        _ => l.castFailed(device.name),
+      });
+      return;
+    } catch (_) {
+      if (context.mounted) say(l.castUnreachable(device.name));
+      return;
+    }
   }
-  if (!context.mounted) return;
-  if (error != null) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(switch (error) {
-            'unknown-source' => l.castNoList(device.name),
-            'unreachable' => l.castUnreachable(device.name),
-            _ => l.castFailed(device.name),
-          }),
-        ),
-      );
-    return;
-  }
+  if (token == null || !context.mounted) return;
   HapticFeedback.mediumImpact();
   final navigator = Navigator.of(context);
   stopHere();
@@ -102,11 +114,128 @@ Future<void> sendToTv(
       builder: (_) => CastRemoteScreen(
         state: state,
         device: device,
+        token: token!,
         channels: channels,
         index: index,
       ),
     ),
   );
+}
+
+/// The token for [device], pairing first when this phone hasn't yet: the
+/// TV shows a code, the user types it here.
+Future<String?> _pairedToken(
+  BuildContext context,
+  AppState state,
+  CastDevice device,
+) async {
+  final known = state.settings.castPairs[device.id];
+  if (known != null) return known;
+  final l = context.l10n;
+  try {
+    await CastClient.pair(device, await deviceName());
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.castUnreachable(device.name))));
+    }
+    return null;
+  }
+  if (!context.mounted) return null;
+  final token = await showDialog<String>(
+    context: context,
+    builder: (_) => _PairDialog(device: device),
+  );
+  if (token != null) {
+    state.settings.castPairs = {...state.settings.castPairs, device.id: token};
+  }
+  return token;
+}
+
+class _PairDialog extends StatefulWidget {
+  const _PairDialog({required this.device});
+
+  final CastDevice device;
+
+  @override
+  State<_PairDialog> createState() => _PairDialogState();
+}
+
+class _PairDialogState extends State<_PairDialog> {
+  final _code = TextEditingController();
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirm() async {
+    final l = context.l10n;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final token = await CastClient.confirm(widget.device, _code.text.trim());
+      if (mounted) Navigator.of(context).pop(token);
+    } on CastException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = e.code == 'wrong-code' ? l.wrongPin : l.castCodeExpired;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = l.castUnreachable(widget.device.name);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return AlertDialog(
+      title: Text(l.castPairTitle(widget.device.name)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.castPairHint(widget.device.name)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 8,
+            ),
+            onSubmitted: (_) => _confirm(),
+            decoration: InputDecoration(errorText: _error, counterText: ''),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.cancel),
+        ),
+        FilledButton(
+          onPressed: _busy ? null : _confirm,
+          child: Text(l.connect),
+        ),
+      ],
+    );
+  }
 }
 
 class _CastSheet extends StatefulWidget {
@@ -244,12 +373,16 @@ class CastRemoteScreen extends StatefulWidget {
     super.key,
     required this.state,
     required this.device,
+    required this.token,
     this.channels,
     this.index = 0,
   });
 
   final AppState state;
   final CastDevice device;
+
+  /// Proves this phone is paired with [device].
+  final String token;
 
   /// The list the channel came from; `null` for films and episodes.
   final List<Channel>? channels;
@@ -283,7 +416,7 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
 
   Future<void> _refresh() async {
     try {
-      final s = await CastClient.status(widget.device);
+      final s = await CastClient.status(widget.device, widget.token);
       if (mounted) {
         setState(() {
           _status = s;
@@ -305,7 +438,7 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
       );
     }
     try {
-      await CastClient.key(widget.device, key);
+      await CastClient.key(widget.device, widget.token, key);
     } catch (_) {}
     Future<void>.delayed(const Duration(milliseconds: 600), _refresh);
   }
@@ -337,14 +470,14 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
     if (request == null) return;
     setState(() => _index = picked);
     try {
-      await CastClient.play(widget.device, request);
+      await CastClient.play(widget.device, widget.token, request);
     } catch (_) {}
     _refresh();
   }
 
   Future<void> _watchHere() async {
     try {
-      await CastClient.stop(widget.device);
+      await CastClient.stop(widget.device, widget.token);
     } catch (_) {}
     if (!mounted) return;
     final list = _channels;
@@ -366,7 +499,7 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
 
   Future<void> _stop() async {
     try {
-      await CastClient.stop(widget.device);
+      await CastClient.stop(widget.device, widget.token);
     } catch (_) {}
     if (mounted) Navigator.of(context).pop();
   }

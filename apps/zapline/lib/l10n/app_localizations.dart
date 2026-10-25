@@ -2857,6 +2857,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop on the TV'**
   String get castStop;
+
+  /// No description provided for @pinWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many wrong PINs. Try again in {seconds} s.'**
+  String pinWait(int seconds);
+
+  /// No description provided for @castLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'That channel is locked with the PIN on {device}.'**
+  String castLocked(String device);
+
+  /// No description provided for @castCodeExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The code expired. Close and try again.'**
+  String get castCodeExpired;
+
+  /// No description provided for @castPairTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair with {device}'**
+  String castPairTitle(String device);
+
+  /// No description provided for @castPairHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the code now showing on {device}. You only do this once.'**
+  String castPairHint(String device);
+
+  /// No description provided for @castPairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair a phone'**
+  String get castPairing;
+
+  /// No description provided for @castPairingAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'{phone} wants to send what it plays to this screen. Type this code on it:'**
+  String castPairingAsk(String phone);
+
+  /// No description provided for @castAPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'A phone'**
+  String get castAPhone;
+
+  /// No description provided for @castPairedPhones.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired phones'**
+  String get castPairedPhones;
+
+  /// No description provided for @castPairedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 phone can send to this screen} other{{count} phones can send to this screen}}'**
+  String castPairedCount(int count);
+
+  /// No description provided for @castUnpairAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair all'**
+  String get castUnpairAll;
+
+  /// No description provided for @castUnpaired.
+  ///
+  /// In en, this message translates to:
+  /// **'Phones unpaired'**
+  String get castUnpaired;
 }
 
 class _AppLocalizationsDelegate

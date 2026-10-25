@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'pin_server.dart';
+import 'transfer_crypto.dart';
 
 /// Serves backup download and restore to a phone or PC browser over the
 /// LAN while the backup screen is open.
@@ -12,9 +13,18 @@ class BackupServer extends PinServer {
     this._export,
     this._restore,
     this._name,
+    this._key,
   );
 
-  final String Function() _export;
+  /// `null` on a device waiting to receive: it doesn't hand out its own
+  /// setup.
+  final String Function()? _export;
+
+  /// Decrypts setups sent by another Zapline (see [TransferCipher]).
+  final String? _key;
+
+  @override
+  String? get fragmentKey => _key;
   final Future<String> Function(String json) _restore;
 
   /// What a phone sending its setup calls this device.
@@ -23,11 +33,12 @@ class BackupServer extends PinServer {
   static const _maxBackupBytes = 5 << 20;
 
   static Future<BackupServer?> start({
-    required String Function() export,
+    required String Function()? export,
     required Future<String> Function(String json) restore,
     String? pin,
     InternetAddress? bindTo,
     String? name,
+    bool encrypted = false,
   }) async {
     final b = await PinServer.bind(pin: pin, bindTo: bindTo);
     if (b == null) return null;
@@ -39,6 +50,7 @@ class BackupServer extends PinServer {
       export,
       restore,
       name ?? Platform.localHostname,
+      encrypted ? TransferCipher.newKey() : null,
     );
   }
 
@@ -46,16 +58,17 @@ class BackupServer extends PinServer {
   Future<void> handle(HttpRequest req) async {
     final res = req.response;
     final pin = req.uri.queryParameters['pin'];
+    final export = _export;
     switch ((req.method, req.uri.path)) {
       case ('GET', '/'):
         res.headers.contentType = ContentType.html;
         res.write(_page(pin ?? ''));
       case ('GET', '/hello'):
         // A Zapline app checking it found the right device.
-        if (!checkPin(pin, res)) return;
+        if (!checkPin(req, res)) return;
         PinServer.writeJson(res, HttpStatus.ok, true, _name);
-      case ('GET', '/backup.json'):
-        if (!checkPin(pin, res)) return;
+      case ('GET', '/backup.json') when export != null:
+        if (!checkPin(req, res)) return;
         final now = DateTime.now();
         String two(int n) => n.toString().padLeft(2, '0');
         res.headers
@@ -65,10 +78,10 @@ class BackupServer extends PinServer {
             'attachment; filename="zapline-backup-'
                 '${now.year}${two(now.month)}${two(now.day)}.json"',
           );
-        res.write(_export());
+        res.write(export());
       case ('POST', '/restore'):
-        if (!checkPin(pin, res)) return;
-        final body = await PinServer.readBody(req, _maxBackupBytes);
+        if (!checkPin(req, res)) return;
+        var body = await PinServer.readBody(req, _maxBackupBytes);
         if (body == null) {
           PinServer.writeJson(
             res,
@@ -79,6 +92,11 @@ class BackupServer extends PinServer {
           return;
         }
         try {
+          final key = _key;
+          if (TransferCipher.isSealed(body)) {
+            if (key == null) throw const FormatException('Not expected here.');
+            body = await TransferCipher.open(body, key);
+          }
           final summary = await _restore(body);
           PinServer.writeJson(res, HttpStatus.ok, true, 'Done: $summary.');
         } catch (e) {

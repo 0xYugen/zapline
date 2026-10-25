@@ -66,7 +66,7 @@ class PairingServer extends PinServer {
       return;
     }
     final form = Uri.splitQueryString(body);
-    if (!checkPin(form['pin'], res)) return;
+    if (!checkPin(req, res, candidate: form['pin'])) return;
     final url = (form['url'] ?? '').trim();
     if (url.isEmpty) {
       PinServer.writeJson(

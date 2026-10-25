@@ -129,7 +129,11 @@ class _ZaplineAppState extends State<ZaplineApp>
   /// Listens for phones sending what to play ("Send to TV"); not in tests.
   Future<void> _startCast() async {
     if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return;
-    final r = await CastReceiver.start(this, name: await deviceName());
+    final r = await CastReceiver.start(
+      this,
+      id: widget.state.settings.castDeviceId(castSecret),
+      name: await deviceName(),
+    );
     if (!mounted) {
       await r?.close();
       return;
@@ -165,6 +169,10 @@ class _ZaplineAppState extends State<ZaplineApp>
                     .where((c) => c.id == id),
               ];
         if (channels.isEmpty) return 'unknown-channel';
+        // A locked group stays locked whoever asks.
+        if (state.isLocked(channels[i < 0 ? 0 : i].groupTitle ?? '')) {
+          return 'locked';
+        }
         if (i < 0) i = 0;
         navigator.popUntil((r) => r.isFirst);
         navigator.push(
@@ -202,6 +210,69 @@ class _ZaplineAppState extends State<ZaplineApp>
 
   @override
   CastStatus? get castStatus => widget.state.nowPlaying;
+
+  Route<void>? _codeDialog;
+
+  @override
+  void castShowCode(String? code, String from) {
+    final navigator = _navigator.currentState;
+    if (navigator == null) return;
+    if (_codeDialog case final open?) {
+      if (open.isActive) navigator.removeRoute(open);
+      _codeDialog = null;
+    }
+    if (code == null) return;
+    final route = DialogRoute<void>(
+      context: navigator.context,
+      builder: (context) {
+        final l = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(l.castPairing),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l.castPairingAsk(from.isEmpty ? l.castAPhone : from),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                code,
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 12,
+                  color: ZaplineColors.focus,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              autofocus: true,
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l.cancel),
+            ),
+          ],
+        );
+      },
+    );
+    _codeDialog = route;
+    navigator.push(route);
+  }
+
+  @override
+  String castPaired(String from) {
+    final token = castSecret();
+    final s = widget.state.settings;
+    s.castTokens = {...s.castTokens, token: from};
+    widget.state.settingsChanged();
+    return token;
+  }
+
+  @override
+  bool castTrusts(String token) =>
+      widget.state.settings.castTokens.containsKey(token);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

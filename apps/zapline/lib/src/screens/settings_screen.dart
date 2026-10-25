@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../keep_awake.dart';
 import '../l10n.dart';
 import '../layout.dart';
+import '../mobile/mobile_widgets.dart' show requirePinIfSet;
 import '../theme.dart';
 import '../widgets/brand.dart';
 import '../widgets/pin_pad.dart';
@@ -111,6 +112,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _open(Widget page) =>
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+
+  /// Screens that hand out passwords or could replace the PIN ask for it.
+  Future<void> _openWithPin(Widget page) async {
+    if (await requirePinIfSet(context, _state) && mounted) _open(page);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -278,7 +284,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SettingsTile(
                   icon: Icons.save_alt_rounded,
                   title: l.backupTitle,
-                  onTap: () => _open(BackupScreen(state: _state)),
+                  onTap: () => _openWithPin(BackupScreen(state: _state)),
                 ),
               ],
             ),
@@ -290,13 +296,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.send_to_mobile_rounded,
                     title: l.sendTitle,
                     subtitle: l.sendHint,
-                    onTap: () => _open(TransferSendScreen(state: _state)),
+                    onTap: () =>
+                        _openWithPin(TransferSendScreen(state: _state)),
+                  ),
+                if (_state.settings.castTokens.isNotEmpty)
+                  SettingsTile(
+                    icon: Icons.cast_connected_rounded,
+                    title: l.castPairedPhones,
+                    subtitle: l.castPairedCount(
+                      _state.settings.castTokens.length,
+                    ),
+                    value: l.castUnpairAll,
+                    chevron: false,
+                    onTap: () {
+                      _set(() => _state.settings.castTokens = const {});
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(l.castUnpaired)));
+                    },
                   ),
                 SettingsTile(
                   icon: Icons.qr_code_2_rounded,
                   title: l.receiveTitle,
                   subtitle: l.receiveHint,
-                  onTap: () => _open(TransferReceiveScreen(state: _state)),
+                  onTap: () =>
+                      _openWithPin(TransferReceiveScreen(state: _state)),
                 ),
               ],
             ),

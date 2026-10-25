@@ -11,7 +11,7 @@ import '../widgets/channel_tile.dart';
 import '../widgets/epg_suggestion.dart';
 import '../widgets/brand.dart';
 import '../widgets/focus_card.dart';
-import '../widgets/pin_pad.dart';
+import '../mobile/mobile_widgets.dart' show unlockWithPin;
 import 'guide_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
@@ -121,13 +121,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   Future<void> _enterGroup(String? g) async {
     final state = widget.state;
     if (g != null && state.isLocked(g)) {
-      final pin = await askPin(context, title: context.l10n.enterPin);
-      if (pin == null || !mounted) return;
-      if (!state.unlock(pin)) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(context.l10n.wrongPin)));
-        return;
-      }
+      if (!await unlockWithPin(context, state) || !mounted) return;
       // Rows are built on the next frame.
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _firstChannel.requestFocus(),

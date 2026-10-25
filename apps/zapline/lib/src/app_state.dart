@@ -263,8 +263,32 @@ class AppState extends ChangeNotifier {
   }
 
   /// Opens locked groups for this session when [pin] is right.
+  int _pinFailures = 0;
+  DateTime? _pinWaitUntil;
+
+  /// How long until the PIN can be tried again after several wrong ones.
+  Duration? get pinRetryIn {
+    final until = _pinWaitUntil;
+    if (until == null) return null;
+    final left = until.difference(DateTime.now());
+    return left > Duration.zero ? left : null;
+  }
+
   bool unlock(String pin) {
-    if (settings.pinHash != _hash(pin)) return false;
+    if (pinRetryIn != null) return false;
+    if (settings.pinHash != _hash(pin)) {
+      // From the third wrong PIN, a growing wait: 30 s, 60 s… up to 5 min.
+      _pinFailures++;
+      if (_pinFailures >= 3) {
+        final wait = 30 * (_pinFailures - 2);
+        _pinWaitUntil = DateTime.now().add(
+          Duration(seconds: wait > 300 ? 300 : wait),
+        );
+      }
+      return false;
+    }
+    _pinFailures = 0;
+    _pinWaitUntil = null;
     unlocked = true;
     _reload();
     notifyListeners();
@@ -1427,6 +1451,8 @@ class AppState extends ChangeNotifier {
           }
         case 'language':
           settings.setLanguage(value);
+        case 'pinHash' when hasPin && !unlocked:
+          continue;
         case _ when key == 'pinHash' || _portableSettings.contains(key):
           db.setSetting(key, value);
       }

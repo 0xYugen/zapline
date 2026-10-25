@@ -1718,4 +1718,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get castStop => 'Stop on the TV';
+
+  @override
+  String pinWait(int seconds) {
+    return 'Too many wrong PINs. Try again in $seconds s.';
+  }
+
+  @override
+  String castLocked(String device) {
+    return 'That channel is locked with the PIN on $device.';
+  }
+
+  @override
+  String get castCodeExpired => 'The code expired. Close and try again.';
+
+  @override
+  String castPairTitle(String device) {
+    return 'Pair with $device';
+  }
+
+  @override
+  String castPairHint(String device) {
+    return 'Type the code now showing on $device. You only do this once.';
+  }
+
+  @override
+  String get castPairing => 'Pair a phone';
+
+  @override
+  String castPairingAsk(String phone) {
+    return '$phone wants to send what it plays to this screen. Type this code on it:';
+  }
+
+  @override
+  String get castAPhone => 'A phone';
+
+  @override
+  String get castPairedPhones => 'Paired phones';
+
+  @override
+  String castPairedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count phones can send to this screen',
+      one: '1 phone can send to this screen',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get castUnpairAll => 'Unpair all';
+
+  @override
+  String get castUnpaired => 'Phones unpaired';
 }

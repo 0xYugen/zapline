@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../l10n.dart';
 import '../layout.dart';
+import '../mobile/mobile_widgets.dart' show requirePinIfSet;
 import '../widgets/settings_widgets.dart';
 import 'add_source_screen.dart';
 import 'backup_screen.dart';
@@ -48,7 +49,12 @@ class SourcesScreen extends StatelessWidget {
               SettingsTile(
                 icon: Icons.save_alt_rounded,
                 title: l.backupTitle,
-                onTap: () => _open(context, BackupScreen(state: state)),
+                onTap: () async {
+                  if (await requirePinIfSet(context, state) &&
+                      context.mounted) {
+                    _open(context, BackupScreen(state: state));
+                  }
+                },
               ),
             ],
           ),

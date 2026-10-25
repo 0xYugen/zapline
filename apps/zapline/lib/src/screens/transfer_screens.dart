@@ -10,6 +10,7 @@ import '../app_state.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../pairing/backup_server.dart';
+import '../pairing/transfer_crypto.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/qr_panel.dart';
@@ -42,8 +43,10 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
 
   Future<void> _start() async {
     final server = await BackupServer.start(
-      export: widget.state.exportBackup,
+      // Waiting to receive: this device's own setup stays here.
+      export: null,
       restore: _received,
+      encrypted: true,
     );
     if (!mounted) {
       await server?.close();
@@ -250,7 +253,7 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
 }
 
 /// The device found by scanning: where to send and what it is called.
-typedef _Target = ({Uri base, String pin, String name});
+typedef _Target = ({Uri base, String pin, String name, String? key});
 
 /// Sends this phone's setup to another Zapline on the home network: scan
 /// its QR code (or type its address), pick what to send, send.
@@ -273,7 +276,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
   bool _pin = false;
 
   /// Checks a scanned or typed address answers as a Zapline device.
-  Future<void> _connect(Uri base, String pin) async {
+  Future<void> _connect(Uri base, String pin, {String? key}) async {
     if (_checking || _target != null) return;
     setState(() {
       _checking = true;
@@ -282,13 +285,18 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
     final l = context.l10n;
     try {
       final res = await http
-          .get(base.replace(path: '/hello', queryParameters: {'pin': pin}))
+          .get(base.replace(path: '/hello'), headers: {'x-zapline-pin': pin})
           .timeout(const Duration(seconds: 6));
       final body = jsonDecode(res.body) as Map;
       if (body['ok'] != true) throw Exception(body['message']);
       HapticFeedback.mediumImpact();
       setState(
-        () => _target = (base: base, pin: pin, name: '${body['message']}'),
+        () => _target = (
+          base: base,
+          pin: pin,
+          name: '${body['message']}',
+          key: key,
+        ),
       );
     } catch (_) {
       setState(() => _error = l.deviceNotFound);
@@ -304,7 +312,12 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
       setState(() => _error = context.l10n.notAZaplineCode);
       return;
     }
-    _connect(uri.replace(path: '/', query: ''), pin);
+    final key = Uri.splitQueryString(uri.fragment)['k'];
+    _connect(
+      uri.replace(path: '/', query: '', fragment: ''),
+      pin,
+      key: key,
+    );
   }
 
   Future<void> _typeAddress() async {
@@ -376,11 +389,17 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
     final l = context.l10n;
     try {
       final json = widget.state.exportBackup(parts: _parts, includePin: _pin);
+      // Sealed with the key from the QR code, so the passwords don't cross
+      // the Wi-Fi readable.
+      final key = t.key;
       final res = await http
           .post(
-            t.base.replace(path: '/restore', queryParameters: {'pin': t.pin}),
-            headers: {'content-type': 'application/json'},
-            body: json,
+            t.base.replace(path: '/restore'),
+            headers: {
+              'content-type': 'application/json',
+              'x-zapline-pin': t.pin,
+            },
+            body: key == null ? json : await TransferCipher.seal(json, key),
           )
           .timeout(const Duration(seconds: 30));
       final body = jsonDecode(res.body) as Map;

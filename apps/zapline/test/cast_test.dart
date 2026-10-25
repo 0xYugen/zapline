@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zapline/main.dart';
+import 'package:zapline_data/zapline_data.dart';
 import 'package:zapline/src/app_state.dart';
 
 import 'dart:io';
@@ -45,6 +46,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(handler.castStatus?.title, 'Channel 4');
 
+    // A locked group stays locked when a phone sends its channel.
+    s.setPin('1234');
+    s.setGroupLocked(s.sources.single, s.channels()[1].groupTitle!, true);
+    s.lock();
+    final locked = s.db
+        .channels(
+          sourceId: s.sources.single.id,
+          visibility: ChannelVisibility.all,
+        )
+        .firstWhere((c) => s.isLocked(c.groupTitle ?? ''));
+    expect(
+      await handler.castPlay(castRequestFor(s, channel: locked)!),
+      'locked',
+    );
+
     handler.castStop();
     await tester.pumpAndSettle();
     expect(find.byType(PlayerScreen), findsNothing);
@@ -65,7 +81,9 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         home: CastRemoteScreen(
           state: s,
+          token: 't',
           device: CastDevice(
+            id: 'tv-1',
             name: 'Soggiorno',
             address: InternetAddress.loopbackIPv4,
             port: 1,

@@ -11,12 +11,32 @@ import '../widgets/pin_pad.dart';
 
 /// Asks for the PIN and opens locked groups for this session.
 Future<bool> unlockWithPin(BuildContext context, AppState state) async {
-  final pin = await askPin(context, title: context.l10n.enterPin);
+  final l = context.l10n;
+  if (state.pinRetryIn case final wait?) {
+    showPinWait(context, l, wait);
+    return false;
+  }
+  final pin = await askPin(context, title: l.enterPin);
   if (pin == null || !context.mounted) return false;
   if (state.unlock(pin)) return true;
-  ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(context.l10n.wrongPin)));
+  final wait = state.pinRetryIn;
+  wait == null
+      ? ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l.wrongPin)))
+      : showPinWait(context, l, wait);
   return false;
+}
+
+void showPinWait(BuildContext context, AppLocalizations l, Duration wait) =>
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(l.pinWait(wait.inSeconds + 1))));
+
+/// Asks for the parental PIN when one is set and not yet entered; for
+/// screens that reveal passwords or could change the PIN.
+Future<bool> requirePinIfSet(BuildContext context, AppState state) async {
+  if (!state.hasPin || state.unlocked) return true;
+  return unlockWithPin(context, state);
 }
 
 /// Horizontal strip of group pills with a button that opens every group in

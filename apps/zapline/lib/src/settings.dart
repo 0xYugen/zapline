@@ -82,6 +82,35 @@ class AppSettings {
   set noGuideChannels(Set<String> v) =>
       _db.setSetting('noGuideChannels', jsonEncode(v.toList()));
 
+  Map<String, String> _map(String key) {
+    final raw = _db.setting(key);
+    if (raw == null) return {};
+    try {
+      return (jsonDecode(raw) as Map).map((k, v) => MapEntry('$k', '$v'));
+    } on FormatException {
+      return {};
+    }
+  }
+
+  /// "Send to TV", phone side: token by paired device id.
+  Map<String, String> get castPairs => _map('castPairs');
+  set castPairs(Map<String, String> v) =>
+      _db.setSetting('castPairs', jsonEncode(v));
+
+  /// "Send to TV", receiving side: paired phone name by token.
+  Map<String, String> get castTokens => _map('castTokens');
+  set castTokens(Map<String, String> v) =>
+      _db.setSetting('castTokens', jsonEncode(v));
+
+  /// This installation's id for "Send to TV", made once.
+  String castDeviceId(String Function() make) {
+    final id = _db.setting('castDeviceId');
+    if (id != null) return id;
+    final fresh = make();
+    _db.setSetting('castDeviceId', fresh);
+    return fresh;
+  }
+
   /// How the picture fills the screen.
   BoxFit get videoFit => switch (_db.setting('videoFit')) {
     'cover' => BoxFit.cover,

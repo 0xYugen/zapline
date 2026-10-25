@@ -1723,4 +1723,58 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get castStop => 'Ferma sulla TV';
+
+  @override
+  String pinWait(int seconds) {
+    return 'Troppi PIN sbagliati. Riprova tra $seconds s.';
+  }
+
+  @override
+  String castLocked(String device) {
+    return 'Quel canale è bloccato col PIN su $device.';
+  }
+
+  @override
+  String get castCodeExpired => 'Il codice è scaduto. Chiudi e riprova.';
+
+  @override
+  String castPairTitle(String device) {
+    return 'Abbina $device';
+  }
+
+  @override
+  String castPairHint(String device) {
+    return 'Scrivi il codice che compare adesso su $device. Si fa una volta sola.';
+  }
+
+  @override
+  String get castPairing => 'Abbina un telefono';
+
+  @override
+  String castPairingAsk(String phone) {
+    return '$phone vuole mandare quello che guarda su questo schermo. Scrivi questo codice sul telefono:';
+  }
+
+  @override
+  String get castAPhone => 'Un telefono';
+
+  @override
+  String get castPairedPhones => 'Telefoni abbinati';
+
+  @override
+  String castPairedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count telefoni possono trasmettere qui',
+      one: '1 telefono può trasmettere qui',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get castUnpairAll => 'Scollega tutti';
+
+  @override
+  String get castUnpaired => 'Telefoni scollegati';
 }
