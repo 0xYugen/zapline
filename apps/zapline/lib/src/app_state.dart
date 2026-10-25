@@ -1479,14 +1479,16 @@ class AppState extends ChangeNotifier {
   );
 
   /// Adds the backup's sources (a source already here takes the backup's
-  /// filters and guides), downloads them, then restores everything else
-  /// that came along. Returns a summary for display; sources that fail to
-  /// connect are reported, not fatal.
+  /// filters and guides) and restores everything else that came along at
+  /// once, then downloads the sources in the background: on a TV stick
+  /// that takes minutes, and nothing chosen on the phone (groups, filters,
+  /// favourites, settings) may wait on it or be lost if it fails.
+  /// Returns a summary for display.
   Future<String> restoreBackup(String json) async {
     final contents = Backup.parse(json);
     final ids = <int, String>{};
     var added = 0, updated = 0;
-    final failed = <String>[];
+    final toSync = <SourceRecord>[];
     for (final (i, s) in contents.sources.indexed) {
       final existing = sources
           .where(
@@ -1508,6 +1510,7 @@ class AppState extends ChangeNotifier {
             showChoices: s.showChoices,
           ),
         );
+        toSync.add(_recordFromDb(existing.id));
         updated++;
         continue;
       }
@@ -1527,13 +1530,10 @@ class AppState extends ChangeNotifier {
         movieChoices: s.movieChoices,
         showChoices: s.showChoices,
       );
-      try {
-        await _addRecord(record);
-        ids[i] = record.id;
-        added++;
-      } catch (e) {
-        failed.add(redactSecrets('${s.name} ($e)'));
-      }
+      await _storeSource(record);
+      ids[i] = record.id;
+      toSync.add(record);
+      added++;
     }
     for (final (i, channel) in contents.favourites) {
       final id = ids[i];
@@ -1611,11 +1611,28 @@ class AppState extends ChangeNotifier {
     db.rebuildGuideLinks();
     _reload();
     notifyListeners();
+    restoreDownloads = _syncRestored(toSync);
     return [
       '$added sources restored',
       if (updated > 0) '$updated updated',
-      if (failed.isNotEmpty) 'could not connect to ${failed.join(', ')}',
     ].join(', ');
+  }
+
+  /// The downloads started by the last restore; tests wait on it.
+  @visibleForTesting
+  Future<void>? restoreDownloads;
+
+  /// Downloads restored sources one after the other. One that can't be
+  /// reached stays, with what was restored for it, and is tried again on
+  /// the next refresh.
+  Future<void> _syncRestored(List<SourceRecord> records) async {
+    for (final r in records) {
+      try {
+        await _sync(_recordFromDb(r.id));
+      } catch (e) {
+        debugPrint(redactSecrets('Restored ${r.name} not downloaded: $e'));
+      }
+    }
   }
 
   SourceRecord _recordFromDb(String id) =>

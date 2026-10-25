@@ -54,6 +54,10 @@ void main() {
     final tv = fakeState(count: 6, vod: true);
     final summary = await tv.restoreBackup(json);
     expect(summary, contains('1 sources restored'));
+    // Filters and settings are in place before the channels arrive.
+    expect(tv.sources.single.groupFilter.include, italianTerms);
+    expect(tv.settings.language.value, 'it');
+    await tv.restoreDownloads;
     final id = tv.sources.single.id;
     expect(id, isNot(src.id));
     expect(tv.sources.single.groupFilter.include, italianTerms);
@@ -76,5 +80,28 @@ void main() {
     expect(tv.sources, hasLength(1));
     expect(tv.favourites(), isEmpty);
     expect(tv.settings.language.value, isNull);
+  });
+
+  test('a source that cannot be downloaded keeps what was restored', () async {
+    final phone = await device();
+    final src = phone.sources.single;
+    phone.setFilter(
+      src,
+      ContentKind.tv,
+      const GroupFilter(include: italianTerms),
+    );
+    phone.settings.setLanguage('it');
+    final json = phone.exportBackup();
+
+    // A TV whose downloads fail (a slow stick, the server busy).
+    final tv = AppState(
+      ZaplineDatabase.inMemory(),
+      syncRunner: (source, onProgress) async => throw Exception('offline'),
+    );
+    expect(await tv.restoreBackup(json), contains('1 sources restored'));
+    await tv.restoreDownloads;
+    expect(tv.sources, hasLength(1));
+    expect(tv.sources.single.groupFilter.include, italianTerms);
+    expect(tv.settings.language.value, 'it');
   });
 }

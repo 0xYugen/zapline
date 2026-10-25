@@ -1849,4 +1849,8 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get updateCheckFailed => 'GitHub non risponde, riprova più tardi';
+
+  @override
+  String get sendTimedOut =>
+      'La TV non ha risposto in tempo. Tieni aperta su “Ricevi” e riprova: quello che è già arrivato resta.';
 }

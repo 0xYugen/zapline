@@ -59,6 +59,7 @@ void main() {
     final b = fakeState(count: 5, unmatched: {4});
     final summary = await b.restoreBackup(json);
     expect(summary, startsWith('1 sources restored'));
+    await b.restoreDownloads;
     expect(b.sources.single.password, 's3cret');
     expect(b.favourites().single.name, 'Channel 3');
     expect(
@@ -69,6 +70,7 @@ void main() {
 
     // Restoring again changes nothing.
     expect(await b.restoreBackup(json), contains('1 updated'));
+    await b.restoreDownloads;
     expect(b.sources, hasLength(1));
   });
 }

@@ -3055,6 +3055,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not reach GitHub, try again later'**
   String get updateCheckFailed;
+
+  /// No description provided for @sendTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV didn\'t answer in time. Keep it on “Receive” and try again: what already arrived stays.'**
+  String get sendTimedOut;
 }
 
 class _AppLocalizationsDelegate

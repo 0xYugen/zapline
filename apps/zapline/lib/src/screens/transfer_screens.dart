@@ -457,11 +457,16 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
             },
             body: key == null ? json : await TransferCipher.seal(json, key),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 60));
       final body = jsonDecode(res.body) as Map;
-      if (body['ok'] != true) throw Exception(body['message']);
+      if (body['ok'] != true) throw _Refused('${body['message']}');
       HapticFeedback.mediumImpact();
       setState(() => _sent = true);
+    } on TimeoutException {
+      setState(() => _error = l.sendTimedOut);
+    } on _Refused catch (e) {
+      // The TV answered with what went wrong.
+      setState(() => _error = '${l.sendFailed} ${e.message}');
     } catch (_) {
       setState(() => _error = l.sendFailed);
     } finally {

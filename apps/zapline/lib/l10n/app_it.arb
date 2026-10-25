@@ -502,5 +502,6 @@
   "checkUpdatesNow": "Controlla adesso",
   "checkingUpdates": "Controllo…",
   "upToDate": "Zapline è aggiornata",
-  "updateCheckFailed": "GitHub non risponde, riprova più tardi"
+  "updateCheckFailed": "GitHub non risponde, riprova più tardi",
+  "sendTimedOut": "La TV non ha risposto in tempo. Tieni aperta su “Ricevi” e riprova: quello che è già arrivato resta."
 }

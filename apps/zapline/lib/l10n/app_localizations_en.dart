@@ -1845,4 +1845,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateCheckFailed => 'Could not reach GitHub, try again later';
+
+  @override
+  String get sendTimedOut =>
+      'The TV didn\'t answer in time. Keep it on “Receive” and try again: what already arrived stays.';
 }
