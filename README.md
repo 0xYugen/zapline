@@ -15,15 +15,14 @@ paywall.
 
 ## Screenshots
 
-| Live TV | TV guide | Films |
-|---|---|---|
-| ![Live TV on a phone](docs/screenshots/phone-channels.png) | ![TV guide on a phone](docs/screenshots/phone-guide.png) | ![A film on a phone](docs/screenshots/phone-movie.png) |
+![The TV guide: what's on now and next on every channel](docs/screenshots/tv-guide.png)
 
-![Films on a TV, driven by the remote](docs/screenshots/tv-movies.png)
+![Series with artwork, driven by the remote](docs/screenshots/tv-series.png)
 
-![Guide settings on a computer](docs/screenshots/pc-guide.png)
+![First start: add a source](docs/screenshots/tv-welcome.png)
 
-Screenshots use demo data: Zapline comes with no channels or content.
+Shown on a TV. Channels, logos and titles are made up for the screenshots:
+Zapline comes with no channels or content.
 
 ## Install
 
