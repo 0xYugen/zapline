@@ -455,5 +455,19 @@
   "send": "Invia",
   "sentTitle": "Inviato",
   "sentHint": "{name} sta scaricando i canali adesso.",
-  "done": "Fatto"
+  "done": "Fatto",
+  "castButton": "Trasmetti alla TV",
+  "castTo": "Trasmetti {title} a…",
+  "castSearching": "Cerco Zapline sulla rete di casa…",
+  "castNoneFound": "Nessuno Zapline trovato. Apri Zapline sulla TV o sul PC, sulla stessa rete Wi-Fi.",
+  "castZaplineDevice": "Zapline",
+  "castOneStream": "Il telefono smette di riprodurre e diventa il telecomando: resta una connessione sola.",
+  "castNoList": "{device} non ha questa lista. Inviagliela da Impostazioni → Invia a un altro dispositivo.",
+  "castUnreachable": "Non raggiungo {device}.",
+  "castFailed": "{device} non è riuscito a riprodurlo.",
+  "castOnAir": "In onda su {device}",
+  "castLost": "Contatto perso con la TV",
+  "castStopped": "Fermato",
+  "castWatchHere": "Guarda qui",
+  "castStop": "Ferma sulla TV"
 }

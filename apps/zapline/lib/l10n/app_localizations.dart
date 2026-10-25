@@ -2773,6 +2773,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get done;
+
+  /// No description provided for @castButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to TV'**
+  String get castButton;
+
+  /// No description provided for @castTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Send {title} to…'**
+  String castTo(String title);
+
+  /// No description provided for @castSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for Zapline on your network…'**
+  String get castSearching;
+
+  /// No description provided for @castNoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No Zapline found. Open Zapline on the TV or PC, on the same Wi-Fi network.'**
+  String get castNoneFound;
+
+  /// No description provided for @castZaplineDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Zapline'**
+  String get castZaplineDevice;
+
+  /// No description provided for @castOneStream.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone stops playing and becomes the remote: still one stream.'**
+  String get castOneStream;
+
+  /// No description provided for @castNoList.
+  ///
+  /// In en, this message translates to:
+  /// **'{device} doesn\'t have this list. Send it there from Settings → Send to another device.'**
+  String castNoList(String device);
+
+  /// No description provided for @castUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach {device}.'**
+  String castUnreachable(String device);
+
+  /// No description provided for @castFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{device} couldn\'t play it.'**
+  String castFailed(String device);
+
+  /// No description provided for @castOnAir.
+  ///
+  /// In en, this message translates to:
+  /// **'On air on {device}'**
+  String castOnAir(String device);
+
+  /// No description provided for @castLost.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost contact with the TV'**
+  String get castLost;
+
+  /// No description provided for @castStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get castStopped;
+
+  /// No description provided for @castWatchHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch here'**
+  String get castWatchHere;
+
+  /// No description provided for @castStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop on the TV'**
+  String get castStop;
 }
 
 class _AppLocalizationsDelegate

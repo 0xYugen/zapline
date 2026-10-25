@@ -1669,4 +1669,58 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get done => 'Fatto';
+
+  @override
+  String get castButton => 'Trasmetti alla TV';
+
+  @override
+  String castTo(String title) {
+    return 'Trasmetti $title a…';
+  }
+
+  @override
+  String get castSearching => 'Cerco Zapline sulla rete di casa…';
+
+  @override
+  String get castNoneFound =>
+      'Nessuno Zapline trovato. Apri Zapline sulla TV o sul PC, sulla stessa rete Wi-Fi.';
+
+  @override
+  String get castZaplineDevice => 'Zapline';
+
+  @override
+  String get castOneStream =>
+      'Il telefono smette di riprodurre e diventa il telecomando: resta una connessione sola.';
+
+  @override
+  String castNoList(String device) {
+    return '$device non ha questa lista. Inviagliela da Impostazioni → Invia a un altro dispositivo.';
+  }
+
+  @override
+  String castUnreachable(String device) {
+    return 'Non raggiungo $device.';
+  }
+
+  @override
+  String castFailed(String device) {
+    return '$device non è riuscito a riprodurlo.';
+  }
+
+  @override
+  String castOnAir(String device) {
+    return 'In onda su $device';
+  }
+
+  @override
+  String get castLost => 'Contatto perso con la TV';
+
+  @override
+  String get castStopped => 'Fermato';
+
+  @override
+  String get castWatchHere => 'Guarda qui';
+
+  @override
+  String get castStop => 'Ferma sulla TV';
 }

@@ -10,6 +10,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
+import 'src/cast/cast_link.dart';
+import 'src/vod/vod_detail_screens.dart';
 import 'src/keep_awake.dart';
 import 'src/input_mode.dart';
 import 'src/l10n.dart';
@@ -93,7 +95,9 @@ class ZaplineApp extends StatefulWidget {
   State<ZaplineApp> createState() => _ZaplineAppState();
 }
 
-class _ZaplineAppState extends State<ZaplineApp> with WidgetsBindingObserver {
+class _ZaplineAppState extends State<ZaplineApp>
+    with WidgetsBindingObserver
+    implements CastHandler {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   final _backStack = BackStackObserver();
@@ -105,6 +109,7 @@ class _ZaplineAppState extends State<ZaplineApp> with WidgetsBindingObserver {
     InputMode.instance.attach();
     WidgetsBinding.instance.addObserver(this);
     keepScreenAwake(widget.state.settings.keepScreenOn);
+    _startCast();
     _reminderTimer = Timer.periodic(
       const Duration(seconds: 20),
       (_) => _checkReminders(),
@@ -114,9 +119,89 @@ class _ZaplineAppState extends State<ZaplineApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _cast?.close();
     _reminderTimer?.cancel();
     super.dispose();
   }
+
+  CastReceiver? _cast;
+
+  /// Listens for phones sending what to play ("Send to TV"); not in tests.
+  Future<void> _startCast() async {
+    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return;
+    final r = await CastReceiver.start(this, name: await deviceName());
+    if (!mounted) {
+      await r?.close();
+      return;
+    }
+    _cast = r;
+    widget.state.castPort = r?.port;
+  }
+
+  @override
+  Future<String?> castPlay(Map<String, Object?> request) async {
+    final state = widget.state;
+    final source = state.sources
+        .where((s) => sourceFingerprint(s) == request['source'])
+        .firstOrNull;
+    if (source == null) return 'unknown-source';
+    final navigator = _navigator.currentState;
+    final context = _navigator.currentContext;
+    if (navigator == null || context == null) return 'not-ready';
+    final at = Duration(milliseconds: (request['position'] as int?) ?? 0);
+    switch (request['kind']) {
+      case 'live':
+        final id = request['channel'];
+        final all = state.channels();
+        var i = all.indexWhere((c) => c.sourceId == source.id && c.id == id);
+        final channels = i >= 0
+            ? all
+            : [
+                ...state.db
+                    .channels(
+                      sourceId: source.id,
+                      visibility: ChannelVisibility.all,
+                    )
+                    .where((c) => c.id == id),
+              ];
+        if (channels.isEmpty) return 'unknown-channel';
+        if (i < 0) i = 0;
+        navigator.popUntil((r) => r.isFirst);
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                PlayerScreen(state: state, channels: channels, initialIndex: i),
+          ),
+        );
+      case 'movie':
+        final m = state.db.movie(source.id, '${request['movie']}');
+        if (m == null) return 'unknown-channel';
+        navigator.popUntil((r) => r.isFirst);
+        unawaited(playMovie(context, state, m, start: at));
+      case 'episode':
+        final show = state.db.show(source.id, '${request['show']}');
+        if (show == null) return 'unknown-channel';
+        final details = await state.showDetails(show);
+        final ep = details.episodes
+            .where((e) => e.id == '${request['episode']}')
+            .firstOrNull;
+        if (ep == null || !context.mounted) return 'unknown-channel';
+        navigator.popUntil((r) => r.isFirst);
+        unawaited(playEpisodes(context, state, show, details, ep, start: at));
+      default:
+        return 'unsupported';
+    }
+    return null;
+  }
+
+  @override
+  void castKey(String key) => widget.state.remoteKeys.add(key);
+
+  @override
+  void castStop() => _navigator.currentState?.popUntil((r) => r.isFirst);
+
+  @override
+  CastStatus? get castStatus => widget.state.nowPlaying;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

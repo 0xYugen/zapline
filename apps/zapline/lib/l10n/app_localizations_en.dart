@@ -1664,4 +1664,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get done => 'Done';
+
+  @override
+  String get castButton => 'Send to TV';
+
+  @override
+  String castTo(String title) {
+    return 'Send $title to…';
+  }
+
+  @override
+  String get castSearching => 'Looking for Zapline on your network…';
+
+  @override
+  String get castNoneFound =>
+      'No Zapline found. Open Zapline on the TV or PC, on the same Wi-Fi network.';
+
+  @override
+  String get castZaplineDevice => 'Zapline';
+
+  @override
+  String get castOneStream =>
+      'This phone stops playing and becomes the remote: still one stream.';
+
+  @override
+  String castNoList(String device) {
+    return '$device doesn\'t have this list. Send it there from Settings → Send to another device.';
+  }
+
+  @override
+  String castUnreachable(String device) {
+    return 'Can\'t reach $device.';
+  }
+
+  @override
+  String castFailed(String device) {
+    return '$device couldn\'t play it.';
+  }
+
+  @override
+  String castOnAir(String device) {
+    return 'On air on $device';
+  }
+
+  @override
+  String get castLost => 'Lost contact with the TV';
+
+  @override
+  String get castStopped => 'Stopped';
+
+  @override
+  String get castWatchHere => 'Watch here';
+
+  @override
+  String get castStop => 'Stop on the TV';
 }

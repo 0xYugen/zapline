@@ -1109,6 +1109,17 @@ class AppState extends ChangeNotifier {
     db.savePosition(key, position, duration);
   }
 
+  /// What this device plays now, for a phone controlling it ("Send to
+  /// TV"); set by the players.
+  ({String title, String? subtitle})? nowPlaying;
+
+  /// Port this device receives "Send to TV" on, to leave itself out of the
+  /// devices it finds.
+  int? castPort;
+
+  /// Keys from a phone controlling this device: "up", "down", "toggle".
+  final remoteKeys = StreamController<String>.broadcast();
+
   /// Called when the player closes so rows like "Continue watching" update.
   void positionsChanged() => notifyListeners();
 

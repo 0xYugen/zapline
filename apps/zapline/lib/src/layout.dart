@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,6 +45,23 @@ enum FormFactor {
       isTv = false;
     }
   }
+}
+
+/// What other devices call this one: the name set in Android's settings
+/// ("Soggiorno"), else the model or the computer's name.
+Future<String> deviceName() async {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    try {
+      final name = await const MethodChannel('zapline/device')
+          .invokeMethod<String>('deviceName');
+      if (name != null && name.isNotEmpty) return name;
+    } on PlatformException {
+      // fall through
+    } on MissingPluginException {
+      // fall through
+    }
+  }
+  return kIsWeb ? 'Zapline' : Platform.localHostname;
 }
 
 extension FormFactorContext on BuildContext {

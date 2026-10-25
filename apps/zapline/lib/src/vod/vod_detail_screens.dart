@@ -18,6 +18,7 @@ Future<void> playMovie(
   Movie movie, {
   MovieDetails? details,
   bool fromStart = false,
+  Duration? start,
 }) async {
   details ??= await state.movieDetails(movie);
   if (!context.mounted) return;
@@ -32,9 +33,11 @@ Future<void> playMovie(
             key: key,
             title: cleanTitle(movie.name),
             url: state.movieUrl(movie, details),
-            start: !fromStart && saved != null && saved.resumable
-                ? saved.position
-                : Duration.zero,
+            start:
+                start ??
+                (!fromStart && saved != null && saved.resumable
+                    ? saved.position
+                    : Duration.zero),
           ),
         ],
       ),
@@ -157,28 +160,13 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
   }
 
   Future<void> _play(ShowDetails d, Episode e, {bool fromStart = false}) async {
-    final state = widget.state;
-    final show = widget.show;
-    final from = d.episodes.indexOf(e);
-    final positions = state.episodePositions(show);
-    final l = context.l10n;
-    final items = [
-      for (final ep in d.episodes.skip(from))
-        VodPlayable(
-          key: VodCatalog.episodeKey(show, ep),
-          title: cleanTitle(show.name),
-          subtitle:
-              '${l.episodeCode(ep.season, ep.number)} · ${_episodeTitle(ep)}',
-          url: state.episodeUrl(show, ep),
-          start: ep == e && !fromStart && (positions[ep.id]?.resumable ?? false)
-              ? positions[ep.id]!.position
-              : Duration.zero,
-        ),
-    ];
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VodPlayerScreen(state: state, items: items),
-      ),
+    await playEpisodes(
+      context,
+      widget.state,
+      widget.show,
+      d,
+      e,
+      fromStart: fromStart,
     );
     if (mounted) setState(() {});
   }
@@ -917,4 +905,41 @@ class _MoreLikeThis extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Plays [show] from [episode] to the end of its list, resuming [episode]
+/// where it was left unless [fromStart] (or at [start] when given).
+Future<void> playEpisodes(
+  BuildContext context,
+  AppState state,
+  Show show,
+  ShowDetails details,
+  Episode episode, {
+  bool fromStart = false,
+  Duration? start,
+}) {
+  final from = details.episodes.indexOf(episode);
+  final positions = state.episodePositions(show);
+  final l = context.l10n;
+  final items = [
+    for (final ep in details.episodes.skip(from < 0 ? 0 : from))
+      VodPlayable(
+        key: VodCatalog.episodeKey(show, ep),
+        title: cleanTitle(show.name),
+        subtitle:
+            '${l.episodeCode(ep.season, ep.number)} · ${_episodeTitle(ep)}',
+        url: state.episodeUrl(show, ep),
+        start: ep != episode
+            ? Duration.zero
+            : start ??
+                  (!fromStart && (positions[ep.id]?.resumable ?? false)
+                      ? positions[ep.id]!.position
+                      : Duration.zero),
+      ),
+  ];
+  return Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => VodPlayerScreen(state: state, items: items),
+    ),
+  );
 }

@@ -12,6 +12,7 @@ import '../layout.dart';
 import '../mobile/programme_sheet.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
+import '../cast/cast_ui.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/channel_versions.dart';
 import '../widgets/focus_card.dart';
@@ -79,6 +80,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _subs
       ..add(
+        // A phone that sent this channel here works as the remote.
+        widget.state.remoteKeys.stream.listen((k) {
+          if (k == 'up') _zap(-1);
+          if (k == 'down') _zap(1);
+        }),
+      )
+      ..add(
         // Zap ends when playback position first advances on the new stream.
         // (Resolution events are not enough: two channels often share it.)
         _engine.position.listen((p) {
@@ -125,9 +133,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (final s in _subs) {
       s.cancel();
     }
+    widget.state.nowPlaying = null;
     _engine.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Moves playback to a TV or PC running Zapline; this phone stops.
+  Future<void> _sendToTv() async {
+    final request = castRequestFor(widget.state, channel: _channel);
+    if (request == null) return;
+    await sendToTv(
+      context,
+      widget.state,
+      request: request,
+      title: widget.state.displayName(_channel),
+      stopHere: () => Navigator.of(context).pop(),
+      channels: widget.channels,
+      index: _index,
+    );
   }
 
   Future<void> _open() async {
@@ -146,6 +170,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     await _engine.stop();
     if (url == null) return;
     if (replay == null) widget.state.markWatched(_channel);
+    widget.state.nowPlaying = (
+      title: widget.state.displayName(_channel),
+      subtitle: (replay ?? widget.state.nowNext(_channel).$1)?.title,
+    );
     _zapWatch
       ..reset()
       ..start();
@@ -467,9 +495,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     const shadow = [Shadow(blurRadius: 8)];
 
     Widget tool(IconData icon, String tip, VoidCallback onTap) => Padding(
-      padding: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.only(left: 4),
       child: IconButton(
         tooltip: tip,
+        // Up to six tools share the top row of a phone held upright.
+        visualDensity: VisualDensity.compact,
         style: IconButton.styleFrom(
           backgroundColor: Colors.white.withValues(alpha: 0.12),
           foregroundColor: Colors.white,
@@ -598,6 +628,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     tool(Icons.info_outline_rounded, l.programmeInfo, () {
                       _showInfo(c, p);
                     }),
+                  tool(Icons.cast_rounded, l.castButton, _sendToTv),
                   if (widget.state.versionsOf(c).length > 1)
                     tool(Icons.hd_outlined, l.channelVersion, _pickVersion),
                   tool(Icons.subtitles_outlined, l.audioAndSubtitles, _tracks),

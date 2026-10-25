@@ -8,6 +8,7 @@ import '../l10n.dart';
 import '../layout.dart';
 import '../playback/playback_engine.dart';
 import '../theme.dart';
+import '../cast/cast_ui.dart';
 import '../widgets/tracks_sheet.dart';
 
 /// Something the VOD player can play: a film or an episode.
@@ -56,6 +57,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
   Timer? _tick;
   Timer? _hideTimer;
   StreamSubscription<String>? _errors;
+  StreamSubscription<String>? _keys;
   String? _error;
   bool _overlay = true;
   BoxFit _fit = BoxFit.contain;
@@ -77,6 +79,9 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     super.initState();
     _errors = _engine.errors.listen((e) {
       if (mounted) setState(() => _error = e);
+    });
+    _keys = widget.state.remoteKeys.stream.listen((k) {
+      if (k == 'toggle') _togglePlay();
     });
     _tick = Timer.periodic(const Duration(milliseconds: 500), (_) => _poll());
     _open(_item.start);
@@ -109,6 +114,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     _tick?.cancel();
     _hideTimer?.cancel();
     _errors?.cancel();
+    _keys?.cancel();
+    widget.state.nowPlaying = null;
     _engine.dispose();
     _focus.dispose();
     super.dispose();
@@ -123,7 +130,24 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
       _ended = false;
     });
     _showOverlay();
+    widget.state.nowPlaying = (title: _item.title, subtitle: _item.subtitle);
     if (url != null) await _engine.open(url, start: start);
+  }
+
+  Future<void> _sendToTv() async {
+    final request = castRequestFor(
+      widget.state,
+      vodKey: _item.key,
+      position: _engine.currentPosition,
+    );
+    if (request == null) return;
+    await sendToTv(
+      context,
+      widget.state,
+      request: request,
+      title: _item.title,
+      stopHere: () => Navigator.of(context).pop(),
+    );
   }
 
   void _poll() {
@@ -396,6 +420,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                       ],
                     ),
                   ),
+                  round(Icons.cast_rounded, l.castButton, _sendToTv, 24),
                   round(
                     Icons.subtitles_outlined,
                     l.audioAndSubtitles,
