@@ -110,6 +110,8 @@ class SourceSync {
     if (includeGuide) {
       final now = DateTime.now().toUtc();
       final urls = {...guideUrls, ...source.extraGuideUrls.map(Uri.parse)};
+      // Each guide channel's coming programmes are replaced once per sync.
+      final replaced = <String>{};
       for (final url in urls) {
         try {
           final r = await _importGuide(
@@ -118,6 +120,7 @@ class SourceSync {
             onProgress,
             guide.programmes,
             source.guideOffset,
+            replaced,
           );
           guide = GuideImportResult(
             channels: guide.channels + r.channels,
@@ -389,6 +392,7 @@ class SourceSync {
     void Function(SyncProgress)? onProgress,
     int offset,
     Duration shift,
+    Set<String> replaced,
   ) async {
     onProgress?.call(
       SyncProgress(SyncStage.guide, count: offset, message: url.host),
@@ -411,7 +415,7 @@ class SourceSync {
               ? item
               : XmltvProgramme(item.programme.shifted(shift));
         });
-    return db.importGuide(items);
+    return db.importGuide(items, replaced: replaced, now: now);
   }
 
   Future<http.StreamedResponse> _send(Uri uri) async {

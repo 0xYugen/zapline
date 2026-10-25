@@ -79,7 +79,11 @@ Future<void> main() async {
         );
   } else {
     // Startup shows cached data immediately; stale sources refresh behind it.
-    state.refreshStale();
+    // Once after the guide-replacement fix, every source refreshes so
+    // programmes left doubled by the daylight saving change go away.
+    final cleanup = state.db.setting('guideReplaceFix') == null;
+    if (cleanup) state.db.setSetting('guideReplaceFix', '1');
+    state.refreshStale(maxAge: cleanup ? Duration.zero : null);
   }
 }
 

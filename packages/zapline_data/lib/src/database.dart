@@ -685,10 +685,23 @@ class ZaplineDatabase {
 
   /// Streams a parsed guide into the database in batched transactions.
   /// Programmes are upserted, so several guides can be layered.
+  /// Imports a guide. A guide channel's programmes still to come are
+  /// replaced the first time the channel shows up (tracked in [replaced],
+  /// shared by the guides of one sync), so a guide republished with other
+  /// times (a daylight saving change, a fix, a time shift) doesn't leave
+  /// the old programmes overlapping the new ones. Past programmes stay
+  /// for replay.
   Future<GuideImportResult> importGuide(
     Stream<XmltvItem> items, {
     int batchSize = 5000,
+    Set<String>? replaced,
+    DateTime? now,
   }) async {
+    final seen = replaced ?? <String>{};
+    final from = _secs((now ?? DateTime.now()).toUtc());
+    final clear = _db.prepare(
+      'DELETE FROM programmes WHERE guide_id = ? AND stop > ?',
+    );
     final upsertChannel = _db.prepare(
       'INSERT OR REPLACE INTO guide_channels(guide_id, names, icon) '
       'VALUES (?, ?, ?)',
@@ -715,6 +728,7 @@ class ZaplineDatabase {
             channels++;
           case XmltvProgramme(:final programme):
             final p = programme;
+            if (seen.add(p.channelId)) clear.execute([p.channelId, from]);
             upsertProgramme.execute([
               p.channelId,
               _secs(p.start),
@@ -740,6 +754,7 @@ class ZaplineDatabase {
     } finally {
       upsertChannel.close();
       upsertProgramme.close();
+      clear.close();
     }
     return GuideImportResult(channels: channels, programmes: programmes);
   }
@@ -752,6 +767,11 @@ class ZaplineDatabase {
     final key = channelKey(c);
     final id = '$channelGuidePrefix$key';
     _transaction(() {
+      // The source's latest answer replaces what it said before.
+      _db.execute('DELETE FROM programmes WHERE guide_id = ? AND stop > ?', [
+        id,
+        _secs(DateTime.now().toUtc()),
+      ]);
       _db.execute(
         'INSERT OR REPLACE INTO guide_channels(guide_id, names, icon) '
         'VALUES (?, ?, NULL)',
