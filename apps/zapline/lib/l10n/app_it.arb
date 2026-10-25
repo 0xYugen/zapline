@@ -392,7 +392,7 @@
   "addGuideLink": "Un mio link (XMLTV)",
   "ifSomethingsOff": "Se qualcosa non torna",
   "timesWrong": "Gli orari sono sbagliati",
-  "timesWrongHint": "Sposta la guida avanti o indietro",
+  "timesWrongHint": "Sposta avanti o indietro la guida del provider",
   "noShift": "Nessuno spostamento",
   "refreshGuideNow": "Aggiorna la guida adesso",
   "refreshGuideHint": "Si aggiorna anche da sola",

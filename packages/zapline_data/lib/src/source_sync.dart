@@ -109,9 +109,12 @@ class SourceSync {
     final errors = <String>[];
     if (includeGuide) {
       final now = DateTime.now().toUtc();
-      final urls = {...guideUrls, ...source.extraGuideUrls.map(Uri.parse)};
-      // Each guide channel's coming programmes are replaced once per sync.
-      final replaced = <String>{};
+      // Guides the user added come first: for the channels they cover they
+      // are usually right where a panel's own guide is off (a time zone
+      // left on summer time). Each channel takes one guide only.
+      final extra = source.extraGuideUrls.map(Uri.parse).toList();
+      final urls = {...extra, ...guideUrls};
+      final claimed = <String>{};
       for (final url in urls) {
         try {
           final r = await _importGuide(
@@ -119,8 +122,10 @@ class SourceSync {
             now,
             onProgress,
             guide.programmes,
-            source.guideOffset,
-            replaced,
+            // The time shift fixes the source's own guide; public guides
+            // publish correct times.
+            extra.contains(url) ? Duration.zero : source.guideOffset,
+            claimed,
           );
           guide = GuideImportResult(
             channels: guide.channels + r.channels,
@@ -392,7 +397,7 @@ class SourceSync {
     void Function(SyncProgress)? onProgress,
     int offset,
     Duration shift,
-    Set<String> replaced,
+    Set<String> claimed,
   ) async {
     onProgress?.call(
       SyncProgress(SyncStage.guide, count: offset, message: url.host),
@@ -415,7 +420,7 @@ class SourceSync {
               ? item
               : XmltvProgramme(item.programme.shifted(shift));
         });
-    return db.importGuide(items, replaced: replaced, now: now);
+    return db.importGuide(items, claimed: claimed, now: now);
   }
 
   Future<http.StreamedResponse> _send(Uri uri) async {

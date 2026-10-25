@@ -7,7 +7,7 @@ import 'source_record.dart';
 
 part 'vod_store.dart';
 
-const _schemaVersion = 6;
+const _schemaVersion = 7;
 
 /// Migrations from version N to N+1, applied in order.
 const _migrations = <List<String>>[
@@ -55,6 +55,16 @@ const _migrations = <List<String>>[
     'CREATE INDEX IF NOT EXISTS epg_map_guide ON epg_map(guide_id)',
     'CREATE INDEX IF NOT EXISTS movies_by_source ON movies(source_id, sort)',
     'CREATE INDEX IF NOT EXISTS shows_by_source ON shows(source_id, sort)',
+  ],
+  // 6 -> 7: guide channel ids are stored in lower case, so the same
+  // channel in two guides ("Rai1.it", "rai1.it") is one channel. Guides
+  // are downloaded again on the next sync.
+  [
+    "UPDATE epg_overrides SET guide_id = lower(guide_id) "
+        "WHERE guide_id NOT LIKE 'xc/%'",
+    "DELETE FROM programmes WHERE guide_id NOT LIKE 'xc/%'",
+    "DELETE FROM guide_channels WHERE guide_id NOT LIKE 'xc/%'",
+    "DELETE FROM epg_map WHERE kind != 'source'",
   ],
 ];
 
@@ -686,18 +696,22 @@ class ZaplineDatabase {
   /// Streams a parsed guide into the database in batched transactions.
   /// Programmes are upserted, so several guides can be layered.
   /// Imports a guide. A guide channel's programmes still to come are
-  /// replaced the first time the channel shows up (tracked in [replaced],
-  /// shared by the guides of one sync), so a guide republished with other
-  /// times (a daylight saving change, a fix, a time shift) doesn't leave
-  /// the old programmes overlapping the new ones. Past programmes stay
-  /// for replay.
+  /// replaced the first time the channel shows up, so a guide republished
+  /// with other times (a daylight saving change, a fix, a time shift)
+  /// doesn't leave the old programmes overlapping the new ones. Past
+  /// programmes stay for replay.
+  ///
+  /// [claimed], shared by the guides of one sync, gives each guide channel
+  /// to the first guide that has it: later guides' programmes for it are
+  /// skipped, so two guides with different times never mix on a channel.
   Future<GuideImportResult> importGuide(
     Stream<XmltvItem> items, {
     int batchSize = 5000,
-    Set<String>? replaced,
+    Set<String>? claimed,
     DateTime? now,
   }) async {
-    final seen = replaced ?? <String>{};
+    final taken = claimed ?? <String>{};
+    final mine = <String>{};
     final from = _secs((now ?? DateTime.now()).toUtc());
     final clear = _db.prepare(
       'DELETE FROM programmes WHERE guide_id = ? AND stop > ?',
@@ -721,16 +735,24 @@ class ZaplineDatabase {
         switch (item) {
           case XmltvChannel c:
             upsertChannel.execute([
-              c.id,
+              c.id.toLowerCase(),
               c.displayNames.join('\n'),
               c.iconUrl?.toString(),
             ]);
             channels++;
           case XmltvProgramme(:final programme):
             final p = programme;
-            if (seen.add(p.channelId)) clear.execute([p.channelId, from]);
+            // Ids compare without case: "Rai1.it" and "rai1.it" are one.
+            final id = p.channelId.toLowerCase();
+            if (!mine.contains(id)) {
+              // Another guide of this sync already has this channel.
+              if (taken.contains(id)) continue;
+              mine.add(id);
+              taken.add(id);
+              clear.execute([id, from]);
+            }
             upsertProgramme.execute([
-              p.channelId,
+              id,
               _secs(p.start),
               _secs(p.stop),
               p.title,
@@ -905,7 +927,7 @@ class ZaplineDatabase {
     } else {
       _db.execute('INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)', [
         channelKey(c),
-        guideId,
+        _guideKey(guideId),
       ]);
     }
   }
@@ -919,21 +941,29 @@ class ZaplineDatabase {
 
   void setGuideOverrideKey(String channelKey, String guideId) => _db.execute(
     'INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)',
-    [channelKey, guideId],
+    [channelKey, _guideKey(guideId)],
   );
 
   /// Links one channel to [guideId] by hand, at once and for good (a full
   /// [rebuildGuideLinks] would load every channel).
-  void linkGuide(String channelKey, String guideId) => _transaction(() {
-    _db.execute('INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)', [
-      channelKey,
-      guideId,
-    ]);
-    _db.execute("INSERT OR REPLACE INTO epg_map VALUES (?, ?, 'manual')", [
-      channelKey,
-      guideId,
-    ]);
-  });
+  void linkGuide(String channelKey, String guideId) {
+    final id = _guideKey(guideId);
+    _transaction(() {
+      _db.execute('INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)', [
+        channelKey,
+        id,
+      ]);
+      _db.execute("INSERT OR REPLACE INTO epg_map VALUES (?, ?, 'manual')", [
+        channelKey,
+        id,
+      ]);
+    });
+  }
+
+  /// Guide channel ids as stored: lower case, except the source's own
+  /// per-channel guides.
+  static String _guideKey(String id) =>
+      id.startsWith(channelGuidePrefix) ? id : id.toLowerCase();
 
   /// Recomputes which guide channel each source channel uses.
   GuideCoverage rebuildGuideLinks() {
@@ -962,7 +992,7 @@ class ZaplineDatabase {
           final key = channelKey(c);
           final m = matcher.match(c, channelKey: key);
           if (m != null) {
-            insert.execute([key, m.guideChannelId, m.kind.name]);
+            insert.execute([key, _guideKey(m.guideChannelId), m.kind.name]);
           } else if (fallback[key] case final id?) {
             insert.execute([key, id, 'source']);
           } else {

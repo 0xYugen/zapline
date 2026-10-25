@@ -2393,7 +2393,7 @@ abstract class AppLocalizations {
   /// No description provided for @timesWrongHint.
   ///
   /// In en, this message translates to:
-  /// **'Move the guide earlier or later'**
+  /// **'Shift your provider\'s guide earlier or later'**
   String get timesWrongHint;
 
   /// No description provided for @noShift.

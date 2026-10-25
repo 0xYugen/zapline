@@ -465,7 +465,7 @@
   "addGuideLink": "A link of my own (XMLTV)",
   "ifSomethingsOff": "If something's off",
   "timesWrong": "The times are wrong",
-  "timesWrongHint": "Move the guide earlier or later",
+  "timesWrongHint": "Shift your provider's guide earlier or later",
   "noShift": "No shift",
   "refreshGuideNow": "Update the guide now",
   "refreshGuideHint": "It also updates on its own",

@@ -51,7 +51,7 @@ void main() {
     ]);
     expect(
       db.nowNext(ch, t0.add(const Duration(minutes: 30))).$1?.channelId,
-      'Canale5.it',
+      'canale5.it',
     );
     // It is kept as the channel's guide across refreshes.
     db.rebuildGuideLinks();

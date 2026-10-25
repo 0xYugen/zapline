@@ -69,10 +69,31 @@ void main() {
     ]);
   });
 
-  test('guides of one sync replace a channel only once', () async {
-    final replaced = <String>{};
-    await db.importGuide(guide(0), now: now, replaced: replaced);
-    await db.importGuide(guide(0), now: now, replaced: replaced);
+  test('in one sync a channel takes the first guide that has it', () async {
+    final claimed = <String>{};
+    await db.importGuide(guide(0), now: now, claimed: claimed);
+    // A second guide an hour off for the same channel is not mixed in.
+    await db.importGuide(guide(1), now: now, claimed: claimed);
+    expect(titles(), ['16 Earlier', '18 Tg1', '19 Film']);
+  });
+
+  test('the same channel in two guides, written differently, is one', () async {
+    Stream<XmltvItem> lower() async* {
+      yield const XmltvChannel(id: 'rai1.it', displayNames: ['Rai 1']);
+      final start = now.add(const Duration(hours: 1));
+      yield XmltvProgramme(
+        Programme(
+          channelId: 'rai1.it',
+          start: start,
+          stop: start.add(const Duration(hours: 1)),
+          title: 'Wrong',
+        ),
+      );
+    }
+
+    final claimed = <String>{};
+    await db.importGuide(guide(0), now: now, claimed: claimed);
+    await db.importGuide(lower(), now: now, claimed: claimed);
     expect(titles(), ['16 Earlier', '18 Tg1', '19 Film']);
   });
 }
