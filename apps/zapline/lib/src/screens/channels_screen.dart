@@ -60,6 +60,16 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       if (!mounted) return;
       _firstChannel.requestFocus();
       offerFreeEpgIfUseful(context, widget.state);
+      final db = widget.state.db;
+      if (db.setting('holdOkHintShown') == null) {
+        db.setSetting('holdOkHintShown', '1');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.holdOkHint),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      }
       if (widget.autoplayFirst && _visible.isNotEmpty) {
         _play(_visible, 0);
       } else if (widget.state.resumeChannel case final last?) {
@@ -180,42 +190,49 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _MenuItem(
-                    focusNode: _menuFirst,
-                    icon: Icons.grid_view_rounded,
-                    label: context.l10n.tvGuide,
-                    onPressed: () =>
-                        _open(GuideScreen(state: state, channels: visible)),
-                  ),
-                  if (state.hasMovies)
-                    _MenuItem(
-                      icon: Icons.movie_outlined,
-                      label: context.l10n.movies,
-                      onPressed: () =>
-                          _open(VodScreen(state: state, kind: VodKind.movies)),
-                    ),
-                  if (state.hasShows)
-                    _MenuItem(
-                      icon: Icons.video_library_outlined,
-                      label: context.l10n.series,
-                      onPressed: () =>
-                          _open(VodScreen(state: state, kind: VodKind.shows)),
-                    ),
-                  _MenuItem(
-                    icon: Icons.search,
-                    label: context.l10n.search,
-                    onPressed: () => _open(SearchScreen(state: state)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.dns_outlined,
-                    label: context.l10n.sources,
-                    onPressed: () => _open(SourcesScreen(state: state)),
-                  ),
-                  _MenuItem(
-                    icon: Icons.settings_outlined,
-                    label: context.l10n.settings,
-                    onPressed: () => _open(SettingsScreen(state: state)),
+                  const SizedBox(height: 18),
+                  // A compact grid, so the groups below keep their room.
+                  _MenuGrid(
+                    items: [
+                      _MenuItem(
+                        focusNode: _menuFirst,
+                        icon: Icons.grid_view_rounded,
+                        label: context.l10n.guide,
+                        onPressed: () =>
+                            _open(GuideScreen(state: state, channels: visible)),
+                      ),
+                      if (state.hasMovies)
+                        _MenuItem(
+                          icon: Icons.movie_outlined,
+                          label: context.l10n.movies,
+                          onPressed: () => _open(
+                            VodScreen(state: state, kind: VodKind.movies),
+                          ),
+                        ),
+                      if (state.hasShows)
+                        _MenuItem(
+                          icon: Icons.video_library_outlined,
+                          label: context.l10n.series,
+                          onPressed: () => _open(
+                            VodScreen(state: state, kind: VodKind.shows),
+                          ),
+                        ),
+                      _MenuItem(
+                        icon: Icons.search,
+                        label: context.l10n.search,
+                        onPressed: () => _open(SearchScreen(state: state)),
+                      ),
+                      _MenuItem(
+                        icon: Icons.dns_outlined,
+                        label: context.l10n.sources,
+                        onPressed: () => _open(SourcesScreen(state: state)),
+                      ),
+                      _MenuItem(
+                        icon: Icons.settings_outlined,
+                        label: context.l10n.settings,
+                        onPressed: () => _open(SettingsScreen(state: state)),
+                      ),
+                    ],
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
@@ -273,16 +290,6 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                           ),
                         );
                       },
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(8, 12, 8, 0),
-                    child: Text(
-                      context.l10n.holdOkHint,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: ZaplineColors.textMuted,
-                      ),
                     ),
                   ),
                 ],
@@ -345,6 +352,31 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   }
 }
 
+/// The menu as tiles, three to a row.
+class _MenuGrid extends StatelessWidget {
+  const _MenuGrid({required this.items});
+
+  final List<_MenuItem> items;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var i = 0; i < items.length; i += 3)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              for (var j = i; j < i + 3; j++) ...[
+                if (j > i) const SizedBox(width: 6),
+                Expanded(child: j < items.length ? items[j] : const SizedBox()),
+              ],
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
 class _MenuItem extends StatelessWidget {
   const _MenuItem({
     required this.icon,
@@ -359,21 +391,26 @@ class _MenuItem extends StatelessWidget {
   final FocusNode? focusNode;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: FocusCard(
-      focusNode: focusNode,
-      onPressed: onPressed,
-      child: Row(
-        children: [
-          Icon(icon, size: 22),
-          const SizedBox(width: 14),
-          Text(
+  Widget build(BuildContext context) => FocusCard(
+    focusNode: focusNode,
+    onPressed: onPressed,
+    radius: 12,
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 24),
+        const SizedBox(height: 4),
+        // Long words ("Impostazioni") shrink a little rather than cut.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
             label,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            maxLines: 1,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }

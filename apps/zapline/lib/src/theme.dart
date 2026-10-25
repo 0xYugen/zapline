@@ -115,3 +115,10 @@ ThemeData buildTheme() {
     ),
   );
 }
+
+/// A light ring around buttons a remote or keyboard is on.
+final focusRing = WidgetStateProperty.resolveWith<BorderSide?>(
+  (states) => states.contains(WidgetState.focused)
+      ? const BorderSide(color: ZaplineColors.focusBorder, width: 3)
+      : null,
+);

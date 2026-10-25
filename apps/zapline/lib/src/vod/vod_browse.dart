@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../l10n.dart';
 import '../mobile/mobile_home.dart';
 import '../mobile/mobile_widgets.dart';
+import '../layout.dart';
 import '../theme.dart';
 import 'vod_detail_screens.dart';
 import 'vod_widgets.dart';
@@ -400,6 +401,7 @@ class _Featured extends StatelessWidget {
                               ],
                               const SizedBox(height: 12),
                               FilledButton.icon(
+                                autofocus: FormFactor.isTv,
                                 onPressed: () => title.isMovie
                                     ? playMovie(context, state, title.movie!)
                                     : openTitle(context, state, title),
@@ -410,7 +412,7 @@ class _Featured extends StatelessWidget {
                                     fontFamily: 'Inter',
                                     fontWeight: FontWeight.w800,
                                   ),
-                                ),
+                                ).copyWith(side: focusRing),
                                 icon: const Icon(Icons.play_arrow_rounded),
                                 label: Text(
                                   title.isMovie &&

@@ -360,15 +360,31 @@ class KindTabs extends StatelessWidget {
                     onSelected(k);
                   },
                   child: Center(
-                    child: Text(
-                      switch (k) {
-                        ContentKind.tv => l.tv,
-                        ContentKind.movies => l.movies,
-                        ContentKind.shows => l.series,
-                      },
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                    child: Builder(
+                      builder: (context) => Text(
+                        switch (k) {
+                          ContentKind.tv => l.tv,
+                          ContentKind.movies => l.movies,
+                          ContentKind.shows => l.series,
+                        },
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          // Amber when chosen, unless the card itself is lit.
+                          color:
+                              k == selected &&
+                                  (DefaultTextStyle.of(context).style.color
+                                              ?.computeLuminance() ??
+                                          1) >
+                                      0.2
+                              ? ZaplineColors.focus
+                              : null,
+                          decoration: k == selected
+                              ? TextDecoration.underline
+                              : null,
+                          decorationColor: ZaplineColors.focus,
+                          decorationThickness: 2.5,
+                        ),
                       ),
                     ),
                   ),

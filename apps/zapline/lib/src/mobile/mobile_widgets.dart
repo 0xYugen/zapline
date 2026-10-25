@@ -21,8 +21,9 @@ Future<bool> unlockWithPin(BuildContext context, AppState state) async {
   if (state.unlock(pin)) return true;
   final wait = state.pinRetryIn;
   wait == null
-      ? ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.wrongPin)))
+      ? (ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(l.wrongPin))))
       : showPinWait(context, l, wait);
   return false;
 }
@@ -137,7 +138,7 @@ class _GroupBarState extends State<GroupBar> {
   }
 }
 
-class Pill extends StatelessWidget {
+class Pill extends StatefulWidget {
   const Pill({
     super.key,
     required this.label,
@@ -152,14 +153,38 @@ class Pill extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<Pill> createState() => _PillState();
+}
+
+class _PillState extends State<Pill> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
+    final selected = widget.selected;
+    final icon = widget.icon;
+    final label = widget.label;
     final fg = selected ? ZaplineColors.onFocus : ZaplineColors.text;
     return Material(
       color: selected ? ZaplineColors.focus : ZaplineColors.surfaceHigh,
-      borderRadius: BorderRadius.circular(18),
+      shape: StadiumBorder(
+        side: _focused
+            ? const BorderSide(color: ZaplineColors.focusBorder, width: 2.5)
+            : BorderSide.none,
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        onTap: widget.onTap,
+        onFocusChange: (f) {
+          setState(() => _focused = f);
+          if (f) {
+            Scrollable.ensureVisible(
+              context,
+              alignment: 0.5,
+              duration: const Duration(milliseconds: 150),
+            );
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(

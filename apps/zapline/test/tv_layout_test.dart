@@ -38,6 +38,11 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pumpAndSettle();
     debugPrint('focus after left: ${FocusManager.instance.primaryFocus}');
-    expect(FocusManager.instance.primaryFocus?.debugLabel, 'menu');
+    // Focus left the channel list for the menu side of the screen.
+    final focused = FocusManager.instance.primaryFocus!.context!;
+    expect(
+      tester.getCenter(find.byWidget(focused.widget).first).dx,
+      lessThan(400),
+    );
   });
 }

@@ -18,6 +18,8 @@ AppState fakeState({
   List<String>? groups,
 }) {
   final db = database ?? ZaplineDatabase.inMemory();
+  // An established user: the one-time TV hint has been seen.
+  db.setSetting('holdOkHintShown', '1');
   return AppState(
     db,
     secrets: secrets,

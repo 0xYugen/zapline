@@ -62,7 +62,7 @@ void main() {
     await tester.pumpWidget(ZaplineApp(state: fakeState()));
     await _connect(tester);
 
-    await tester.tap(find.text('TV guide'));
+    await tester.tap(find.text('Guide'));
     await tester.pumpAndSettle();
     expect(find.byType(GuideScreen), findsOneWidget);
     expect(_focusedLabel(), 'Show 1.0');
@@ -117,7 +117,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1920, 1080));
     await tester.pumpWidget(ZaplineApp(state: fakeState()));
     await _connect(tester);
-    await tester.tap(find.text('TV guide'));
+    await tester.tap(find.text('Guide'));
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.history), findsNothing);
 

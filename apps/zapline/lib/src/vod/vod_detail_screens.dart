@@ -312,14 +312,20 @@ class _DetailPage extends StatelessWidget {
   final Uri? trailer;
   final bool loading;
 
-  static final _outlined = OutlinedButton.styleFrom(
-    foregroundColor: ZaplineColors.text,
-    side: const BorderSide(color: ZaplineColors.line),
-    textStyle: const TextStyle(
-      fontFamily: 'Inter',
-      fontWeight: FontWeight.w700,
-    ),
-  );
+  static final _outlined =
+      OutlinedButton.styleFrom(
+        foregroundColor: ZaplineColors.text,
+        textStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w700,
+        ),
+      ).copyWith(
+        side: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.focused)
+              ? const BorderSide(color: ZaplineColors.focusBorder, width: 3)
+              : const BorderSide(color: ZaplineColors.line),
+        ),
+      );
   final Widget? primary;
   final List<Widget> below;
 
@@ -595,7 +601,7 @@ class _PlayButton extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                ),
+                ).copyWith(side: focusRing),
                 icon: const Icon(Icons.play_arrow_rounded, size: 26),
                 label: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),

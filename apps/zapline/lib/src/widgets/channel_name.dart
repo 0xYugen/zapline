@@ -63,9 +63,12 @@ class QualityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = label == '4K'
+    final text = DefaultTextStyle.of(context).style.color;
+    // Dark text means a light (focused, amber) card: amber would vanish.
+    final onLight = text != null && text.computeLuminance() < 0.2;
+    final color = label == '4K' && !onLight
         ? ZaplineColors.focus
-        : DefaultTextStyle.of(context).style.color?.withValues(alpha: 0.75) ??
+        : text?.withValues(alpha: onLight ? 0.9 : 0.75) ??
               ZaplineColors.textMuted;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
