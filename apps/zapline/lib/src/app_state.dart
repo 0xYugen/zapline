@@ -1629,12 +1629,12 @@ class AppState extends ChangeNotifier {
       );
       // A new sync may have brought a guide: ask again where it didn't.
       _guideAsked.clear();
-      _reload();
       _askGuidesWithout(s);
       return result;
     } finally {
       syncingSourceId = null;
       progress = null;
+      // Once: every reload redraws the open screens.
       _reload();
       notifyListeners();
     }

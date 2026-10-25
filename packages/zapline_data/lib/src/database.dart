@@ -183,7 +183,14 @@ const _schema = [
 
 /// Result of a guide import.
 class GuideImportResult {
-  const GuideImportResult({required this.channels, required this.programmes});
+  const GuideImportResult({
+    required this.channels,
+    required this.programmes,
+    this.starts = const {},
+  });
+
+  /// Earliest programme start (unix seconds) of each guide channel taken.
+  final Map<String, int> starts;
 
   final int channels;
   final int programmes;
@@ -711,7 +718,7 @@ class ZaplineDatabase {
     DateTime? now,
   }) async {
     final taken = claimed ?? <String>{};
-    final mine = <String>{};
+    final mine = <String, int>{};
     final from = _secs((now ?? DateTime.now()).toUtc());
     final clear = _db.prepare(
       'DELETE FROM programmes WHERE guide_id = ? AND stop > ?',
@@ -744,16 +751,21 @@ class ZaplineDatabase {
             final p = programme;
             // Ids compare without case: "Rai1.it" and "rai1.it" are one.
             final id = p.channelId.toLowerCase();
-            if (!mine.contains(id)) {
+            final start = _secs(p.start);
+            if (!mine.containsKey(id)) {
               // Another guide of this sync already has this channel.
               if (taken.contains(id)) continue;
-              mine.add(id);
+              mine[id] = start;
               taken.add(id);
-              clear.execute([id, from]);
+              // What this guide covers replaces what was there; older
+              // programmes stay for replay.
+              clear.execute([id, start < from ? start : from]);
+            } else if (start < mine[id]!) {
+              mine[id] = start;
             }
             upsertProgramme.execute([
               id,
-              _secs(p.start),
+              start,
               _secs(p.stop),
               p.title,
               p.description,
@@ -778,7 +790,117 @@ class ZaplineDatabase {
       upsertProgramme.close();
       clear.close();
     }
-    return GuideImportResult(channels: channels, programmes: programmes);
+    return GuideImportResult(
+      channels: channels,
+      programmes: programmes,
+      starts: mine,
+    );
+  }
+
+  /// Lines up the guide channels [ids], just imported, with the guide
+  /// channels [reference] imported before them in the same sync.
+  ///
+  /// Free guides are sometimes an hour or more off (a time zone written
+  /// wrong, summer time left on). The same titles airing on a reference
+  /// guide channel at a fixed distance tell how far. A channel with a
+  /// clear twin moves by its own distance (one guide can be right on some
+  /// channels and off on others); the rest move by the distance most
+  /// twinned channels agree on, if any. Only programmes imported this time
+  /// (from each channel's earliest start in [ids]) move. Returns how many
+  /// channels moved.
+  int alignGuide(
+    Map<String, int> ids,
+    Set<String> reference, {
+    DateTime? now,
+  }) {
+    if (ids.isEmpty || reference.isEmpty) return 0;
+    final at = _secs((now ?? DateTime.now()).toUtc());
+    const window = 12 * 3600, reach = 3 * 3600;
+    // Titles airing on the reference channels around now.
+    final known = <String, List<(String, int)>>{};
+    final rows = <({String id, int start, String title})>[];
+    for (final r in _db.select(
+      'SELECT guide_id, start, title FROM programmes '
+      'WHERE start BETWEEN ? AND ?',
+      [at - window, at + window],
+    )) {
+      final id = r['guide_id'] as String;
+      final title = _titleKey(r['title'] as String);
+      if (title.length < 4) continue;
+      final start = r['start'] as int;
+      if (reference.contains(id)) {
+        (known[title] ??= []).add((id, start));
+      } else if (ids.containsKey(id)) {
+        rows.add((id: id, start: start, title: title));
+      }
+    }
+    // Per channel: the reference twin and distance most titles agree on.
+    final votes = <String, Map<(String, int), int>>{};
+    for (final r in rows) {
+      for (final (twin, start) in known[r.title] ?? const <(String, int)>[]) {
+        final delta = start - r.start;
+        if (delta.abs() > reach) continue;
+        // Rounded to a quarter of an hour: listings differ by a few minutes.
+        final q = (delta / 900).round() * 900;
+        final v = votes[r.id] ??= {};
+        v[(twin, q)] = (v[(twin, q)] ?? 0) + 1;
+      }
+    }
+    final own = <String, int>{};
+    final channels = <int, int>{};
+    for (final MapEntry(key: id, value: v) in votes.entries) {
+      final ranked = v.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final best = ranked.first;
+      if (best.value < 3) continue;
+      // Two distances as likely: no clear answer for this channel.
+      if (ranked.length > 1 &&
+          ranked[1].value == best.value &&
+          ranked[1].key.$2 != best.key.$2) {
+        continue;
+      }
+      final delta = best.key.$2;
+      own[id] = delta;
+      channels[delta] = (channels[delta] ?? 0) + 1;
+    }
+    final twinned = own.length;
+    // The guide's usual distance, for its channels without a twin.
+    var usual = 0;
+    if (channels.isNotEmpty) {
+      final top = channels.entries.reduce(
+        (a, b) => a.value >= b.value ? a : b,
+      );
+      if (top.value >= 2 && top.value * 10 >= twinned * 6) usual = top.key;
+    }
+    // Whole half hours only: a few minutes are listings rounding.
+    final moves = <String, int>{
+      for (final id in ids.keys)
+        if (own[id] ?? usual case final d when d != 0 && d % 1800 == 0) id: d,
+    };
+    if (moves.isEmpty) return 0;
+    _transaction(() {
+      _db.execute(
+        'CREATE TEMP TABLE IF NOT EXISTS moving AS '
+        'SELECT * FROM programmes WHERE 0',
+      );
+      _db.execute('DELETE FROM moving');
+      for (final MapEntry(key: id, value: move) in moves.entries) {
+        final since = ids[id];
+        _db.execute(
+          'INSERT INTO moving SELECT guide_id, start + ?, stop + ?, title, '
+          'description, category, episode, icon FROM programmes '
+          'WHERE guide_id = ? AND start >= ?',
+          [move, move, id, since],
+        );
+        _db.execute(
+          'DELETE FROM programmes WHERE guide_id = ? AND start >= ?',
+          [id, since],
+        );
+      }
+      _db.execute('INSERT OR REPLACE INTO programmes SELECT * FROM moving');
+      _db.execute('DELETE FROM moving');
+    });
+    return moves.length;
   }
 
   /// Stores programmes fetched for one channel from its source (Xtream's

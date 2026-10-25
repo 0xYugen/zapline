@@ -52,7 +52,9 @@ class XmltvParser {
   final DateTime? to;
 
   Stream<XmltvItem> parseBytes(Stream<List<int>> bytes) =>
-      parse(utf8.decoder.bind(bytes));
+      // A stray byte that isn't UTF-8 (some free guides have a few) must
+      // not lose the whole guide.
+      parse(const Utf8Decoder(allowMalformed: true).bind(bytes));
 
   Stream<XmltvItem> parse(Stream<String> chunks) async* {
     final b = _Builder();

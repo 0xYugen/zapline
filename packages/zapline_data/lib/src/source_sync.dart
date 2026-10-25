@@ -117,17 +117,24 @@ class SourceSync {
       final claimed = <String>{};
       for (final url in urls) {
         try {
+          // Each guide has its own shift, set by the user.
+          final shift = extra.contains(url)
+              ? source.shiftOf(url.toString())
+              : source.guideOffset;
+          final before = Set.of(claimed);
           final r = await _importGuide(
             url,
             now,
             onProgress,
             guide.programmes,
-            // Each guide has its own shift, set by the user.
-            extra.contains(url)
-                ? source.shiftOf(url.toString())
-                : source.guideOffset,
+            shift,
             claimed,
           );
+          // A guide the user didn't shift is lined up with the guides
+          // before it, for when it is off by an hour or more.
+          if (shift == Duration.zero) {
+            db.alignGuide(r.starts, before, now: now);
+          }
           guide = GuideImportResult(
             channels: guide.channels + r.channels,
             programmes: guide.programmes + r.programmes,
@@ -403,8 +410,9 @@ class SourceSync {
     onProgress?.call(
       SyncProgress(SyncStage.guide, count: offset, message: url.host),
     );
-    final res = await _send(url);
+    final res = await _sendRetrying(url);
     var count = offset;
+    Object? failure;
     final items =
         XmltvParser(
           // Widen the window by the shift so no programme is lost to it.
@@ -421,7 +429,48 @@ class SourceSync {
               ? item
               : XmltvProgramme(item.programme.shifted(shift));
         });
-    return db.importGuide(items, claimed: claimed, now: now);
+    // A download cut short or a broken bit of XML keeps what came before
+    // it; the guide only fails when nothing at all could be read.
+    final safe = items.transform(
+      StreamTransformer<XmltvItem, XmltvItem>.fromHandlers(
+        handleError: (e, st, sink) {
+          failure ??= e;
+          sink.close();
+        },
+      ),
+    );
+    final r = await db.importGuide(
+      safe,
+      claimed: claimed,
+      now: now,
+      batchSize: 2000,
+    );
+    if (r.programmes == 0 && failure != null) throw failure!;
+    return r;
+  }
+
+  /// Guides are big downloads from free servers that are sometimes busy:
+  /// one more try after a short wait, and no waiting forever on a server
+  /// that stopped answering.
+  Future<http.StreamedResponse> _sendRetrying(Uri url) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        final res = await _send(url).timeout(const Duration(seconds: 30));
+        return http.StreamedResponse(
+          res.stream.timeout(const Duration(seconds: 45)),
+          res.statusCode,
+          headers: res.headers,
+        );
+      } on Object catch (e) {
+        final retry = switch (e) {
+          SyncException(:final message) =>
+            message.startsWith('HTTP 5') || message.startsWith('HTTP 429'),
+          _ => true,
+        };
+        if (!retry || attempt == 2) rethrow;
+        await Future<void>.delayed(const Duration(seconds: 3));
+      }
+    }
   }
 
   Future<http.StreamedResponse> _send(Uri uri) async {

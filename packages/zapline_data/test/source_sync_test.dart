@@ -87,6 +87,42 @@ void main() {
     expect(cur?.title, 'Hour 0');
   });
 
+  test('a guide cut short or with a bad byte keeps what it had', () async {
+    final xml = _xmltv(now).replaceFirst('Hour -2', 'Caffè ÿ');
+    final bytes = [
+      // A Latin-1 byte inside UTF-8, then the download stops mid-tag.
+      ...utf8.encode(xml.substring(0, xml.indexOf('Hour 2'))).map(
+        (b) => b == 0xc3 ? 0xe8 : b,
+      ),
+      ...utf8.encode('Hour 2</tit'),
+    ];
+    final client = MockClient((req) async {
+      switch (req.url.path) {
+        case '/list.m3u':
+          return http.Response(
+            '#EXTM3U url-tvg="http://epg.example/guide.xml"\n'
+            '#EXTINF:-1 tvg-id="news.example",News 24\nhttp://s.example/1.ts\n',
+            200,
+          );
+        case '/guide.xml':
+          return http.Response.bytes(bytes, 200);
+      }
+      return http.Response('', 404);
+    });
+    const src = SourceRecord(
+      id: 'm',
+      kind: SourceKind.m3u,
+      name: 'M',
+      url: 'http://p.example/list.m3u',
+    );
+    db.saveSource(src);
+    final r = await SourceSync(db, httpClient: client).sync(src);
+    expect(r.guideErrors, isEmpty);
+    expect(r.guide.programmes, 4);
+    final (cur, _) = db.nowNext(db.channels().first, now);
+    expect(cur?.title, 'Hour 0');
+  });
+
   test(
     'Xtream source uses xmltv.php; a failing guide does not fail sync',
     () async {
