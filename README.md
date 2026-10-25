@@ -29,11 +29,14 @@ Zapline comes with no channels or content.
 Builds are on the [releases page](https://github.com/0xYugen/zapline/releases/latest).
 
 **Android TV and Fire TV**: install the free *Downloader* app from the
-store on the TV, open it and type:
+store on the TV, open it and type the code **6087624**. Or type the full
+address:
 
 ```
 https://github.com/0xYugen/zapline/releases/latest/download/zapline-tv.apk
 ```
+
+The code always fetches the latest version.
 
 Then open Zapline on the TV, choose *Receive* and scan the code with Zapline
 on your phone: sources, guides and settings come across.
