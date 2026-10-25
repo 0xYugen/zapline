@@ -44,7 +44,7 @@ class MainActivity : FlutterActivity() {
                             ?: "${Build.MANUFACTURER} ${Build.MODEL}"
                     )
                     "installApk" -> result.success(
-                        installApk(java.io.File(call.argument<String>("path")!))
+                        installApk(java.io.File(call.argument<String>("path")!!))
                     )
                     else -> result.notImplemented()
                 }
