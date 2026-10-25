@@ -33,18 +33,18 @@ on your phone: sources, guides and settings come across.
 
 ## Status
 
-Phase 1 (MVP) in progress. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Android phone and TV builds are out; desktop builds are next. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Targets
 
 | Platform | Status |
 |---|---|
-| Android TV, Fire OS (Fire TV Stick 4K/4K Max, Cube) | planned for MVP |
-| Android phones and tablets | planned for MVP |
-| Windows, macOS, Linux | planned for MVP |
+| Android TV, Fire OS (Fire TV Stick 4K/4K Max, Cube) | available ([zapline-tv.apk](https://github.com/0xYugen/zapline/releases/latest/download/zapline-tv.apk)) |
+| Android phones and tablets | available ([zapline-phone.apk](https://github.com/0xYugen/zapline/releases/latest/download/zapline-phone.apk)) |
+| Windows, macOS, Linux | in progress: the app and its desktop layout are done, release builds not yet published |
 | iOS | after licence review of the video stack |
 | Web (lite) | phase 3 |
-| tvOS, Fire TV on Vega OS, Tizen, webOS | under evaluation |
+| Samsung (Tizen), LG (webOS), tvOS, Fire TV on Vega OS | under evaluation |
 
 ## Repository layout
 
