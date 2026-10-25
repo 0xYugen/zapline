@@ -156,7 +156,13 @@ class Backdrop extends StatelessWidget {
     Widget picture = u == null || !u.hasScheme
         ? const ColoredBox(color: ZaplineColors.surface)
         : Image(
-            image: CachedLogo(u.toString()),
+            // Decoded small: a full 4K backdrop is tens of megabytes, and
+            // blurred it needs far less.
+            image: ResizeImage(
+              CachedLogo(u.toString()),
+              width: blur ? 360 : 1280,
+              policy: ResizeImagePolicy.fit,
+            ),
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,

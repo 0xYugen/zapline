@@ -31,6 +31,36 @@ class LogoCache {
     final dir = Directory('${cacheRoot.path}${Platform.pathSeparator}logos');
     await dir.create(recursive: true);
     _dir = dir;
+    // Posters of a big catalogue would fill a TV stick: keep the most
+    // recently fetched, within a budget.
+    unawaited(trim(dir));
+  }
+
+  static const _diskBudget = 150 * 1024 * 1024;
+
+  /// Deletes the oldest cached images until the folder is back under
+  /// 80% of the budget.
+  @visibleForTesting
+  static Future<void> trim(Directory dir, {int budget = _diskBudget}) async {
+    try {
+      final files = <(File, int, DateTime)>[];
+      var total = 0;
+      await for (final e in dir.list()) {
+        if (e is! File) continue;
+        final st = await e.stat();
+        files.add((e, st.size, st.modified));
+        total += st.size;
+      }
+      if (total <= budget) return;
+      files.sort((a, b) => a.$3.compareTo(b.$3));
+      for (final (f, size, _) in files) {
+        if (total <= budget * 0.8) break;
+        await f.delete();
+        total -= size;
+      }
+    } on FileSystemException {
+      // A busy or vanished file: next start tries again.
+    }
   }
 
   /// Test hook replacing network and disk.

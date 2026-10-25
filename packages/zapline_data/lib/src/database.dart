@@ -7,7 +7,7 @@ import 'source_record.dart';
 
 part 'vod_store.dart';
 
-const _schemaVersion = 5;
+const _schemaVersion = 6;
 
 /// Migrations from version N to N+1, applied in order.
 const _migrations = <List<String>>[
@@ -48,6 +48,14 @@ const _migrations = <List<String>>[
   _vodMigration,
   // 4 -> 5: finding the guide that airs a programme at a given time.
   ['CREATE INDEX IF NOT EXISTS programmes_start ON programmes(start)'],
+  // 5 -> 6: lookups by channel key ("source/id"), guide links by guide,
+  // films and series in a source's order.
+  [
+    "CREATE INDEX IF NOT EXISTS channels_key ON channels(source_id || '/' || id)",
+    'CREATE INDEX IF NOT EXISTS epg_map_guide ON epg_map(guide_id)',
+    'CREATE INDEX IF NOT EXISTS movies_by_source ON movies(source_id, sort)',
+    'CREATE INDEX IF NOT EXISTS shows_by_source ON shows(source_id, sort)',
+  ],
 ];
 
 /// A group of one source with the user's preferences, for the manage
@@ -193,6 +201,9 @@ class ZaplineDatabase {
     _db.execute('PRAGMA foreign_keys = ON');
     _db.execute('PRAGMA journal_mode = WAL');
     _db.execute('PRAGMA synchronous = NORMAL');
+    // The sync isolate writes while the app reads and saves small things:
+    // wait for it a little instead of failing at once.
+    _db.execute('PRAGMA busy_timeout = 3000');
     _migrate();
   }
 
@@ -890,6 +901,19 @@ class ZaplineDatabase {
     'INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)',
     [channelKey, guideId],
   );
+
+  /// Links one channel to [guideId] by hand, at once and for good (a full
+  /// [rebuildGuideLinks] would load every channel).
+  void linkGuide(String channelKey, String guideId) => _transaction(() {
+    _db.execute('INSERT OR REPLACE INTO epg_overrides VALUES (?, ?)', [
+      channelKey,
+      guideId,
+    ]);
+    _db.execute("INSERT OR REPLACE INTO epg_map VALUES (?, ?, 'manual')", [
+      channelKey,
+      guideId,
+    ]);
+  });
 
   /// Recomputes which guide channel each source channel uses.
   GuideCoverage rebuildGuideLinks() {

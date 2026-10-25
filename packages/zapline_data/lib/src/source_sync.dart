@@ -87,7 +87,7 @@ class SourceSync {
       ),
     };
     final _Fetched(:channels, :guideUrls, :offset) = fetched;
-    db.replaceChannels(source.id, channels);
+    if (!fetched.written) db.replaceChannels(source.id, channels);
     // A catalogue that failed to load keeps the previous one.
     if (fetched.movies case final movies?) {
       db.replaceMovies(source.id, movies);
@@ -100,7 +100,10 @@ class SourceSync {
       );
     }
     db.applyGroupVisibility(source.id, source.groupFilter);
-    onProgress?.call(SyncProgress(SyncStage.channels, count: channels.length));
+    final channelCount = fetched.written
+        ? db.channelCount(sourceId: source.id)
+        : channels.length;
+    onProgress?.call(SyncProgress(SyncStage.channels, count: channelCount));
 
     var guide = const GuideImportResult(channels: 0, programmes: 0);
     final errors = <String>[];
@@ -132,7 +135,7 @@ class SourceSync {
     db.markSynced(source.id, DateTime.now().toUtc(), serverOffset: offset);
     onProgress?.call(SyncProgress(SyncStage.done, count: coverage.matched));
     return SyncResult(
-      channels: channels.length,
+      channels: channelCount,
       guide: guide,
       coverage: coverage,
       guideErrors: errors,
@@ -182,9 +185,13 @@ class SourceSync {
             httpHeaders: const {'User-Agent': userAgent},
           ),
     ];
+    // Written now, so the big catalogue lists below don't share memory
+    // with the channel list on small devices.
+    db.replaceChannels(s.id, channels);
     final (movies, shows) = await _xtreamCatalogue(client, s.id);
     return _Fetched(
-      channels: channels,
+      channels: const [],
+      written: true,
       guideUrls: [client.xmltvUrl],
       offset: account.serverUtcOffset,
       movies: movies,
@@ -205,7 +212,7 @@ class SourceSync {
       final categories = {
         for (final c in await client.vodCategories()) c.id: c.name,
       };
-      movies = [
+      db.replaceMovies(sourceId, [
         for (final v in await client.vodStreams())
           if (v.streamId >= 0)
             Movie(
@@ -218,7 +225,9 @@ class SourceSync {
               addedAt: v.addedAt,
               containerExtension: v.containerExtension,
             ),
-      ];
+      ]);
+      // Already stored; nothing for the caller to write.
+      movies = null;
     } on Exception {
       movies = null;
     }
@@ -451,6 +460,7 @@ class _Fetched {
     required this.channels,
     required this.guideUrls,
     this.offset,
+    this.written = false,
     this.movies,
     this.shows,
     this.playlistEpisodes = const [],
@@ -459,6 +469,9 @@ class _Fetched {
   final List<Channel> channels;
   final List<Uri> guideUrls;
   final Duration? offset;
+
+  /// The channels are already in the database.
+  final bool written;
   final List<Movie>? movies;
   final List<Show>? shows;
   final List<(String, Episode)> playlistEpisodes;

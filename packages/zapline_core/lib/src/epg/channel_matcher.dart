@@ -171,52 +171,74 @@ List<(XmltvChannel, double)> rankGuideCandidates(
   String channelName,
   Iterable<XmltvChannel> guideChannels, {
   int limit = 8,
-}) {
-  final target = normalizeChannelName(channelName);
-  final targetWords = _words(channelName);
-  if (target.isEmpty && targetWords.isEmpty) return const [];
+}) =>
+    GuideIndex(guideChannels).rank(channelName, limit: limit);
 
-  final scored = <(XmltvChannel, double)>[];
-  for (final gc in guideChannels) {
-    var best = 0.0;
-    for (final name in [...gc.displayNames, gc.id.split('.').first]) {
-      final n = normalizeChannelName(name);
-      if (n.isEmpty) continue;
-      double s;
-      if (n == target) {
-        s = 1.0;
-      } else if (target.isNotEmpty &&
-          (n.contains(target) || target.contains(n))) {
-        s = 0.8 *
-                (n.length < target.length
-                    ? n.length / target.length
-                    : target.length / n.length) +
-            0.1;
-      } else {
-        final words = _words(name);
-        final shared = words.intersection(targetWords).length;
-        // Prefix matches catch abbreviations ("Cinema 1" vs "Cinema One").
-        final prefix = words.any((w) => targetWords.any((t) =>
-                w.length >= 3 &&
-                t.length >= 3 &&
-                (w.startsWith(t) || t.startsWith(w))))
-            ? 0.5
-            : 0.0;
-        final union = words.union(targetWords).length;
-        s = union == 0 ? 0 : 0.6 * shared / union;
-        if (shared == 0) s = prefix * 0.6;
+/// Guide channels with their names already normalised, for ranking many
+/// channels against the same guide (see [rankGuideCandidates]).
+class GuideIndex {
+  GuideIndex(Iterable<XmltvChannel> guideChannels)
+      : _entries = [
+          for (final gc in guideChannels)
+            (
+              gc,
+              [
+                for (final name in [...gc.displayNames, gc.id.split('.').first])
+                  (normalizeChannelName(name), _words(name)),
+              ],
+            ),
+        ];
+
+  final List<(XmltvChannel, List<(String, Set<String>)>)> _entries;
+
+  /// Best candidates for [channelName], best first.
+  List<(XmltvChannel, double)> rank(String channelName, {int limit = 8}) {
+    final target = normalizeChannelName(channelName);
+    final targetWords = _words(channelName);
+    if (target.isEmpty && targetWords.isEmpty) return const [];
+
+    final scored = <(XmltvChannel, double)>[];
+    for (final (gc, names) in _entries) {
+      var best = 0.0;
+      for (final (n, words) in names) {
+        if (n.isEmpty) continue;
+        double s;
+        if (n == target) {
+          s = 1.0;
+        } else if (target.isNotEmpty &&
+            (n.contains(target) || target.contains(n))) {
+          s = 0.8 *
+                  (n.length < target.length
+                      ? n.length / target.length
+                      : target.length / n.length) +
+              0.1;
+        } else {
+          final shared = words.intersection(targetWords).length;
+          // Prefix matches catch abbreviations ("Cinema 1" vs "Cinema One").
+          final prefix = words.any((w) => targetWords.any((t) =>
+                  w.length >= 3 &&
+                  t.length >= 3 &&
+                  (w.startsWith(t) || t.startsWith(w))))
+              ? 0.5
+              : 0.0;
+          final union = words.union(targetWords).length;
+          s = union == 0 ? 0 : 0.6 * shared / union;
+          if (shared == 0) s = prefix * 0.6;
+        }
+        if (s > best) best = s;
       }
-      if (s > best) best = s;
+      if (best > 0.15) scored.add((gc, best));
     }
-    if (best > 0.15) scored.add((gc, best));
+    scored.sort((a, b) => b.$2.compareTo(a.$2));
+    return scored.take(limit).toList();
   }
-  scored.sort((a, b) => b.$2.compareTo(a.$2));
-  return scored.take(limit).toList();
 }
+
+final _wordSplitter = RegExp(r'[^a-z0-9+]+');
 
 Set<String> _words(String s) {
   var t = s.toLowerCase();
   t = t.split('').map((c) => _diacritics[c] ?? c).join();
   t = t.replaceFirst(_prefix, '').replaceAll(_quality, ' ');
-  return t.split(RegExp(r'[^a-z0-9+]+')).where((w) => w.isNotEmpty).toSet();
+  return t.split(_wordSplitter).where((w) => w.isNotEmpty).toSet();
 }

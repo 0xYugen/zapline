@@ -211,6 +211,14 @@ extension VodStore on ZaplineDatabase {
       : ' AND source_id || char(31) || coalesce(category, \'\') NOT IN '
             '(${List.filled(hidden.length, '?').join(', ')})';
 
+  /// A category filter the category index can serve ("" is "no
+  /// category").
+  static String _category(String? category) => switch (category) {
+    null => '',
+    '' => " AND (category IS NULL OR category = '')",
+    _ => ' AND category = ?',
+  };
+
   static List<String> _keys(Set<(String, String)> hidden) => [
     for (final (source, category) in hidden) '$source\u001f$category',
   ];
@@ -227,11 +235,20 @@ extension VodStore on ZaplineDatabase {
   }) => [
     for (final r in _db.select(
       'SELECT * FROM movies WHERE 1'
-      '${category == null ? '' : ' AND coalesce(category, \'\') = ?'}'
+      '${_category(category)}'
       '${_notIn(hiddenCategories)}'
-      '${newest ? ' ORDER BY added DESC, sort' : ' ORDER BY source_id, sort'}'
+      '${newest
+          ? ' ORDER BY added DESC, sort'
+          : category != null
+          ? ' ORDER BY sort'
+          : ' ORDER BY source_id, sort'}'
       ' LIMIT ? OFFSET ?',
-      [?category, ..._keys(hiddenCategories), limit, offset],
+      [
+        if (category != null && category.isNotEmpty) category,
+        ..._keys(hiddenCategories),
+        limit,
+        offset,
+      ],
     ))
       _movie(r),
   ];
@@ -245,11 +262,20 @@ extension VodStore on ZaplineDatabase {
   }) => [
     for (final r in _db.select(
       'SELECT * FROM shows WHERE 1'
-      '${category == null ? '' : ' AND coalesce(category, \'\') = ?'}'
+      '${_category(category)}'
       '${_notIn(hiddenCategories)}'
-      '${newest ? ' ORDER BY updated DESC, sort' : ' ORDER BY source_id, sort'}'
+      '${newest
+          ? ' ORDER BY updated DESC, sort'
+          : category != null
+          ? ' ORDER BY sort'
+          : ' ORDER BY source_id, sort'}'
       ' LIMIT ? OFFSET ?',
-      [?category, ..._keys(hiddenCategories), limit, offset],
+      [
+        if (category != null && category.isNotEmpty) category,
+        ..._keys(hiddenCategories),
+        limit,
+        offset,
+      ],
     ))
       _show(r),
   ];

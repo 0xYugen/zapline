@@ -231,6 +231,9 @@ class AppState extends ChangeNotifier {
     movieCount = db.movieCount();
     showCount = db.showCount();
     _favouriteKeys = db.favouriteKeys();
+    _hasRecents = db.recents(limit: 1).isNotEmpty;
+    // Names of channels that no longer exist pile up otherwise.
+    if (_parsed.length > 200000) _parsed.clear();
   }
 
   // ------------------------------------------------------ preferences
@@ -442,9 +445,13 @@ class AppState extends ChangeNotifier {
 
   List<Channel> recents() => db.recents(visibility: _visibility);
 
-  bool get hasRecents => db.recents(limit: 1).isNotEmpty;
+  bool _hasRecents = false;
+  bool get hasRecents => _hasRecents;
 
-  void markWatched(Channel c) => db.markWatched(c);
+  void markWatched(Channel c) {
+    db.markWatched(c);
+    _hasRecents = true;
+  }
 
   /// The channel to reopen at startup, if the user wants that.
   Channel? get resumeChannel =>
@@ -669,8 +676,45 @@ class AppState extends ChangeNotifier {
   List<Channel> unmatchedChannels(String sourceId) =>
       db.unmatchedChannels(sourceId: sourceId);
 
+  (List<XmltvChannel>, GuideIndex)? _guideIndex;
+
+  /// [guideChannels] with their names prepared for ranking, made once.
+  GuideIndex get _index {
+    final channels = guideChannels;
+    final cached = _guideIndex;
+    if (cached != null && identical(cached.$1, channels)) return cached.$2;
+    final index = GuideIndex(channels);
+    _guideIndex = (channels, index);
+    return index;
+  }
+
   List<(XmltvChannel, double)> guideSuggestions(Channel c) =>
-      rankGuideCandidates(c.name, guideChannels);
+      _index.rank(c.name);
+
+  /// Which of [channels] have a guide channel matching at least [minScore],
+  /// worked out on another isolate (thousands of channels against
+  /// thousands of guide channels would freeze the screen).
+  Future<List<(Channel, XmltvChannel)>> sureGuides(
+    List<Channel> channels, {
+    double minScore = 0.9,
+  }) async {
+    final guides = guideChannels;
+    final names = [for (final c in channels) c.name];
+    final picks = await Isolate.run(() {
+      final index = GuideIndex(guides);
+      return [
+        for (final (i, n) in names.indexed)
+          if (index.rank(n, limit: 1).firstOrNull case (final g, final score)
+              when score >= minScore)
+            (i, g.id),
+      ];
+    });
+    final byId = {for (final g in guides) g.id: g};
+    return [
+      for (final (i, id) in picks)
+        if (byId[id] case final g?) (channels[i], g),
+    ];
+  }
 
   /// Guide channels whose name or id contains [query].
   List<XmltvChannel> searchGuide(String query, {int limit = 30}) {
@@ -690,10 +734,8 @@ class AppState extends ChangeNotifier {
   /// Links [c] and its other versions to guide channel [guideId].
   void assignGuide(Channel c, String guideId) {
     for (final v in versionsOf(c)) {
-      db.setGuideOverride(v, guideId);
+      db.linkGuide(ZaplineDatabase.channelKey(v), guideId);
     }
-    db.rebuildGuideLinks();
-    _reload();
     notifyListeners();
   }
 
@@ -701,11 +743,9 @@ class AppState extends ChangeNotifier {
   void assignGuides(Iterable<(Channel, String)> links) {
     for (final (c, id) in links) {
       for (final v in versionsOf(c)) {
-        db.setGuideOverride(v, id);
+        db.linkGuide(ZaplineDatabase.channelKey(v), id);
       }
     }
-    db.rebuildGuideLinks();
-    _reload();
     notifyListeners();
   }
 
@@ -855,9 +895,17 @@ class AppState extends ChangeNotifier {
   /// Queues [s]'s channels that have no guide at all.
   void _askGuidesWithout(SourceRecord s) {
     if (guideFetcher == null || !ChannelGuideFetcher.supports(s)) return;
+    final now = DateTime.now();
+    final wanted = [
+      for (final c in channelsNeedingGuide(s.id).take(400))
+        // Marked as asked, so the screen doesn't queue them a second time.
+        if (_guideAsked.putIfAbsent(ZaplineDatabase.channelKey(c), () => now) ==
+            now)
+          (s, c),
+    ];
     _guideBackground
       ..removeWhere((e) => e.$1.id == s.id)
-      ..addAll([for (final c in channelsNeedingGuide(s.id).take(400)) (s, c)]);
+      ..addAll(wanted);
     _pumpGuides();
   }
 
@@ -887,7 +935,7 @@ class AppState extends ChangeNotifier {
   void _guideFetched() {
     _guideArrived ??= Timer(const Duration(milliseconds: 300), () {
       _guideArrived = null;
-      version++;
+      // Programmes only: channel lists stay cached.
       notifyListeners();
     });
   }
@@ -1560,9 +1608,15 @@ class AppState extends ChangeNotifier {
     progress = const SyncProgress(SyncStage.channels);
     notifyListeners();
     try {
+      var shown = DateTime(0);
       final result = await syncRunner(s, (p) {
         progress = p;
-        notifyListeners();
+        // Every redraw rebuilds the open screens: a few a second at most.
+        final now = DateTime.now();
+        if (now.difference(shown) > const Duration(milliseconds: 1500)) {
+          shown = now;
+          notifyListeners();
+        }
       });
       db.setSetting(
         'guideStatus:${s.id}',

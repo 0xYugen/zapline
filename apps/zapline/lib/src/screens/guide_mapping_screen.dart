@@ -52,6 +52,7 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
   void initState() {
     super.initState();
     _query.addListener(() => setState(() {}));
+    _findSure();
   }
 
   @override
@@ -95,17 +96,15 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
     );
 
   /// Channels whose best suggestion is all but certain; worked out once,
-  /// ranking every channel against every guide is slow.
-  late final List<(Channel, XmltvChannel)> _allSure = widget.only != null
-      ? const []
-      : _sureMatches();
+  /// in the background (ranking every channel against every guide is
+  /// slow).
+  List<(Channel, XmltvChannel)> _allSure = const [];
 
-  List<(Channel, XmltvChannel)> _sureMatches() => [
-    for (final c in _queue)
-      if (_state.guideSuggestions(c).firstOrNull case (final g, final score)
-          when score >= _sure)
-        (c, g),
-  ];
+  Future<void> _findSure() async {
+    if (widget.only != null || _queue.length < 2) return;
+    final sure = await _state.sureGuides(_queue, minScore: _sure);
+    if (mounted) setState(() => _allSure = sure);
+  }
 
   void _takeSure(List<(Channel, XmltvChannel)> sure) {
     _state.assignGuides([for (final (c, g) in sure) (c, g.id)]);
@@ -125,9 +124,10 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
     final l = context.l10n;
     final phone = context.isPhone;
     final c = _current;
+    final waiting = _queue.toSet();
     final sure = [
       for (final e in _allSure)
-        if (_queue.contains(e.$1)) e,
+        if (waiting.contains(e.$1)) e,
     ];
     final body = c == null
         ? _finished(l)

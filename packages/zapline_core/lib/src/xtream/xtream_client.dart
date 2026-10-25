@@ -45,20 +45,30 @@ class XtreamClient {
       });
 
   Future<Object?> _getJson(Uri uri) async {
-    final res = await _http.get(uri,
-        headers: {'User-Agent': userAgent, 'Accept': '*/*'}).timeout(timeout);
+    final req = http.Request('GET', uri)
+      ..headers.addAll({'User-Agent': userAgent, 'Accept': '*/*'});
+    final res = await _http.send(req).timeout(timeout);
     if (res.statusCode != 200) {
+      await res.stream.drain<void>();
       throw XtreamException('HTTP ${res.statusCode}',
           statusCode: res.statusCode);
     }
-    final body = utf8.decode(res.bodyBytes, allowMalformed: true).trim();
-    if (body.isEmpty) return null;
-    try {
-      return jsonDecode(body);
-    } on FormatException {
+    // Decoded as it arrives: big lists never sit in memory as bytes and
+    // as text on top of the parsed result.
+    final values = await res.stream
+        .transform(const Utf8Decoder(allowMalformed: true))
+        .transform(const JsonDecoder())
+        .timeout(timeout)
+        .toList()
+        .catchError((Object _) => <Object?>[_badJson]);
+    if (values.isEmpty) return null;
+    if (identical(values.first, _badJson)) {
       throw XtreamException('Server did not return JSON');
     }
+    return values.first;
   }
+
+  static const _badJson = Object();
 
   Future<List<Map<String, Object?>>> _getList(Map<String, String> q) async {
     final data = await _getJson(_api(q));
