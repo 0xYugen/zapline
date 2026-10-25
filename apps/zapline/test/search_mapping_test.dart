@@ -22,7 +22,7 @@ Future<AppState> _ready(
 void main() {
   testWidgets('search finds channels by prefix', (tester) async {
     await _ready(tester);
-    await tester.tap(find.text('Search'));
+    await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'chan 1');
     await tester.pump(const Duration(milliseconds: 250));
@@ -37,7 +37,7 @@ void main() {
     final state = await _ready(tester, unmatched: {5});
     expect(state.unmatchedChannels(state.sources.single.id), hasLength(1));
 
-    await tester.tap(find.text('Sources'));
+    await tester.tap(find.byTooltip('Sources'));
     await tester.pumpAndSettle();
     await tester.tap(find.text(state.sources.single.name));
     await tester.pumpAndSettle();

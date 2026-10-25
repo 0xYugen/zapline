@@ -46,13 +46,41 @@ void main() {
     await tester.pumpWidget(ZaplineApp(state: fakeState()));
     await _connect(tester);
 
+    // Channels and their guide in one grid, on what's on now.
     expect(find.text('Channel 1'), findsOneWidget);
-    expect(_focusedLabel(), contains('Channel 1'));
-    expect(_focusedLabel(), contains('Show 1.0'), reason: 'now playing shown');
+    expect(find.byType(GuideGrid), findsOneWidget);
+    expect(_focusedLabel(), 'Show 1.0');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
-    expect(_focusedLabel(), contains('Channel 2'));
+    expect(_focusedLabel(), 'Show 2.0');
+  });
+
+  testWidgets('left and Back open the groups, then the menu', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    final state = fakeState(groups: ['News', 'Sport']);
+    await tester.pumpWidget(ZaplineApp(state: state));
+    await _connect(tester);
+    // These channels keep an archive: Back, not left, opens the groups.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(_focusedLabel(), 'All channels');
+
+    // Moving over a group shows its channels; OK goes into the grid.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(_focusedLabel(), 'News');
+    expect(find.text('Channel 2'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(_focusedLabel(), 'Show 1.0');
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(_focusedLabel(), 'Live TV');
+    expect(find.text('Settings'), findsOneWidget);
   });
 
   testWidgets('TV guide opens on the current programme and pages with D-pad', (
@@ -62,9 +90,6 @@ void main() {
     await tester.pumpWidget(ZaplineApp(state: fakeState()));
     await _connect(tester);
 
-    await tester.tap(find.text('Guide'));
-    await tester.pumpAndSettle();
-    expect(find.byType(GuideScreen), findsOneWidget);
     expect(_focusedLabel(), 'Show 1.0');
 
     // Walk right past the window edge: the grid pages forward.
@@ -104,8 +129,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Favourites'), findsOneWidget);
     expect(state.favourites().single.name, 'Channel 2');
-    expect(find.byIcon(Icons.star_rounded), findsNWidgets(2));
-    expect(_focusedLabel(), contains('Channel 2'), reason: 'focus returns');
+    expect(_focusedLabel(), 'Show 2.0', reason: 'focus returns');
 
     await menuThenOk();
     expect(find.text('Favourites'), findsNothing);
@@ -117,8 +141,6 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1920, 1080));
     await tester.pumpWidget(ZaplineApp(state: fakeState()));
     await _connect(tester);
-    await tester.tap(find.text('Guide'));
-    await tester.pumpAndSettle();
     expect(find.byIcon(Icons.history), findsNothing);
 
     // Page back past the left edge into programmes that already aired.

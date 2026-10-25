@@ -12,27 +12,64 @@ import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
 import 'player_screen.dart';
 
-/// TV guide grid.
-///
-/// Shows a fixed two-hour window that pages by half an hour when the D-pad
-/// reaches an edge, the way TV guides behave on a remote. Rows are built
-/// lazily and each row loads only its own programmes for the visible window,
-/// so the grid stays cheap with tens of thousands of channels.
-class GuideScreen extends StatefulWidget {
+/// The TV guide on a screen of its own.
+class GuideScreen extends StatelessWidget {
   const GuideScreen({super.key, required this.state, required this.channels});
 
   final AppState state;
   final List<Channel> channels;
 
   @override
-  State<GuideScreen> createState() => _GuideScreenState();
+  Widget build(BuildContext context) => Scaffold(
+    body: Padding(
+      padding: const EdgeInsets.fromLTRB(48, 32, 48, 0),
+      child: GuideGrid(state: state, channels: channels, autofocus: true),
+    ),
+  );
 }
 
-class _GuideScreenState extends State<GuideScreen> {
+/// Channels and their programmes in one grid: what's on now and next.
+///
+/// Shows a fixed two-hour window that pages by half an hour when the D-pad
+/// reaches an edge, the way TV guides behave on a remote. Rows are built
+/// lazily and each row loads only its own programmes for the visible window,
+/// so the grid stays cheap with tens of thousands of channels.
+class GuideGrid extends StatefulWidget {
+  const GuideGrid({
+    super.key,
+    required this.state,
+    required this.channels,
+    this.autofocus = false,
+    this.caption,
+    this.onExitLeft,
+    this.onLongPress,
+  });
+
+  final AppState state;
+  final List<Channel> channels;
+
+  /// Focus what's on now on the first channel once built.
+  final bool autofocus;
+
+  /// Shown over the channel column, with the day (the group's name).
+  final String? caption;
+
+  /// Left on a programme airing now: leave the grid (to the groups) instead
+  /// of going back in time.
+  final VoidCallback? onExitLeft;
+
+  /// Holding OK on a channel's programme (favourites, hiding, its guide).
+  final void Function(Channel)? onLongPress;
+
+  @override
+  State<GuideGrid> createState() => GuideGridState();
+}
+
+class GuideGridState extends State<GuideGrid> {
   static const _span = Duration(hours: 2);
   static const _step = Duration(minutes: 30);
-  static const _labelWidth = 260.0;
-  static const _rowHeight = 68.0;
+  static const _labelWidth = 240.0;
+  static const _rowHeight = 64.0;
 
   late DateTime _from = _floorToStep(DateTime.now().toUtc());
   DateTime get _to => _from.add(_span);
@@ -60,6 +97,34 @@ class _GuideScreenState extends State<GuideScreen> {
       n.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(GuideGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The guide may have changed (a sync, a channel's programmes asked of
+    // its source): the visible rows load again, a few queries.
+    _rows.clear();
+    // Another group starts from the top.
+    if (!identical(oldWidget.channels, widget.channels)) {
+      _focusedRow = 0;
+      _selected = null;
+    }
+  }
+
+  /// Moves focus into the grid: [row]'s programme on now, back at the
+  /// current time.
+  void focusNow([int row = 0]) {
+    final now = _floorToStep(DateTime.now().toUtc());
+    if (_from != now) {
+      setState(() {
+        _from = now;
+        _rows.clear();
+        _pendingFocus = (row, DateTime.now().toUtc());
+      });
+      return;
+    }
+    _focusCellAt(row, DateTime.now().toUtc());
   }
 
   List<Programme> _row(Channel c) {
@@ -118,6 +183,19 @@ class _GuideScreenState extends State<GuideScreen> {
       if (primary.focusInDirection(TraversalDirection.left)) {
         return KeyEventResult.handled;
       }
+      // Left past what's on now leaves the grid, unless the channel keeps
+      // an archive to go back into; at the archive's start it leaves too.
+      final exit = widget.onExitLeft;
+      final archived = (sel?.channel.catchup?.days ?? 0) > 0;
+      final earliest = _floorToStep(
+        DateTime.now().toUtc().subtract(const Duration(days: 1)),
+      );
+      final atNow = !_from.isAfter(_floorToStep(DateTime.now().toUtc()));
+      final atStart = _from.subtract(_step).isBefore(earliest);
+      if (exit != null && ((atNow && !archived) || atStart)) {
+        exit();
+        return KeyEventResult.handled;
+      }
       final at = sel?.programme?.start ?? _from;
       _page(
         -1,
@@ -165,115 +243,108 @@ class _GuideScreenState extends State<GuideScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _pruneNodes());
     }
 
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(48, 32, 48, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              height: 150,
-              child: _Details(selected: _selected, time: widget.state.time),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, box) {
-                  final pxPerMin =
-                      (box.maxWidth - _labelWidth) / _span.inMinutes;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 128,
+          child: _Details(selected: _selected, time: widget.state.time),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final pxPerMin = (box.maxWidth - _labelWidth) / _span.inMinutes;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Stack(
                     children: [
-                      Stack(
-                        children: [
-                          _Ruler(
-                            time: widget.state.time,
-                            from: _from,
-                            span: _span,
-                            step: _step,
-                            labelWidth: _labelWidth,
-                            pxPerMin: pxPerMin,
-                          ),
-                          // Mouse users page with these; the D-pad pages at
-                          // the grid edges.
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: ListenableBuilder(
-                              listenable: InputMode.instance,
-                              builder: (context, _) =>
-                                  InputMode.instance.pointer
-                                  ? ExcludeFocus(
-                                      child: Row(
-                                        children: [
-                                          IconButton(
-                                            iconSize: 22,
-                                            onPressed: () => _pagePointer(-1),
-                                            icon: Icon(
-                                              Icons.chevron_left_rounded,
-                                              semanticLabel:
-                                                  context.l10n.earlier,
-                                            ),
-                                          ),
-                                          IconButton(
-                                            iconSize: 22,
-                                            onPressed: () => _pagePointer(1),
-                                            icon: Icon(
-                                              Icons.chevron_right_rounded,
-                                              semanticLabel: context.l10n.later,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                          ),
-                        ],
+                      _Ruler(
+                        caption: widget.caption,
+                        time: widget.state.time,
+                        from: _from,
+                        span: _span,
+                        step: _step,
+                        labelWidth: _labelWidth,
+                        pxPerMin: pxPerMin,
                       ),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Listener(
-                              // Horizontal wheel or Shift+wheel moves in time.
-                              onPointerSignal: (e) {
-                                if (e is! PointerScrollEvent) return;
-                                final dx = e.scrollDelta.dx != 0
-                                    ? e.scrollDelta.dx
-                                    : (HardwareKeyboard.instance.isShiftPressed
-                                          ? e.scrollDelta.dy
-                                          : 0.0);
-                                if (dx != 0) _pagePointer(dx > 0 ? 1 : -1);
-                              },
-                              child: Focus(
-                                canRequestFocus: false,
-                                skipTraversal: true,
-                                onKeyEvent: _onKey,
-                                child: ListView.builder(
-                                  itemCount: widget.channels.length,
-                                  itemExtent: _rowHeight,
-                                  itemBuilder: (context, i) =>
-                                      _buildRow(i, pxPerMin),
-                                ),
-                              ),
-                            ),
-                            _NowLine(
-                              from: _from,
-                              to: _to,
-                              left: _labelWidth,
-                              pxPerMin: pxPerMin,
-                            ),
-                          ],
+                      // Mouse users page with these; the D-pad pages at
+                      // the grid edges.
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: ListenableBuilder(
+                          listenable: InputMode.instance,
+                          builder: (context, _) => InputMode.instance.pointer
+                              ? ExcludeFocus(
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        iconSize: 22,
+                                        onPressed: () => _pagePointer(-1),
+                                        icon: Icon(
+                                          Icons.chevron_left_rounded,
+                                          semanticLabel: context.l10n.earlier,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        iconSize: 22,
+                                        onPressed: () => _pagePointer(1),
+                                        icon: Icon(
+                                          Icons.chevron_right_rounded,
+                                          semanticLabel: context.l10n.later,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                       ),
                     ],
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Listener(
+                          // Horizontal wheel or Shift+wheel moves in time.
+                          onPointerSignal: (e) {
+                            if (e is! PointerScrollEvent) return;
+                            final dx = e.scrollDelta.dx != 0
+                                ? e.scrollDelta.dx
+                                : (HardwareKeyboard.instance.isShiftPressed
+                                      ? e.scrollDelta.dy
+                                      : 0.0);
+                            if (dx != 0) _pagePointer(dx > 0 ? 1 : -1);
+                          },
+                          child: Focus(
+                            canRequestFocus: false,
+                            skipTraversal: true,
+                            onKeyEvent: _onKey,
+                            child: ListView.builder(
+                              itemCount: widget.channels.length,
+                              itemExtent: _rowHeight,
+                              itemBuilder: (context, i) =>
+                                  _buildRow(i, pxPerMin),
+                            ),
+                          ),
+                        ),
+                        _NowLine(
+                          from: _from,
+                          to: _to,
+                          left: _labelWidth,
+                          pxPerMin: pxPerMin,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -293,6 +364,7 @@ class _GuideScreenState extends State<GuideScreen> {
           dim: true,
           onFocus: () => _select(i, c, null),
           onPressed: () => _play(i),
+          onLongPress: _longPress(c),
         ),
       );
     }
@@ -313,6 +385,7 @@ class _GuideScreenState extends State<GuideScreen> {
               p.stop.isBefore(DateTime.now().toUtc()) && canReplay(c, p),
           onFocus: () => _select(i, c, p),
           onPressed: () => _play(i, p),
+          onLongPress: _longPress(c),
         ),
       );
     }
@@ -325,7 +398,7 @@ class _GuideScreenState extends State<GuideScreen> {
             width: _labelWidth,
             child: Row(
               children: [
-                ChannelLogo(channel: c, width: 44, height: 32),
+                ChannelLogo(channel: c, width: 52, height: 36),
                 const SizedBox(width: 10),
                 SizedBox(
                   width: 36,
@@ -367,6 +440,7 @@ class _GuideScreenState extends State<GuideScreen> {
     bool replayable = false,
     required VoidCallback onFocus,
     required VoidCallback onPressed,
+    VoidCallback? onLongPress,
   }) {
     return Positioned(
       left: left,
@@ -379,6 +453,7 @@ class _GuideScreenState extends State<GuideScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         onFocused: onFocus,
         onPressed: onPressed,
+        onLongPress: onLongPress,
         child: Row(
           children: [
             if (replayable) ...[
@@ -402,6 +477,11 @@ class _GuideScreenState extends State<GuideScreen> {
         ),
       ),
     );
+  }
+
+  VoidCallback? _longPress(Channel c) {
+    final f = widget.onLongPress;
+    return f == null ? null : () => f(c);
   }
 
   void _select(int row, Channel c, Programme? p) {
@@ -428,6 +508,7 @@ class _GuideScreenState extends State<GuideScreen> {
   @override
   void initState() {
     super.initState();
+    if (!widget.autofocus) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusCellAt(0, DateTime.now().toUtc());
     });
@@ -485,6 +566,7 @@ class _Details extends StatelessWidget {
 
 class _Ruler extends StatelessWidget {
   const _Ruler({
+    this.caption,
     required this.time,
     required this.from,
     required this.span,
@@ -493,6 +575,7 @@ class _Ruler extends StatelessWidget {
     required this.pxPerMin,
   });
 
+  final String? caption;
   final String Function(DateTime) time;
   final DateTime from;
   final Duration span;
@@ -528,7 +611,12 @@ class _Ruler extends StatelessWidget {
           SizedBox(
             width: labelWidth,
             child: Text(
-              sameDay ? context.l10n.today : '${l.day}/${l.month}',
+              [
+                ?caption,
+                sameDay ? context.l10n.today : '${l.day}/${l.month}',
+              ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: ZaplineColors.textMuted,

@@ -87,6 +87,20 @@ void main() {
       await step(tester);
       await shot(tester, d, '01b-home-focus');
 
+      // Back from the grid: the groups (left too, on channels without an
+      // archive), then left to the menu.
+      if (isTv) {
+        await tester.binding.handlePopRoute();
+        await step(tester);
+        await shot(tester, d, '01c-groups');
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+        await step(tester);
+        await shot(tester, d, '01d-menu');
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await step(tester);
+      }
+
       await push(tester, VodScreen(state: state, kind: VodKind.movies));
       await shot(tester, d, '02-movies');
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);

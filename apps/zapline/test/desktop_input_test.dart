@@ -35,7 +35,7 @@ String? _focusedText() {
 void main() {
   testWidgets('Esc goes back on desktop', (tester) async {
     await _ready(tester);
-    await tester.tap(find.text('Search'));
+    await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
     expect(find.byType(SearchScreen), findsOneWidget);
 
@@ -46,7 +46,7 @@ void main() {
 
   testWidgets('mouse back button goes back', (tester) async {
     await _ready(tester);
-    await tester.tap(find.text('Search'));
+    await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
 
     final mouse = await tester.createGesture(
@@ -63,15 +63,15 @@ void main() {
     tester,
   ) async {
     await _ready(tester);
-    expect(_focusedText(), contains('Channel 1'));
+    expect(_focusedText(), contains('Show 1.0'));
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
-    await mouse.moveTo(tester.getCenter(find.text('Channel 3')));
+    await mouse.moveTo(tester.getCenter(find.text('Show 3.0')));
     await tester.pumpAndSettle();
-    expect(_focusedText(), contains('Channel 3'));
+    expect(_focusedText(), contains('Show 3.0'));
 
-    await tester.tap(find.text('Search'));
+    await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
     final back = find.byIcon(Icons.arrow_back_rounded);
     expect(back, findsOneWidget);

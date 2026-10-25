@@ -124,6 +124,9 @@ void main() {
     );
     expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
 
+    // Back from the grid opens the groups.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Odd'));
     await tester.pumpAndSettle();
     expect(find.text('This group is locked'), findsOneWidget);
@@ -156,7 +159,7 @@ void main() {
     final first = state.channels().first;
     expect(state.channelNumber(first, 0), 2);
 
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle();
     expect(find.byType(SettingsScreen), findsOneWidget);
     await tester.tap(find.text('Channel numbers'));
@@ -184,7 +187,7 @@ void main() {
     await tester.pumpWidget(ZaplineApp(state: state));
     await _connect(tester);
 
-    await tester.tap(find.text('Search'));
+    await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Show 3.0');
     await tester.pump(const Duration(milliseconds: 300));

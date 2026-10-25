@@ -18,7 +18,7 @@ void _tvView(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('TV size: list starts at the top and Left reaches the menu', (
+  testWidgets('TV size: list starts at the top and Back reaches the groups', (
     tester,
   ) async {
     _tvView(tester);
@@ -35,10 +35,12 @@ void main() {
     debugPrint('focus: ${FocusManager.instance.primaryFocus}');
     expect(position.pixels, 0);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    // These channels keep an archive, so left goes back in time; Back
+    // opens the groups.
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    debugPrint('focus after left: ${FocusManager.instance.primaryFocus}');
-    // Focus left the channel list for the menu side of the screen.
+    debugPrint('focus after back: ${FocusManager.instance.primaryFocus}');
+    // Focus left the grid for the groups on the left of the screen.
     final focused = FocusManager.instance.primaryFocus!.context!;
     expect(
       tester.getCenter(find.byWidget(focused.widget).first).dx,
