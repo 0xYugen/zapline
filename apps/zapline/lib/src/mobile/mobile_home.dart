@@ -124,11 +124,20 @@ class _MobileHomeState extends State<MobileHome> {
     }
 
     // Sideways, a rail keeps the little height there is for the lists.
-    if (isLandscape(context)) {
-      return Scaffold(
-        body: Row(
-          children: [
+    // Both layouts share one tree with the tabs under a key: turning the
+    // phone (the player does, for full screen) keeps each tab where it
+    // was scrolled instead of building it again from the top.
+    final landscape = isLandscape(context);
+    final bar = NavigationBarTheme.of(context);
+    final labelSize = _labelSize(context, [
+      for (final (_, _, label) in destinations) label,
+    ]);
+    return Scaffold(
+      body: Row(
+        children: [
+          if (landscape) ...[
             NavigationRail(
+              key: const ValueKey('rail'),
               selectedIndex: index,
               onDestinationSelected: select,
               labelType: NavigationRailLabelType.all,
@@ -141,40 +150,39 @@ class _MobileHomeState extends State<MobileHome> {
                   ),
               ],
             ),
-            const VerticalDivider(width: 1, color: ZaplineColors.line),
-            Expanded(child: body),
+            const VerticalDivider(
+              key: ValueKey('divider'),
+              width: 1,
+              color: ZaplineColors.line,
+            ),
           ],
-        ),
-      );
-    }
-    final bar = NavigationBarTheme.of(context);
-    final labelSize = _labelSize(context, [
-      for (final (_, _, label) in destinations) label,
-    ]);
-    return Scaffold(
-      body: body,
-      bottomNavigationBar: NavigationBarTheme(
-        data: bar.copyWith(
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (states) => bar.labelTextStyle
-                ?.resolve(states)
-                ?.copyWith(fontSize: labelSize),
-          ),
-        ),
-        child: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: select,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: [
-            for (final (icon, selected, label) in destinations)
-              NavigationDestination(
-                icon: _dotted(icon, label),
-                selectedIcon: _dotted(selected, label),
-                label: label,
-              ),
-          ],
-        ),
+          Expanded(key: const ValueKey('tabs'), child: body),
+        ],
       ),
+      bottomNavigationBar: landscape
+          ? null
+          : NavigationBarTheme(
+              data: bar.copyWith(
+                labelTextStyle: WidgetStateProperty.resolveWith(
+                  (states) => bar.labelTextStyle
+                      ?.resolve(states)
+                      ?.copyWith(fontSize: labelSize),
+                ),
+              ),
+              child: NavigationBar(
+                selectedIndex: index,
+                onDestinationSelected: select,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                destinations: [
+                  for (final (icon, selected, label) in destinations)
+                    NavigationDestination(
+                      icon: _dotted(icon, label),
+                      selectedIcon: _dotted(selected, label),
+                      label: label,
+                    ),
+                ],
+              ),
+            ),
     );
   }
 
