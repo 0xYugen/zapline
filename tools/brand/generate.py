@@ -1,133 +1,141 @@
 """Generates every Zapline icon and banner from one geometric definition.
 
-    python -I tools/brand/generate.py [--preview]
+    python -I tools/brand/generate.py [--preview out.png]
 
-The mark: an amber "Z" whose diagonal is a lightning bolt (the zap, channel
-switching) and whose base runs on into a line ending in a dot (the line, a
-playhead on a timeline). The wordmark is drawn from strokes defined here,
-so the logo depends on no font licence. Everything is supersampled and
-downscaled for clean edges.
+The mark, "hidden Z": a dark play button on an amber tile, cut through by a
+Z-shaped line in the tile's colour, so the Z only appears in the gap. The
+wordmark is "zapline" in Inter ExtraBold (bundled with the app, SIL OFL).
+Everything is supersampled and downscaled for clean edges.
 """
 
 import json
-import math
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "apps" / "zapline"
+FONT = APP / "assets" / "fonts" / "inter" / "Inter-ExtraBold.ttf"
 
 GROUND = (11, 14, 19)
-SURFACE = (20, 25, 34)
-AMBER = (245, 184, 65)
+INK = (20, 25, 34)
+AMBER_TOP = (255, 209, 102)
+AMBER_BOTTOM = (245, 158, 11)
+AMBER = (249, 182, 54)  # the tile's middle, for flat fills
 TEXT = (238, 242, 247)
 
 SS = 4  # supersampling factor
+
+# Geometry on a 100-unit tile (the same numbers as widgets/brand.dart).
+_PLAY = [  # (kind, points): straight lines and quadratic corners
+    ("M", (31, 21)), ("Q", (27, 19), (27, 24)), ("L", (27, 76)),
+    ("Q", (27, 81), (31, 79)), ("L", (81, 53.5)), ("Q", (85, 50), (81, 46.5)),
+]
+_CUT = [(20, 40), (60, 40), (39, 60), (90, 60)]
+_CUT_WIDTH = 5.5
+TILE_RADIUS = 0.23
 
 
 # ---------------------------------------------------------------- drawing
 
 
-def _stroke(draw, points, width, color):
-    """Polyline with round caps and joins."""
-    for a, b in zip(points, points[1:]):
-        draw.line([a, b], fill=color, width=round(width))
-    r = width / 2
-    for x, y in points:
-        draw.ellipse([x - r, y - r, x + r, y + r], fill=color)
+def _play_points(scale, ox, oy):
+    pts, cur = [], None
+    for seg in _PLAY:
+        if seg[0] in ("M", "L"):
+            cur = seg[1]
+            pts.append(cur)
+        else:
+            (cx, cy), end = seg[1], seg[2]
+            for i in range(1, 13):
+                t = i / 12
+                x = (1 - t) ** 2 * cur[0] + 2 * (1 - t) * t * cx + t * t * end[0]
+                y = (1 - t) ** 2 * cur[1] + 2 * (1 - t) * t * cy + t * t * end[1]
+                pts.append((x, y))
+            cur = end
+    return [(ox + x * scale, oy + y * scale) for x, y in pts]
 
 
-def _mark(draw, cx, cy, size, color=AMBER):
-    """The Z-zap-line mark centred on (cx, cy), `size` = its height."""
-    s = size / 1000
-    w = 118 * s
+def _thick_polyline(points, width):
+    """Outline of a polyline with mitred joins and flat ends."""
+    h = width / 2
 
-    def p(x, y):
-        return (cx + (x - 500) * s, cy + (y - 500) * s)
+    def normal(a, b):
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        ln = (dx * dx + dy * dy) ** 0.5
+        return (-dy / ln * h, dx / ln * h)
 
-    # Top bar, lightning diagonal (with its zig), bottom bar.
-    _stroke(draw, [p(150, 80), p(720, 80), p(400, 470), p(600, 470),
-                   p(220, 920)], w, color)
-    _stroke(draw, [p(220, 920), p(690, 920)], w, color)
-    # The playhead dot at the end of the line.
-    r = 74 * s
-    x, y = p(850, 920)
-    draw.ellipse([x - r, y - r, x + r, y + r], fill=color)
+    def offset(a, b, sign):
+        n = normal(a, b)
+        return ((a[0] + sign * n[0], a[1] + sign * n[1]),
+                (b[0] + sign * n[0], b[1] + sign * n[1]))
 
+    def cross(l1, l2):
+        (x1, y1), (x2, y2) = l1
+        (x3, y3), (x4, y4) = l2
+        d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+        if abs(d) < 1e-9:
+            return l1[1]
+        t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d
+        return (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
 
-# Wordmark: lowercase geometric letters on an x-height of 1.
-def _glyph(draw, ch, x, base, xh, w, color):
-    """Draws one letter with its top-left at (x, base - xh); returns advance."""
-    top = base - xh
-
-    def pt(u, v):
-        return (x + u * xh, top + v * xh)
-
-    def ring(u, v, r, start=0, end=360):
-        box = [x + (u - r) * xh, top + (v - r) * xh,
-               x + (u + r) * xh, top + (v + r) * xh]
-        # PIL draws arc width inwards; widen the box by half the stroke.
-        h = w / 2
-        box = [box[0] - h, box[1] - h, box[2] + h, box[3] + h]
-        draw.arc(box, start, end, fill=color, width=round(w))
-
-    if ch == "z":
-        _stroke(draw, [pt(0, 0), pt(0.78, 0), pt(0, 1), pt(0.78, 1)], w, color)
-        return 0.78
-    if ch == "a":
-        ring(0.46, 0.5, 0.46)
-        _stroke(draw, [pt(0.92, 0), pt(0.92, 1)], w, color)
-        return 0.92
-    if ch == "p":
-        ring(0.46, 0.5, 0.46)
-        _stroke(draw, [pt(0, 0), pt(0, 1.42)], w, color)
-        return 0.92
-    if ch == "l":
-        _stroke(draw, [pt(0, -0.48), pt(0, 1)], w, color)
-        return 0
-    if ch == "i":
-        _stroke(draw, [pt(0, 0), pt(0, 1)], w, color)
-        r = w * 0.62
-        cx, cy = pt(0, -0.36)
-        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=color)
-        return 0
-    if ch == "n":
-        _stroke(draw, [pt(0, 0), pt(0, 1)], w, color)
-        ring(0.41, 0.41, 0.41, 180, 360)
-        _stroke(draw, [pt(0.82, 0.41), pt(0.82, 1)], w, color)
-        return 0.82
-    if ch == "e":
-        ring(0.47, 0.5, 0.47, 28, 360)
-        _stroke(draw, [pt(0.0, 0.5), pt(0.94, 0.5)], w, color)
-        return 0.94
-    raise ValueError(ch)
+    sides = []
+    for sign in (1, -1):
+        segs = [offset(a, b, sign) for a, b in zip(points, points[1:])]
+        side = [segs[0][0]]
+        for s1, s2 in zip(segs, segs[1:]):
+            side.append(cross(s1, s2))
+        side.append(segs[-1][1])
+        sides.append(side)
+    return sides[0] + sides[1][::-1]
 
 
-def _wordmark(draw, x, base, xh, colors):
-    """'zapline' with 'zap' and 'line' in their own colours; returns width."""
-    w = xh * 0.17
-    gap = xh * 0.3
-    start = x
-    for i, ch in enumerate("zapline"):
-        color = colors[0] if i < 3 else colors[1]
-        x += _glyph(draw, ch, x, base, xh, w, color) * xh + gap
-    return x - gap - start
+def _gradient(n):
+    """Amber tile colours, top-left light to bottom-right deep."""
+    small = Image.new("RGB", (64, 64))
+    px = small.load()
+    for y in range(64):
+        for x in range(64):
+            t = (x + y) / 126
+            px[x, y] = tuple(round(a + (b - a) * t)
+                             for a, b in zip(AMBER_TOP, AMBER_BOTTOM))
+    return small.resize((n, n), Image.BILINEAR)
 
 
-def _wordmark_width(xh):
-    img = Image.new("RGB", (10, 10))
-    return _wordmark(ImageDraw.Draw(img), 0, 0, xh, (TEXT, TEXT))
+def _mark_mask(n, scale, ox, oy):
+    """White where the play shows: the play minus the Z cut."""
+    mask = Image.new("L", (n, n), 0)
+    d = ImageDraw.Draw(mask)
+    d.polygon(_play_points(scale, ox, oy), fill=255)
+    cut = [(ox + x * scale, oy + y * scale) for x, y in _CUT]
+    d.polygon(_thick_polyline(cut, _CUT_WIDTH * scale), fill=0)
+    return mask
+
+
+def _icon(n, rounded=True, inset=0):
+    """The full icon at n x n (supersampled pixels)."""
+    img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    size = n - 2 * inset
+    tile = _gradient(size).convert("RGBA")
+    shape = Image.new("L", (size, size), 0)
+    sd = ImageDraw.Draw(shape)
+    if rounded:
+        sd.rounded_rectangle([0, 0, size - 1, size - 1],
+                             radius=round(size * TILE_RADIUS), fill=255)
+    else:
+        sd.rectangle([0, 0, size - 1, size - 1], fill=255)
+    img.paste(tile, (inset, inset), shape)
+    mark = _mark_mask(n, size / 100, inset, inset)
+    img.paste(Image.new("RGBA", (n, n), INK + (255,)), (0, 0), mark)
+    return img
+
+
+def _font(px):
+    return ImageFont.truetype(str(FONT), round(px))
 
 
 # ---------------------------------------------------------------- assets
-
-
-def _canvas(w, h, color=None):
-    mode = "RGBA" if color is None else "RGB"
-    img = Image.new(mode, (w * SS, h * SS), color or (0, 0, 0, 0))
-    return img, ImageDraw.Draw(img)
 
 
 def _down(img, w, h):
@@ -135,46 +143,44 @@ def _down(img, w, h):
 
 
 def icon_square(px, rounded=True, padding=0.0):
-    """Full icon: dark tile and mark. `rounded` for platforms that don't
-    mask icons themselves (Android legacy, macOS, Windows, Linux)."""
+    """Full icon: amber tile and the mark. `rounded` for platforms that
+    don't mask icons themselves (Android legacy, macOS, Windows, Linux)."""
     n = px * SS
-    img, d = _canvas(px, px)
-    inset = round(n * padding)
-    box = [inset, inset, n - inset, n - inset]
-    if rounded:
-        d.rounded_rectangle(box, radius=round((n - 2 * inset) * 0.22),
-                            fill=GROUND)
-    else:
-        d.rectangle(box, fill=GROUND)
-    _mark(d, n / 2, n / 2, (n - 2 * inset) * 0.56)
-    return _down(img, px, px)
+    return _down(_icon(n, rounded, round(n * padding)), px, px)
 
 
 def adaptive_foreground(px):
-    """Android adaptive icon foreground: mark inside the 66% safe zone."""
+    """Android adaptive icon foreground (108 units, 66 safe): the dark play
+    alone; the amber comes from the background layer and fills the cut."""
     n = px * SS
-    img, d = _canvas(px, px)
-    _mark(d, n / 2, n / 2, n * 0.40)
+    img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    # The tile's 100 units shown over the 72-unit visible area, centred.
+    scale = n * 0.66 / 100
+    off = (n - 100 * scale) / 2
+    mark = _mark_mask(n, scale, off, off)
+    img.paste(Image.new("RGBA", (n, n), INK + (255,)), (0, 0), mark)
     return _down(img, px, px)
 
 
 def tv_banner(w, h):
     """Android TV / Fire TV launcher banner with the app name (TV-BN)."""
-    img, d = _canvas(w, h, GROUND)
     W, H = w * SS, h * SS
-    mark = H * 0.40
-    xh = H * 0.15
-    words = _wordmark_width(xh)
-    gap = H * 0.12
-    total = mark * 0.9 + gap + words
-    left = (W - total) / 2
-    _mark(d, left + mark * 0.45, H / 2, mark)
-    _wordmark(d, left + mark * 0.9 + gap, H / 2 + xh / 2, xh, (AMBER, TEXT))
+    img = Image.new("RGB", (W, H), GROUND)
+    icon = H * 0.56
+    font = _font(H * 0.30)
+    d = ImageDraw.Draw(img)
+    words = d.textlength("zapline", font=font)
+    gap = H * 0.10
+    left = (W - icon - gap - words) / 2
+    ic = _icon(round(icon))
+    img.paste(ic, (round(left), round((H - icon) / 2)), ic)
+    d.text((left + icon + gap, H / 2), "zapline", font=font, fill=TEXT,
+           anchor="lm")
     return _down(img, w, h)
 
 
 def lockup(w, h):
-    """Mark + wordmark on the dark ground, for README and stores."""
+    """Icon + wordmark on the dark ground, for README and stores."""
     return tv_banner(w, h)
 
 
@@ -211,7 +217,7 @@ def android():
     values = res / "values" / "ic_launcher_background.xml"
     values.write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
-        '    <color name="ic_launcher_background">#0B0E13</color>\n'
+        '    <color name="ic_launcher_background">#F9B636</color>\n'
         '</resources>\n', encoding="utf-8")
     # TV banner: 320x180 at xhdpi, plus a sharper xxhdpi version.
     save(tv_banner(320, 180), res / "drawable-xhdpi" / "banner.png", rgb=True)
@@ -276,7 +282,7 @@ def preview(out):
         sheet.paste(ic, (600 + i * 220, 40), ic)
     sheet.paste(tv_banner(640, 360), (600, 300))
     fg = adaptive_foreground(324)
-    circle = Image.new("RGB", (324, 324), GROUND)
+    circle = Image.new("RGB", (324, 324), AMBER)
     mask = Image.new("L", (324, 324), 0)
     ImageDraw.Draw(mask).ellipse([0, 0, 323, 323], fill=255)
     circle.paste(fg, (0, 0), fg)

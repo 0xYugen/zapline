@@ -96,19 +96,7 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      color: ZaplineColors.surface,
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(color: ZaplineColors.line),
-                    ),
-                    alignment: Alignment.center,
-                    child: const ZaplineMark(size: 54),
-                  ),
-                ),
+                Center(child: const ZaplineMark(size: 96)),
                 const SizedBox(height: 18),
                 const Center(child: ZaplineWordmark(height: 36)),
                 const SizedBox(height: 14),
