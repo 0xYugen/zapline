@@ -20,6 +20,7 @@ class SourceRecord {
     this.syncedAt,
     this.serverOffset = Duration.zero,
     this.guideOffset = Duration.zero,
+    this.guideShifts = const {},
     this.groupFilter = GroupFilter.none,
     this.movieFilter = GroupFilter.none,
     this.showFilter = GroupFilter.none,
@@ -43,9 +44,15 @@ class SourceRecord {
   /// Xtream panels read catch-up start times in their own local time.
   final Duration serverOffset;
 
-  /// Shift applied to this source's guides, for XMLTV files published in the
-  /// wrong time zone.
+  /// Shift applied to this source's own guide, for XMLTV files published
+  /// in the wrong time zone.
   final Duration guideOffset;
+
+  /// Shift applied to each of [extraGuideUrls], by link; missing is none.
+  final Map<String, Duration> guideShifts;
+
+  /// The shift of the added guide at [url].
+  Duration shiftOf(String url) => guideShifts[url] ?? Duration.zero;
 
   /// Which groups to show; see [GroupFilter].
   final GroupFilter groupFilter;
@@ -66,6 +73,7 @@ class SourceRecord {
     DateTime? syncedAt,
     Duration? serverOffset,
     Duration? guideOffset,
+    Map<String, Duration>? guideShifts,
     GroupFilter? groupFilter,
     GroupFilter? movieFilter,
     GroupFilter? showFilter,
@@ -82,6 +90,7 @@ class SourceRecord {
     syncedAt: syncedAt ?? this.syncedAt,
     serverOffset: serverOffset ?? this.serverOffset,
     guideOffset: guideOffset ?? this.guideOffset,
+    guideShifts: guideShifts ?? this.guideShifts,
     groupFilter: groupFilter ?? this.groupFilter,
     movieFilter: movieFilter ?? this.movieFilter,
     showFilter: showFilter ?? this.showFilter,
@@ -96,6 +105,7 @@ class SourceRecord {
     'guides': extraGuideUrls,
     'offsetMinutes': serverOffset.inMinutes,
     'guideOffsetMinutes': guideOffset.inMinutes,
+    if (guideShifts.isNotEmpty) 'guideShifts': writeShifts(guideShifts),
     'groupFilter': groupFilter.toJson(),
     'movieFilter': movieFilter.toJson(),
     'showFilter': showFilter.toJson(),
@@ -124,6 +134,7 @@ class SourceRecord {
           : DateTime.fromMillisecondsSinceEpoch(syncedAt * 1000, isUtc: true),
       serverOffset: Duration(minutes: (c['offsetMinutes'] as int?) ?? 0),
       guideOffset: Duration(minutes: (c['guideOffsetMinutes'] as int?) ?? 0),
+      guideShifts: readShifts(c['guideShifts']),
       groupFilter: GroupFilter.fromJson(c['groupFilter']),
       movieFilter: GroupFilter.fromJson(c['movieFilter']),
       showFilter: GroupFilter.fromJson(c['showFilter']),
@@ -132,6 +143,20 @@ class SourceRecord {
     );
   }
 }
+
+/// Guide shifts as stored: link → minutes. Zero shifts are left out.
+Map<String, int> writeShifts(Map<String, Duration> shifts) => {
+  for (final MapEntry(:key, :value) in shifts.entries)
+    if (value != Duration.zero) key: value.inMinutes,
+};
+
+Map<String, Duration> readShifts(Object? json) => json is Map
+    ? {
+        for (final e in json.entries)
+          if (e.value is int && e.value != 0)
+            '${e.key}': Duration(minutes: e.value as int),
+      }
+    : const {};
 
 /// Category choices as stored: title → hidden.
 Map<String, bool> readChoices(Object? json) => json is Map

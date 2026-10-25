@@ -1453,6 +1453,7 @@ class AppState extends ChangeNotifier {
           existing.copyWith(
             extraGuideUrls: s.extraGuideUrls,
             guideOffset: s.guideOffset,
+            guideShifts: s.guideShifts,
             groupFilter: s.groupFilter,
             movieFilter: s.movieFilter,
             showFilter: s.showFilter,
@@ -1472,6 +1473,7 @@ class AppState extends ChangeNotifier {
         password: s.password,
         extraGuideUrls: s.extraGuideUrls,
         guideOffset: s.guideOffset,
+        guideShifts: s.guideShifts,
         groupFilter: s.groupFilter,
         movieFilter: s.movieFilter,
         showFilter: s.showFilter,

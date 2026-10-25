@@ -122,9 +122,10 @@ class SourceSync {
             now,
             onProgress,
             guide.programmes,
-            // The time shift fixes the source's own guide; public guides
-            // publish correct times.
-            extra.contains(url) ? Duration.zero : source.guideOffset,
+            // Each guide has its own shift, set by the user.
+            extra.contains(url)
+                ? source.shiftOf(url.toString())
+                : source.guideOffset,
             claimed,
           );
           guide = GuideImportResult(

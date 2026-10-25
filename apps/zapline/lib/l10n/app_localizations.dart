@@ -2393,8 +2393,32 @@ abstract class AppLocalizations {
   /// No description provided for @timesWrongHint.
   ///
   /// In en, this message translates to:
-  /// **'Shift your provider\'s guide earlier or later'**
+  /// **'Shift one guide or all of them earlier or later'**
   String get timesWrongHint;
+
+  /// No description provided for @whichGuideToShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Which guide do you want to shift?'**
+  String get whichGuideToShift;
+
+  /// No description provided for @allGuides.
+  ///
+  /// In en, this message translates to:
+  /// **'All guides'**
+  String get allGuides;
+
+  /// No description provided for @shiftTimes.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift times'**
+  String get shiftTimes;
+
+  /// No description provided for @shiftBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift by…'**
+  String get shiftBy;
 
   /// No description provided for @noShift.
   ///

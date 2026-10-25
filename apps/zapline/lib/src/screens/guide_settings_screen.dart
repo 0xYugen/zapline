@@ -192,24 +192,79 @@ class _GuideSettingsScreenState extends State<GuideSettingsScreen> {
     ).whenComplete(controller.dispose);
   }
 
-  Future<void> _shift() async {
+  /// Tapping an added guide: shift its times or remove it.
+  Future<void> _guideMenu(_Guide g) async {
     final l = context.l10n;
-    final current = _source.guideOffset.inMinutes;
+    final choice = await showChoice<int>(
+      context,
+      title: g.title,
+      options: {0: l.shiftTimes, 1: l.remove},
+      current: -1,
+    );
+    if (choice == null || !mounted) return;
+    if (choice.value == 0) {
+      await _shift([g]);
+    } else {
+      _remove(g);
+    }
+  }
+
+  /// "The times are wrong": picks the guide when there are several, then
+  /// the shift.
+  Future<void> _shiftWhich() async {
+    final l = context.l10n;
+    final guides = _guides(l, _source);
+    if (guides.isEmpty) return _shift(const []);
+    String label(String title, Duration d) =>
+        '$title · ${d == Duration.zero ? l.noShift : _shiftText(d)}';
+    final picked = await showChoice<int>(
+      context,
+      title: l.whichGuideToShift,
+      options: {
+        -1: l.allGuides,
+        0: label(l.providerGuide, _source.guideOffset),
+        for (final (i, g) in guides.indexed)
+          i + 1: label(g.title, _source.shiftOf(g.urls.first)),
+      },
+      current: -2,
+    );
+    if (picked == null || !mounted) return;
+    await switch (picked.value) {
+      -1 => _shift(guides, provider: true),
+      0 => _shift(const []),
+      final i => _shift([guides[i - 1]], provider: false),
+    };
+  }
+
+  /// Shifts the provider's guide (when [provider]) and [guides].
+  Future<void> _shift(List<_Guide> guides, {bool? provider}) async {
+    final l = context.l10n;
+    final withProvider = provider ?? guides.isEmpty;
+    final s = _source;
+    final current = withProvider
+        ? s.guideOffset
+        : s.shiftOf(guides.first.urls.first);
     final options = {
       for (var m = -180; m <= 180; m += 30)
-        m: m == 0
-            ? l.noShift
-            : '${m > 0 ? '+' : '−'}${m.abs() ~/ 60}:${(m.abs() % 60).toString().padLeft(2, '0')}',
+        m: m == 0 ? l.noShift : _shiftText(Duration(minutes: m)),
     };
     final picked = await showChoice<int>(
       context,
-      title: l.timesWrong,
+      title: l.shiftBy,
       options: options,
-      current: current,
+      current: current.inMinutes,
     );
     if (picked == null || !mounted) return;
+    final d = Duration(minutes: picked.value);
     _state.updateSource(
-      _source.copyWith(guideOffset: Duration(minutes: picked.value)),
+      s.copyWith(
+        guideOffset: withProvider ? d : null,
+        guideShifts: {
+          ...s.guideShifts,
+          for (final g in guides)
+            for (final u in g.urls) u: d,
+        },
+      ),
     );
     await _refresh();
   }
@@ -311,8 +366,10 @@ class _GuideSettingsScreenState extends State<GuideSettingsScreen> {
                 subtitle: status?.perChannel ?? false
                     ? l.providerGuidePerChannel
                     : l.providerGuideHint,
-                chevron: false,
-                onTap: () {},
+                value: s.guideOffset == Duration.zero
+                    ? null
+                    : _shiftText(s.guideOffset),
+                onTap: () => _shift(const []),
               ),
               for (final g in guides)
                 SettingsTile(
@@ -322,9 +379,10 @@ class _GuideSettingsScreenState extends State<GuideSettingsScreen> {
                   ),
                   title: g.title,
                   subtitle: g.subtitle,
-                  value: l.remove,
-                  chevron: false,
-                  onTap: () => _remove(g),
+                  value: s.shiftOf(g.urls.first) == Duration.zero
+                      ? null
+                      : _shiftText(s.shiftOf(g.urls.first)),
+                  onTap: () => _guideMenu(g),
                 ),
               SettingsTile(
                 icon: Icons.add_rounded,
@@ -342,10 +400,7 @@ class _GuideSettingsScreenState extends State<GuideSettingsScreen> {
               SettingsTile(
                 title: l.timesWrong,
                 subtitle: l.timesWrongHint,
-                value: s.guideOffset == Duration.zero
-                    ? null
-                    : _shiftText(s.guideOffset),
-                onTap: _shift,
+                onTap: _shiftWhich,
               ),
               SettingsTile(
                 icon: Icons.sync_rounded,

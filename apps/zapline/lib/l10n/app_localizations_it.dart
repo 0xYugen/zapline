@@ -1447,7 +1447,19 @@ class AppLocalizationsIt extends AppLocalizations {
   String get timesWrong => 'Gli orari sono sbagliati';
 
   @override
-  String get timesWrongHint => 'Sposta avanti o indietro la guida del provider';
+  String get timesWrongHint => 'Sposta avanti o indietro una guida o tutte';
+
+  @override
+  String get whichGuideToShift => 'Quale guida vuoi spostare?';
+
+  @override
+  String get allGuides => 'Tutte le guide';
+
+  @override
+  String get shiftTimes => 'Sposta orario';
+
+  @override
+  String get shiftBy => 'Sposta di…';
 
   @override
   String get noShift => 'Nessuno spostamento';

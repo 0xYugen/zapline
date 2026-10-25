@@ -1444,7 +1444,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timesWrong => 'The times are wrong';
 
   @override
-  String get timesWrongHint => 'Shift your provider\'s guide earlier or later';
+  String get timesWrongHint =>
+      'Shift one guide or all of them earlier or later';
+
+  @override
+  String get whichGuideToShift => 'Which guide do you want to shift?';
+
+  @override
+  String get allGuides => 'All guides';
+
+  @override
+  String get shiftTimes => 'Shift times';
+
+  @override
+  String get shiftBy => 'Shift by…';
 
   @override
   String get noShift => 'No shift';

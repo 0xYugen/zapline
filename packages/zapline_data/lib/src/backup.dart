@@ -121,6 +121,8 @@ abstract final class Backup {
             'password': passwordOf?.call(s) ?? s.password,
             if (guide) 'guides': s.extraGuideUrls,
             if (guide) 'guideOffsetMinutes': s.guideOffset.inMinutes,
+            if (guide && s.guideShifts.isNotEmpty)
+              'guideShifts': writeShifts(s.guideShifts),
             if (filters) 'groupFilter': s.groupFilter.toJson(),
             if (filters) 'movieFilter': s.movieFilter.toJson(),
             if (filters) 'showFilter': s.showFilter.toJson(),
@@ -213,6 +215,7 @@ abstract final class Backup {
           guideOffset: Duration(
             minutes: (s['guideOffsetMinutes'] as int?) ?? 0,
           ),
+          guideShifts: readShifts(s['guideShifts']),
           groupFilter: GroupFilter.fromJson(s['groupFilter']),
           movieFilter: GroupFilter.fromJson(s['movieFilter']),
           showFilter: GroupFilter.fromJson(s['showFilter']),
