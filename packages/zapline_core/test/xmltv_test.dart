@@ -140,10 +140,9 @@ void main() {
     });
 
     test('winter offset in summer is fixed', () {
-      expect(t('20260701210000 +0100', 'TF1.fr'),
-          DateTime.utc(2026, 7, 1, 19));
-      expect(t('20260701210000 +0000', 'BBCOne.uk'),
-          DateTime.utc(2026, 7, 1, 20));
+      expect(t('20260701210000 +0100', 'TF1.fr'), DateTime.utc(2026, 7, 1, 19));
+      expect(
+          t('20260701210000 +0000', 'BBCOne.uk'), DateTime.utc(2026, 7, 1, 20));
     });
 
     test('correct, UTC and foreign offsets stay as given', () {

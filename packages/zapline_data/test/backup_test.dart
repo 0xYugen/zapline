@@ -63,11 +63,15 @@ void main() {
     expect(c.favourites, [(1, '9/x'), (0, '2')]);
     expect(c.guideOverrides, [(0, '1', 'news.example')]);
     expect(c.sources[0].guideOffset, const Duration(minutes: -60));
-    expect(c.sources[0].shiftOf('http://g.example/e.xml'),
-        const Duration(minutes: 60));
+    expect(
+      c.sources[0].shiftOf('http://g.example/e.xml'),
+      const Duration(minutes: 60),
+    );
     // Kept in the database too.
-    expect(db.sources().first.shiftOf('http://g.example/e.xml'),
-        const Duration(minutes: 60));
+    expect(
+      db.sources().first.shiftOf('http://g.example/e.xml'),
+      const Duration(minutes: 60),
+    );
     expect(c.sources[0].groupFilter, const GroupFilter(exclude: ['xxx']));
     expect(c.groupPrefs, [(0, '', true, false), (1, '', null, true)]);
     expect(c.hiddenChannels, [(0, '1')]);

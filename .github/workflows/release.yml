@@ -33,7 +33,7 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "ZAPLINE_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           else
-            echo "::warning::No signing key configured: APKs are debug-signed."
+            echo "::warning::No signing key configured: Android is skipped, build and attach it locally (docs/RELEASING.md)."
           fi
       - name: Build APKs and App Bundle
         working-directory: apps/zapline
@@ -41,15 +41,24 @@ jobs:
           ZAPLINE_KEYSTORE_PASSWORD: ${{ secrets.ZAPLINE_KEYSTORE_PASSWORD }}
           ZAPLINE_KEY_ALIAS: ${{ secrets.ZAPLINE_KEY_ALIAS }}
           ZAPLINE_KEY_PASSWORD: ${{ secrets.ZAPLINE_KEY_PASSWORD }}
+        # Debug-signed APKs would not update the installed app: none at all.
+        if: env.ZAPLINE_KEYSTORE_PATH != ''
         run: |
-          sh tool/build_android.sh apk
           sh tool/build_android.sh appbundle
+          # TV: one APK for 32 and 64-bit devices (older Fire TV sticks are
+          # 32-bit), the name the README's Downloader link points at.
+          sh tool/build_android.sh apk --target-platform android-arm,android-arm64
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/zapline-tv.apk
+          # Phones: 64-bit only, half the size.
+          sh tool/build_android.sh apk --split-per-abi --target-platform android-arm64
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/zapline-phone.apk
+          cp build/app/outputs/bundle/release/app-release.aab dist/zapline.aab
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: |
-            apps/zapline/build/app/outputs/flutter-apk/*-release.apk
-            apps/zapline/build/app/outputs/bundle/release/app-release.aab
+          path: apps/zapline/dist/*
+          if-no-files-found: ignore
 
   windows:
     runs-on: windows-latest

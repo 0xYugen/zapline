@@ -60,6 +60,21 @@ not for publishing).
    Linux (tar.gz) and macOS (unsigned zip), and opens a **draft** GitHub
    release with `SHA256SUMS.txt`. Review it, then publish.
 
+Without the signing secrets the workflow skips Android. Build it locally
+(signed through `android/key.properties`) and attach it to the draft:
+
+```sh
+cd apps/zapline
+sh tool/build_android.sh apk --target-platform android-arm,android-arm64
+cp build/app/outputs/flutter-apk/app-release.apk zapline-tv.apk
+sh tool/build_android.sh apk --split-per-abi --target-platform android-arm64
+cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk zapline-phone.apk
+gh release upload <tag> zapline-tv.apk zapline-phone.apk
+```
+
+The README's install links point at `zapline-tv.apk` and `zapline-phone.apk`
+of the latest published release.
+
 ## Channels
 
 | Channel | What to submit | Notes |

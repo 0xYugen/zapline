@@ -808,11 +808,7 @@ class ZaplineDatabase {
   /// twinned channels agree on, if any. Only programmes imported this time
   /// (from each channel's earliest start in [ids]) move. Returns how many
   /// channels moved.
-  int alignGuide(
-    Map<String, int> ids,
-    Set<String> reference, {
-    DateTime? now,
-  }) {
+  int alignGuide(Map<String, int> ids, Set<String> reference, {DateTime? now}) {
     if (ids.isEmpty || reference.isEmpty) return 0;
     final at = _secs((now ?? DateTime.now()).toUtc());
     const window = 12 * 3600, reach = 3 * 3600;
@@ -867,9 +863,7 @@ class ZaplineDatabase {
     // The guide's usual distance, for its channels without a twin.
     var usual = 0;
     if (channels.isNotEmpty) {
-      final top = channels.entries.reduce(
-        (a, b) => a.value >= b.value ? a : b,
-      );
+      final top = channels.entries.reduce((a, b) => a.value >= b.value ? a : b);
       if (top.value >= 2 && top.value * 10 >= twinned * 6) usual = top.key;
     }
     // Whole half hours only: a few minutes are listings rounding.

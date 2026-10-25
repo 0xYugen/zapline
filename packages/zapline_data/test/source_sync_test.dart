@@ -91,9 +91,9 @@ void main() {
     final xml = _xmltv(now).replaceFirst('Hour -2', 'Caffè ÿ');
     final bytes = [
       // A Latin-1 byte inside UTF-8, then the download stops mid-tag.
-      ...utf8.encode(xml.substring(0, xml.indexOf('Hour 2'))).map(
-        (b) => b == 0xc3 ? 0xe8 : b,
-      ),
+      ...utf8
+          .encode(xml.substring(0, xml.indexOf('Hour 2')))
+          .map((b) => b == 0xc3 ? 0xe8 : b),
       ...utf8.encode('Hour 2</tit'),
     ];
     final client = MockClient((req) async {
