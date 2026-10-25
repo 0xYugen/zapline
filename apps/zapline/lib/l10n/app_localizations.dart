@@ -2965,6 +2965,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This system has no working keystore, so source passwords are saved in Zapline\'s own data on this device.'**
   String get noKeystoreHint;
+
+  /// No description provided for @updateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get updateGroup;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'New version {version}'**
+  String updateAvailable(String version);
+
+  /// No description provided for @updateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to download and install it'**
+  String get updateHint;
+
+  /// No description provided for @updateHintDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens the download page'**
+  String get updateHintDesktop;
+
+  /// No description provided for @updateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get updateNow;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading… {percent}%'**
+  String updateDownloading(int percent);
+
+  /// No description provided for @updateAllowInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Zapline to install apps, then come back and tap Update'**
+  String get updateAllowInstall;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed: {error}'**
+  String updateFailed(String error);
+
+  /// No description provided for @updateAnnounce.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version of Zapline is out'**
+  String get updateAnnounce;
+
+  /// No description provided for @checkUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkUpdates;
+
+  /// No description provided for @checkUpdatesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Once a day, asks GitHub for the latest version. Nothing about you is sent'**
+  String get checkUpdatesHint;
+
+  /// No description provided for @checkUpdatesNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get checkUpdatesNow;
+
+  /// No description provided for @checkingUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get checkingUpdates;
+
+  /// No description provided for @upToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Zapline is up to date'**
+  String get upToDate;
+
+  /// No description provided for @updateCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach GitHub, try again later'**
+  String get updateCheckFailed;
 }
 
 class _AppLocalizationsDelegate

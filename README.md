@@ -13,6 +13,18 @@ paywall.
 > channels or links, and the project does not endorse any provider. You are
 > responsible for the legality of the sources you add.
 
+## Screenshots
+
+| Live TV | TV guide | Films |
+|---|---|---|
+| ![Live TV on a phone](docs/screenshots/phone-channels.png) | ![TV guide on a phone](docs/screenshots/phone-guide.png) | ![A film on a phone](docs/screenshots/phone-movie.png) |
+
+![Films on a TV, driven by the remote](docs/screenshots/tv-movies.png)
+
+![Guide settings on a computer](docs/screenshots/pc-guide.png)
+
+Screenshots use demo data: Zapline comes with no channels or content.
+
 ## Install
 
 Builds are on the [releases page](https://github.com/0xYugen/zapline/releases/latest).
@@ -31,9 +43,17 @@ on your phone: sources, guides and settings come across.
 [zapline-phone.apk](https://github.com/0xYugen/zapline/releases/latest/download/zapline-phone.apk)
 (64-bit) and open it.
 
+**Windows, macOS, Linux**: download the zip or tarball from the
+[releases page](https://github.com/0xYugen/zapline/releases/latest). On
+macOS the app isn't signed yet: the first time, right-click it and choose
+*Open*. Linux needs `libmpv` installed.
+
+On Android the app tells you when a new version is out and installs it from
+*Settings*.
+
 ## Status
 
-Android phone and TV builds are out; desktop builds are next. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Android phone and TV, Windows, macOS and Linux builds are out. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Targets
 
@@ -41,7 +61,7 @@ Android phone and TV builds are out; desktop builds are next. See [docs/ROADMAP.
 |---|---|
 | Android TV, Fire OS (Fire TV Stick 4K/4K Max, Cube) | available ([zapline-tv.apk](https://github.com/0xYugen/zapline/releases/latest/download/zapline-tv.apk)) |
 | Android phones and tablets | available ([zapline-phone.apk](https://github.com/0xYugen/zapline/releases/latest/download/zapline-phone.apk)) |
-| Windows, macOS, Linux | in progress: the app and its desktop layout are done, release builds not yet published |
+| Windows, macOS, Linux | available on the [releases page](https://github.com/0xYugen/zapline/releases/latest) (macOS not signed yet) |
 | iOS | after licence review of the video stack |
 | Web (lite) | phase 3 |
 | Samsung (Tizen), LG (webOS), tvOS, Fire TV on Vega OS | under evaluation |

@@ -1792,4 +1792,57 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noKeystoreHint =>
       'This system has no working keystore, so source passwords are saved in Zapline\'s own data on this device.';
+
+  @override
+  String get updateGroup => 'Update';
+
+  @override
+  String updateAvailable(String version) {
+    return 'New version $version';
+  }
+
+  @override
+  String get updateHint => 'Tap to download and install it';
+
+  @override
+  String get updateHintDesktop => 'Opens the download page';
+
+  @override
+  String get updateNow => 'Update';
+
+  @override
+  String updateDownloading(int percent) {
+    return 'Downloading… $percent%';
+  }
+
+  @override
+  String get updateAllowInstall =>
+      'Allow Zapline to install apps, then come back and tap Update';
+
+  @override
+  String updateFailed(String error) {
+    return 'Update failed: $error';
+  }
+
+  @override
+  String get updateAnnounce => 'A new version of Zapline is out';
+
+  @override
+  String get checkUpdates => 'Check for updates';
+
+  @override
+  String get checkUpdatesHint =>
+      'Once a day, asks GitHub for the latest version. Nothing about you is sent';
+
+  @override
+  String get checkUpdatesNow => 'Check now';
+
+  @override
+  String get checkingUpdates => 'Checking…';
+
+  @override
+  String get upToDate => 'Zapline is up to date';
+
+  @override
+  String get updateCheckFailed => 'Could not reach GitHub, try again later';
 }

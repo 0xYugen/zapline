@@ -128,6 +128,22 @@ class AppSettings {
     language.value = code;
   }
 
+  /// Ask GitHub, at most once a day, whether a newer Zapline is out.
+  bool get checkUpdates => _bool('checkUpdates', true);
+  set checkUpdates(bool v) => _db.setSetting('checkUpdates', '$v');
+
+  /// When updates were last looked for (ms since epoch).
+  int get updateCheckedAt => _int('updateCheckedAt', 0);
+  set updateCheckedAt(int v) => _db.setSetting('updateCheckedAt', '$v');
+
+  /// The newer release last found, as JSON, kept until it's installed.
+  String? get pendingUpdate => _db.setting('pendingUpdate');
+  set pendingUpdate(String? v) => _db.setSetting('pendingUpdate', v);
+
+  /// The build already announced with a message, so it's said once.
+  int get updateAnnounced => _int('updateAnnounced', 0);
+  set updateAnnounced(int v) => _db.setSetting('updateAnnounced', '$v');
+
   /// Hash of the parental PIN; `null` when none is set.
   String? get pinHash => _db.setting('pinHash');
   set pinHash(String? v) => _db.setSetting('pinHash', v);

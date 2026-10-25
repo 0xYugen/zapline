@@ -1796,4 +1796,57 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get noKeystoreHint =>
       'Questo sistema non ha un portachiavi funzionante: le password delle sorgenti restano nei dati di Zapline su questo dispositivo.';
+
+  @override
+  String get updateGroup => 'Aggiornamento';
+
+  @override
+  String updateAvailable(String version) {
+    return 'Nuova versione $version';
+  }
+
+  @override
+  String get updateHint => 'Tocca per scaricarla e installarla';
+
+  @override
+  String get updateHintDesktop => 'Apre la pagina per scaricarla';
+
+  @override
+  String get updateNow => 'Aggiorna';
+
+  @override
+  String updateDownloading(int percent) {
+    return 'Download… $percent%';
+  }
+
+  @override
+  String get updateAllowInstall =>
+      'Consenti a Zapline di installare app, poi torna qui e tocca Aggiorna';
+
+  @override
+  String updateFailed(String error) {
+    return 'Aggiornamento non riuscito: $error';
+  }
+
+  @override
+  String get updateAnnounce => 'È uscita una nuova versione di Zapline';
+
+  @override
+  String get checkUpdates => 'Controlla aggiornamenti';
+
+  @override
+  String get checkUpdatesHint =>
+      'Una volta al giorno chiede a GitHub l’ultima versione. Non invia nulla su di te';
+
+  @override
+  String get checkUpdatesNow => 'Controlla adesso';
+
+  @override
+  String get checkingUpdates => 'Controllo…';
+
+  @override
+  String get upToDate => 'Zapline è aggiornata';
+
+  @override
+  String get updateCheckFailed => 'GitHub non risponde, riprova più tardi';
 }

@@ -133,8 +133,8 @@ class _MobileHomeState extends State<MobileHome> {
               destinations: [
                 for (final (icon, selected, label) in destinations)
                   NavigationRailDestination(
-                    icon: Icon(icon),
-                    selectedIcon: Icon(selected),
+                    icon: _dotted(icon, label),
+                    selectedIcon: _dotted(selected, label),
                     label: Text(label),
                   ),
               ],
@@ -154,14 +154,23 @@ class _MobileHomeState extends State<MobileHome> {
         destinations: [
           for (final (icon, selected, label) in destinations)
             NavigationDestination(
-              icon: Icon(icon),
-              selectedIcon: Icon(selected),
+              icon: _dotted(icon, label),
+              selectedIcon: _dotted(selected, label),
               label: label,
             ),
         ],
       ),
     );
   }
+
+  /// The settings icon carries a dot while a new version waits.
+  Widget _dotted(IconData icon, String label) => Badge(
+    isLabelVisible:
+        label == context.l10n.settings && widget.state.update != null,
+    backgroundColor: ZaplineColors.focus,
+    smallSize: 9,
+    child: Icon(icon),
+  );
 }
 
 enum _Tab { tv, movies, shows, guide, favourites, settings }

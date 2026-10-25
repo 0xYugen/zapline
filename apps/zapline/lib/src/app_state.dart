@@ -12,6 +12,7 @@ import 'countries.dart';
 import 'format.dart';
 import 'free_epg.dart';
 import 'settings.dart';
+import 'updates.dart';
 
 /// What the user typed or pasted on the "add source" screen.
 class SourceInput {
@@ -126,6 +127,7 @@ class AppState extends ChangeNotifier {
     SecretStore? secrets,
     this.guideFetcher,
     this.vod,
+    this.updater,
   }) : secrets = secrets ?? MemorySecretStore() {
     _upgradeFreeEpgs();
     _reload();
@@ -1093,6 +1095,51 @@ class AppState extends ChangeNotifier {
 
   /// Opens films and series; `null` in tests that don't need it.
   final VodCatalog? vod;
+
+  // ------------------------------------------------------------ updates
+
+  /// Looks for and installs new releases; null in tests and store builds.
+  final Updater? updater;
+
+  /// A release newer than this build, once one was found.
+  late AppUpdate? update = () {
+    final u = AppUpdate.fromJson(_tryJson(settings.pendingUpdate));
+    final build = buildOf(appVersion);
+    return u != null && build != null && u.build > build ? u : null;
+  }();
+
+  static Object? _tryJson(String? s) {
+    if (s == null) return null;
+    try {
+      return jsonDecode(s);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Looks for a newer release: at most once a day unless [now] (asked by
+  /// hand), and never when turned off, in store builds or in development
+  /// builds. Returns the update, or null when Zapline is up to date.
+  Future<AppUpdate?> checkForUpdate({bool now = false}) async {
+    final u = updater, build = buildOf(appVersion);
+    if (u == null || build == null || !updatesSupported) return null;
+    if (!now) {
+      if (!settings.checkUpdates) return null;
+      final last = DateTime.fromMillisecondsSinceEpoch(
+        settings.updateCheckedAt,
+      );
+      if (DateTime.now().difference(last) < const Duration(hours: 20)) {
+        return update;
+      }
+    }
+    final found = await u.check(build);
+    settings
+      ..updateCheckedAt = DateTime.now().millisecondsSinceEpoch
+      ..pendingUpdate = found == null ? null : jsonEncode(found.toJson());
+    update = found;
+    notifyListeners();
+    return found;
+  }
 
   (int, _VodVisibility, _VodVisibility)? _vodCache;
 

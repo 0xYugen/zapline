@@ -114,7 +114,7 @@ jobs:
         working-directory: apps/zapline
         run: flutter build macos --release
       - name: Zip (unsigned)
-        run: ditto -c -k --keepParent apps/zapline/build/macos/Build/Products/Release/zapline.app zapline-macos-unsigned.zip
+        run: ditto -c -k --keepParent apps/zapline/build/macos/Build/Products/Release/Zapline.app zapline-macos-unsigned.zip
       - uses: actions/upload-artifact@v4
         with:
           name: macos

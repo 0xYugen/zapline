@@ -487,5 +487,20 @@
   "castUnpairAll": "Scollega tutti",
   "castUnpaired": "Telefoni scollegati",
   "noKeystoreTitle": "Password salvate solo in Zapline",
-  "noKeystoreHint": "Questo sistema non ha un portachiavi funzionante: le password delle sorgenti restano nei dati di Zapline su questo dispositivo."
+  "noKeystoreHint": "Questo sistema non ha un portachiavi funzionante: le password delle sorgenti restano nei dati di Zapline su questo dispositivo.",
+  "updateGroup": "Aggiornamento",
+  "updateAvailable": "Nuova versione {version}",
+  "updateHint": "Tocca per scaricarla e installarla",
+  "updateHintDesktop": "Apre la pagina per scaricarla",
+  "updateNow": "Aggiorna",
+  "updateDownloading": "Download… {percent}%",
+  "updateAllowInstall": "Consenti a Zapline di installare app, poi torna qui e tocca Aggiorna",
+  "updateFailed": "Aggiornamento non riuscito: {error}",
+  "updateAnnounce": "È uscita una nuova versione di Zapline",
+  "checkUpdates": "Controlla aggiornamenti",
+  "checkUpdatesHint": "Una volta al giorno chiede a GitHub l’ultima versione. Non invia nulla su di te",
+  "checkUpdatesNow": "Controlla adesso",
+  "checkingUpdates": "Controllo…",
+  "upToDate": "Zapline è aggiornata",
+  "updateCheckFailed": "GitHub non risponde, riprova più tardi"
 }

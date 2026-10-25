@@ -22,7 +22,9 @@ import 'src/secret_store.dart';
 import 'src/screens/add_source_screen.dart';
 import 'src/screens/channels_screen.dart';
 import 'src/screens/player_screen.dart';
+import 'src/screens/settings_screen.dart';
 import 'src/theme.dart';
+import 'src/updates.dart';
 import 'src/widgets/channel_logo.dart';
 
 /// Development only: add this source at startup when none exists, e.g.
@@ -64,11 +66,14 @@ Future<void> main() async {
     secrets: const KeychainSecretStore(),
     guideFetcher: ChannelGuideFetcher(db),
     vod: VodCatalog(db),
+    updater: updatesSupported ? Updater() : null,
   );
   // Show the UI at once; the keystore can take seconds on first use and
   // passwords are only needed when syncing (which waits for them).
   runApp(ZaplineApp(state: state, autoplayFirst: _devAutoplay));
   await state.loadSecrets();
+  // Offline or GitHub busy: no update this time, nothing to say.
+  unawaited(state.checkForUpdate().then((_) {}, onError: (Object _) {}));
   if (_devSource.isNotEmpty && state.sources.isEmpty) {
     state
         .addSource(SourceInput(url: _devSource))
@@ -120,10 +125,37 @@ class _ZaplineAppState extends State<ZaplineApp>
       const Duration(seconds: 20),
       (_) => _checkReminders(),
     );
+    widget.state.addListener(_announceUpdate);
+  }
+
+  /// Says once per release that a new version is out, with a shortcut to
+  /// the settings row that installs it.
+  void _announceUpdate() {
+    final state = widget.state, update = state.update;
+    final context = _navigator.currentContext;
+    if (update == null || context == null) return;
+    if (state.settings.updateAnnounced >= update.build) return;
+    state.settings.updateAnnounced = update.build;
+    final l = AppLocalizations.of(context);
+    _messenger.currentState?.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 10),
+        content: Text(l.updateAnnounce),
+        action: SnackBarAction(
+          label: l.updateNow,
+          onPressed: () => _navigator.currentState?.push(
+            MaterialPageRoute<void>(
+              builder: (_) => SettingsScreen(state: state),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    widget.state.removeListener(_announceUpdate);
     WidgetsBinding.instance.removeObserver(this);
     _cast?.close();
     _reminderTimer?.cancel();

@@ -230,6 +230,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       _MenuItem(
                         icon: Icons.settings_outlined,
                         label: context.l10n.settings,
+                        dot: state.update != null,
                         onPressed: () => _open(SettingsScreen(state: state)),
                       ),
                     ],
@@ -383,12 +384,16 @@ class _MenuItem extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.focusNode,
+    this.dot = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
   final FocusNode? focusNode;
+
+  /// A new version waits behind this entry.
+  final bool dot;
 
   @override
   Widget build(BuildContext context) => FocusCard(
@@ -399,7 +404,12 @@ class _MenuItem extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 24),
+        Badge(
+          isLabelVisible: dot,
+          backgroundColor: ZaplineColors.focus,
+          smallSize: 9,
+          child: Icon(icon, size: 24),
+        ),
         const SizedBox(height: 4),
         // Long words ("Impostazioni") shrink a little rather than cut.
         FittedBox(

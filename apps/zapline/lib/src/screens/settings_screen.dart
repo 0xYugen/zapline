@@ -7,19 +7,15 @@ import '../l10n.dart';
 import '../layout.dart';
 import '../mobile/mobile_widgets.dart' show requirePinIfSet;
 import '../theme.dart';
+import '../updates.dart';
 import '../widgets/brand.dart';
 import '../widgets/pin_pad.dart';
 import '../widgets/settings_widgets.dart';
+import '../widgets/update_tile.dart';
 import 'add_source_screen.dart';
 import 'backup_screen.dart';
 import 'transfer_screens.dart';
 import 'source_detail_screen.dart';
-
-/// Set by release builds: `--dart-define=ZAPLINE_VERSION=0.1.0 (42)`.
-const appVersion = String.fromEnvironment(
-  'ZAPLINE_VERSION',
-  defaultValue: 'development build',
-);
 
 /// App-wide preferences as a grouped list: sources first, then watching,
 /// language, TV guide, privacy and about. Each row shows its current value
@@ -35,6 +31,18 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   AppState get _state => widget.state;
+
+  Future<void> _checkNow() async {
+    final l = context.l10n;
+    _snack(l.checkingUpdates);
+    try {
+      final u = await _state.checkForUpdate(now: true);
+      if (!mounted) return;
+      _snack(u == null ? l.upToDate : l.updateAvailable(u.version));
+    } catch (_) {
+      if (mounted) _snack(l.updateCheckFailed);
+    }
+  }
 
   // A new message replaces the one on screen instead of queueing.
   void _snack(String text) => ScaffoldMessenger.of(context)
@@ -149,6 +157,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return AdaptivePage(
           title: l.settings,
           children: [
+            if (_state.update case final update?)
+              SettingsGroup(
+                title: l.updateGroup,
+                children: [UpdateTile(state: _state, update: update)],
+              ),
             SettingsGroup(
               title: l.sources,
               children: [
@@ -347,6 +360,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     applicationVersion: appVersion,
                   ),
                 ),
+                if (updatesSupported && _state.updater != null) ...[
+                  SettingsSwitchTile(
+                    title: l.checkUpdates,
+                    subtitle: l.checkUpdatesHint,
+                    value: s.checkUpdates,
+                    onChanged: (v) => _set(() => s.checkUpdates = v),
+                  ),
+                  SettingsTile(
+                    icon: Icons.system_update_rounded,
+                    title: l.checkUpdatesNow,
+                    chevron: false,
+                    onTap: _checkNow,
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 32),
