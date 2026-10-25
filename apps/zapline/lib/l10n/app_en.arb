@@ -599,5 +599,11 @@
   "checkingUpdates": "Checking…",
   "upToDate": "Zapline is up to date",
   "updateCheckFailed": "Could not reach GitHub, try again later",
-  "sendTimedOut": "The TV didn't answer in time. Keep it on “Receive” and try again: what already arrived stays."
+  "sendTimedOut": "The TV didn't answer in time. Keep it on “Receive” and try again: what already arrived stays.",
+  "loadingYourList": "Loading your playlist",
+  "loadingYourListHint": "Channels, films and the guide arrive shortly: you can wait here.",
+  "updatingList": "Updating the playlist…",
+  "setupReceived": "Setup received from the phone",
+  "searchMovies": "Search films",
+  "searchShows": "Search series"
 }

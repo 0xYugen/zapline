@@ -1849,4 +1849,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sendTimedOut =>
       'The TV didn\'t answer in time. Keep it on “Receive” and try again: what already arrived stays.';
+
+  @override
+  String get loadingYourList => 'Loading your playlist';
+
+  @override
+  String get loadingYourListHint =>
+      'Channels, films and the guide arrive shortly: you can wait here.';
+
+  @override
+  String get updatingList => 'Updating the playlist…';
+
+  @override
+  String get setupReceived => 'Setup received from the phone';
+
+  @override
+  String get searchMovies => 'Search films';
+
+  @override
+  String get searchShows => 'Search series';
 }

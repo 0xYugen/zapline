@@ -10,12 +10,12 @@ import '../widgets/channel_actions.dart';
 import '../widgets/epg_suggestion.dart';
 import '../widgets/brand.dart';
 import '../widgets/focus_card.dart';
+import '../widgets/sync_steps.dart';
 import '../mobile/mobile_widgets.dart' show unlockWithPin;
 import 'guide_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
-import 'sources_screen.dart';
 
 /// The TV and desktop home: a side menu, the groups (shown when moving left)
 /// and the channels with their guide in one grid, as TV apps do.
@@ -134,7 +134,10 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       return;
     }
     setState(() => _area = _Area.grid);
-    _grid.currentState?.focusNow();
+    // After the rebuild: the grid may be showing another group by then.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _grid.currentState?.focusNow();
+    });
   }
 
   /// Shows the groups and focuses the one in use.
@@ -249,6 +252,40 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
               title: l.groupLocked,
               subtitle: l.pressOkForPin,
             )
+          : visible.isEmpty && state.isSyncing
+          // A playlist just added or received: say it is on its way.
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l.loadingYourList,
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l.loadingYourListHint,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: ZaplineColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SyncSteps(state.progress),
+                    const LinearProgressIndicator(
+                      color: ZaplineColors.focus,
+                      backgroundColor: ZaplineColors.line,
+                    ),
+                  ],
+                ),
+              ),
+            )
           : visible.isEmpty
           ? _Message(icon: Icons.tv_off_rounded, title: l.noChannelsInGroup)
           : _part(
@@ -276,6 +313,41 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
           children: [
             // The grid keeps its room; menu and groups open over it.
             Positioned.fill(left: _SideMenu.narrowWidth, child: grid),
+            // Refreshing a playlist that already has channels.
+            if (state.isSyncing && visible.isNotEmpty)
+              Positioned(
+                top: 18,
+                right: 28,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ZaplineColors.surfaceHigh,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          l.updatingList,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             // Dims the grid while the menu or the groups are open; a click on
             // it goes back to the grid.
             Positioned.fill(
@@ -310,8 +382,22 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                           focusNode: _menuFirst,
                           icon: Icons.live_tv_rounded,
                           label: l.liveTv,
-                          selected: true,
-                          onPressed: _toGrid,
+                          selected: _group != _favourites,
+                          onPressed: () {
+                            if (_group == _favourites) {
+                              setState(() => _group = null);
+                            }
+                            _toGrid();
+                          },
+                        ),
+                        _MenuEntry(
+                          icon: Icons.star_outline_rounded,
+                          label: l.favourites,
+                          selected: _group == _favourites,
+                          onPressed: () {
+                            setState(() => _group = _favourites);
+                            _toGrid();
+                          },
                         ),
                         if (state.hasMovies)
                           _MenuEntry(
@@ -329,15 +415,12 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                               VodScreen(state: state, kind: VodKind.shows),
                             ),
                           ),
+                        // From live TV: channels and the guide; films and series have their own
+                        // search.
                         _MenuEntry(
                           icon: Icons.search,
                           label: l.search,
                           onPressed: () => _open(SearchScreen(state: state)),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.dns_outlined,
-                          label: l.sources,
-                          onPressed: () => _open(SourcesScreen(state: state)),
                         ),
                         _MenuEntry(
                           icon: Icons.settings_outlined,

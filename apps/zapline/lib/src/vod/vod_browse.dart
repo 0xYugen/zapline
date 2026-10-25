@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../l10n.dart';
+import '../screens/search_screen.dart' show SearchScope;
 import '../mobile/mobile_home.dart';
 import '../mobile/mobile_widgets.dart';
 import '../layout.dart';
@@ -150,7 +151,11 @@ class _VodTabState extends State<VodTab> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          MobileHeader(state: state, title: _movies ? l.movies : l.series),
+          MobileHeader(
+            state: state,
+            title: _movies ? l.movies : l.series,
+            searchScope: _movies ? SearchScope.movies : SearchScope.shows,
+          ),
           SizedBox(
             height: 52,
             child: Row(

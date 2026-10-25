@@ -178,4 +178,28 @@ void main() {
     await key(LogicalKeyboardKey.select);
     expect(_focusedLabel(), 'Show 1.0');
   });
+
+  testWidgets('Favourites in the menu shows only the favourites', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    final state = fakeState();
+    await tester.pumpWidget(ZaplineApp(state: state));
+    await _connect(tester);
+    state.toggleFavourite(state.channels()[2]);
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(_focusedLabel(), 'Favourites');
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(_focusedLabel(), 'Show 3.0');
+    expect(find.text('Channel 1'), findsNothing);
+    expect(find.text('Sources'), findsNothing, reason: 'in Settings now');
+  });
 }

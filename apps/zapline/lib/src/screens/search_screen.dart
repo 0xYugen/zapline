@@ -19,10 +19,23 @@ import 'player_screen.dart';
 
 /// Search across all sources: channels (prefix matching, accent-insensitive),
 /// films and series, then programmes in the TV guide, results as you type.
+/// What a search looks through: it opens from a section and stays in it.
+enum SearchScope {
+  /// Channels and programmes in the TV guide.
+  live,
+  movies,
+  shows,
+}
+
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, required this.state});
+  const SearchScreen({
+    super.key,
+    required this.state,
+    this.scope = SearchScope.live,
+  });
 
   final AppState state;
+  final SearchScope scope;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -54,14 +67,17 @@ class _SearchScreenState extends State<SearchScreen> {
   void _run() {
     if (!mounted) return;
     final q = _query.text;
+    final scope = widget.scope;
     setState(() {
-      _results = widget.state.search(q);
+      _results = scope == SearchScope.live ? widget.state.search(q) : const [];
       _titles = [
-        for (final m in widget.state.searchMovies(q)) VodTitle.movie(m),
-        for (final x in widget.state.searchShows(q)) VodTitle.show(x),
+        if (scope == SearchScope.movies)
+          for (final m in widget.state.searchMovies(q)) VodTitle.movie(m),
+        if (scope == SearchScope.shows)
+          for (final x in widget.state.searchShows(q)) VodTitle.show(x),
       ];
       // Titles are matched anywhere in the text, so wait for a few letters.
-      _programmes = q.trim().length < 3
+      _programmes = scope != SearchScope.live || q.trim().length < 3
           ? const []
           : _byRelevance(widget.state.searchProgrammes(q));
     });
@@ -148,7 +164,9 @@ class _SearchScreenState extends State<SearchScreen> {
         () => Padding(
           padding: phone ? EdgeInsets.zero : const EdgeInsets.only(top: 8),
           child: VodRow(
-            title: context.l10n.searchMoviesSeries,
+            title: widget.scope == SearchScope.movies
+                ? context.l10n.movies
+                : context.l10n.series,
             itemCount: _titles.length,
             itemBuilder: (context, i) => PosterCard(
               title: _titles[i],
@@ -232,9 +250,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _run(),
                   decoration: InputDecoration(
-                    labelText: widget.state.hasMovies || widget.state.hasShows
-                        ? context.l10n.channelProgrammeOrTitle
-                        : context.l10n.channelOrProgramme,
+                    labelText: switch (widget.scope) {
+                      SearchScope.live => context.l10n.channelOrProgramme,
+                      SearchScope.movies => context.l10n.searchMovies,
+                      SearchScope.shows => context.l10n.searchShows,
+                    },
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),

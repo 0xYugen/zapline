@@ -503,5 +503,11 @@
   "checkingUpdates": "Controllo…",
   "upToDate": "Zapline è aggiornata",
   "updateCheckFailed": "GitHub non risponde, riprova più tardi",
-  "sendTimedOut": "La TV non ha risposto in tempo. Tieni aperta su “Ricevi” e riprova: quello che è già arrivato resta."
+  "sendTimedOut": "La TV non ha risposto in tempo. Tieni aperta su “Ricevi” e riprova: quello che è già arrivato resta.",
+  "loadingYourList": "Sto caricando la tua lista",
+  "loadingYourListHint": "Canali, film e guida arrivano tra poco: puoi aspettare qui.",
+  "updatingList": "Aggiorno la lista…",
+  "setupReceived": "Configurazione ricevuta dal telefono",
+  "searchMovies": "Cerca un film",
+  "searchShows": "Cerca una serie"
 }

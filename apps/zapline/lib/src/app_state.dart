@@ -1618,8 +1618,8 @@ class AppState extends ChangeNotifier {
     ].join(', ');
   }
 
-  /// The downloads started by the last restore; tests wait on it.
-  @visibleForTesting
+  /// The downloads started by the last restore: the receiving screen
+  /// follows them.
   Future<void>? restoreDownloads;
 
   /// Downloads restored sources one after the other. One that can't be

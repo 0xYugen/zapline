@@ -3061,6 +3061,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The TV didn\'t answer in time. Keep it on “Receive” and try again: what already arrived stays.'**
   String get sendTimedOut;
+
+  /// No description provided for @loadingYourList.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading your playlist'**
+  String get loadingYourList;
+
+  /// No description provided for @loadingYourListHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels, films and the guide arrive shortly: you can wait here.'**
+  String get loadingYourListHint;
+
+  /// No description provided for @updatingList.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating the playlist…'**
+  String get updatingList;
+
+  /// No description provided for @setupReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup received from the phone'**
+  String get setupReceived;
+
+  /// No description provided for @searchMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Search films'**
+  String get searchMovies;
+
+  /// No description provided for @searchShows.
+  ///
+  /// In en, this message translates to:
+  /// **'Search series'**
+  String get searchShows;
 }
 
 class _AppLocalizationsDelegate

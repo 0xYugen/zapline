@@ -252,7 +252,15 @@ void openPlayer(
 
 /// A tab's header: the logo or a title, a sync indicator and search.
 class MobileHeader extends StatelessWidget {
-  const MobileHeader({super.key, required this.state, this.title});
+  const MobileHeader({
+    super.key,
+    required this.state,
+    this.title,
+    this.searchScope = SearchScope.live,
+  });
+
+  /// What the search button looks through: the section on screen.
+  final SearchScope searchScope;
 
   final AppState state;
 
@@ -295,16 +303,18 @@ class MobileHeader extends StatelessWidget {
               ),
             ),
           IconButton.filledTonal(
-            tooltip: state.hasMovies || state.hasShows
-                ? context.l10n.searchTooltipVod
-                : context.l10n.searchTooltip,
+            tooltip: switch (searchScope) {
+              SearchScope.live => context.l10n.searchTooltip,
+              SearchScope.movies => context.l10n.searchMovies,
+              SearchScope.shows => context.l10n.searchShows,
+            },
             style: IconButton.styleFrom(
               backgroundColor: ZaplineColors.surface,
               foregroundColor: ZaplineColors.text,
             ),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => SearchScreen(state: state),
+                builder: (_) => SearchScreen(state: state, scope: searchScope),
               ),
             ),
             icon: const Icon(Icons.search_rounded),

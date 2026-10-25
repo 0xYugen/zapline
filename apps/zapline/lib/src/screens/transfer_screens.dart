@@ -16,6 +16,7 @@ import '../pairing/transfer_crypto.dart';
 import '../theme.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/qr_panel.dart';
+import '../widgets/sync_steps.dart';
 import '../widgets/tv_text_field.dart';
 
 /// Waits for another Zapline (a phone) to send its whole setup over the
@@ -60,32 +61,26 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
     });
   }
 
-  /// Answers the phone at once and restores in the background: adding
-  /// the sources downloads their channels, which takes a while.
+  /// Restores at once (groups, filters, settings land straight away) and
+  /// answers the phone; the screen then follows the sources downloading
+  /// until they are done.
   Future<String> _received(String json) async {
     Backup.parse(json); // throws on anything that isn't a backup
-    setState(() => _stage = _Receive.receiving);
-    widget.state
-        .restoreBackup(json)
-        .then(
-          (summary) {
-            if (mounted) {
-              setState(() {
-                _stage = _Receive.done;
-                _summary = summary;
-              });
-            }
-          },
-          onError: (Object e) {
-            if (mounted) {
-              setState(() {
-                _stage = _Receive.done;
-                _summary = '$e';
-              });
-            }
-          },
-        );
-    return 'received';
+    final summary = await widget.state.restoreBackup(json);
+    if (mounted) {
+      setState(() => _stage = _Receive.receiving);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.setupReceived)));
+    }
+    widget.state.restoreDownloads?.whenComplete(() {
+      if (mounted) {
+        setState(() {
+          _stage = _Receive.done;
+          _summary = null;
+        });
+      }
+    });
+    return summary;
   }
 
   @override
@@ -214,7 +209,7 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
               const SizedBox(height: 10),
               Text(
                 _stage == _Receive.done
-                    ? (_summary ?? '')
+                    ? (_summary ?? l.setupReceived)
                     : l.downloadingChannels,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
@@ -224,11 +219,22 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
               ),
               const SizedBox(height: 20),
               if (_stage == _Receive.receiving)
-                const SizedBox(
-                  width: 320,
-                  child: LinearProgressIndicator(
-                    color: ZaplineColors.focus,
-                    backgroundColor: ZaplineColors.line,
+                SizedBox(
+                  width: 520,
+                  child: ListenableBuilder(
+                    listenable: widget.state,
+                    builder: (context, _) => Column(
+                      children: [
+                        SyncSteps(
+                          widget.state.progress,
+                          title: l.loadingYourList,
+                        ),
+                        const LinearProgressIndicator(
+                          color: ZaplineColors.focus,
+                          backgroundColor: ZaplineColors.line,
+                        ),
+                      ],
+                    ),
                   ),
                 )
               else
