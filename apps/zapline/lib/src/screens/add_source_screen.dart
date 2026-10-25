@@ -205,12 +205,23 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
   }
 
   Future<void> _startPairing() async {
-    final server = await PairingServer.start(onSubmit: _fromPhone);
+    final server = await PairingServer.start(
+      onSubmit: _fromPhone,
+      onSetup: _setupFromPhone,
+    );
     if (!mounted) {
       await server?.close();
       return;
     }
     setState(() => _pairing = server);
+  }
+
+  /// Zapline on a phone scanned the code and sent its whole setup: it is
+  /// restored at once (channels download afterwards) and the TV moves on.
+  Future<String> _setupFromPhone(String json) async {
+    final summary = await widget.state.restoreBackup(json);
+    _leave();
+    return summary;
   }
 
   /// A phone submitted the form: add the source exactly as if typed here.

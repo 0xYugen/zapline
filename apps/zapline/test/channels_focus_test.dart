@@ -150,4 +150,32 @@ void main() {
     }
     expect(find.byIcon(Icons.history), findsWidgets);
   });
+
+  testWidgets('from the menu, right twice or OK on Live TV reach the grid', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    await tester.pumpWidget(ZaplineApp(state: fakeState()));
+    await _connect(tester);
+    Future<void> key(LogicalKeyboardKey k) async {
+      await tester.sendKeyEvent(k);
+      await tester.pumpAndSettle();
+    }
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await key(LogicalKeyboardKey.arrowLeft);
+    expect(_focusedLabel(), 'Live TV');
+    await key(LogicalKeyboardKey.arrowRight);
+    expect(_focusedLabel(), 'All channels');
+    await key(LogicalKeyboardKey.arrowRight);
+    expect(_focusedLabel(), 'Show 1.0');
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await key(LogicalKeyboardKey.arrowLeft);
+    expect(_focusedLabel(), 'Live TV');
+    await key(LogicalKeyboardKey.select);
+    expect(_focusedLabel(), 'Show 1.0');
+  });
 }

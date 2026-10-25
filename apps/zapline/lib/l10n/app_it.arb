@@ -254,7 +254,7 @@
   "errorLogin": "Il server ha rifiutato l'accesso. Controlla nome utente e password.",
   "errorNotFound": "Nessun contenuto a quell'indirizzo. Controlla il link.",
   "errorGeneric": "Connessione non riuscita: {error}",
-  "pairingHint": "Inquadra il codice e incolla lì i tuoi dati. Niente da scrivere sulla TV.",
+  "pairingHint": "Con la fotocamera del telefono inserisci i dati della lista; con Zapline sul telefono (Invia a un altro dispositivo) copi tutta la configurazione.",
   "paste": "Incolla",
   "addFirstSource": "Aggiungi la tua prima sorgente",
   "xtreamFormHint": "Incolla il link che ti ha mandato il provider: se contiene nome utente e password, li compiliamo noi.",

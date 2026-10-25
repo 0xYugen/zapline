@@ -294,7 +294,7 @@
   "errorNotFound": "Nothing found at that address. Check the link.",
   "errorGeneric": "Couldn't connect: {error}",
   "@errorGeneric": {"placeholders": {"error": {"type": "String"}}},
-  "pairingHint": "Scan the code and paste your details there. No typing on the TV.",
+  "pairingHint": "With the phone's camera, type your playlist details there; with Zapline on the phone (Send to another device), copy your whole setup.",
   "paste": "Paste",
   "addFirstSource": "Add your first source",
   "xtreamFormHint": "Paste the link your provider sent you: if it contains username and password, they are filled in for you.",

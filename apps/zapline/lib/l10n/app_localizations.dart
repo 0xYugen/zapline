@@ -1571,7 +1571,7 @@ abstract class AppLocalizations {
   /// No description provided for @pairingHint.
   ///
   /// In en, this message translates to:
-  /// **'Scan the code and paste your details there. No typing on the TV.'**
+  /// **'With the phone\'s camera, type your playlist details there; with Zapline on the phone (Send to another device), copy your whole setup.'**
   String get pairingHint;
 
   /// No description provided for @paste.

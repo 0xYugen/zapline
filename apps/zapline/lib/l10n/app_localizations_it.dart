@@ -900,7 +900,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get pairingHint =>
-      'Inquadra il codice e incolla lì i tuoi dati. Niente da scrivere sulla TV.';
+      'Con la fotocamera del telefono inserisci i dati della lista; con Zapline sul telefono (Invia a un altro dispositivo) copi tutta la configurazione.';
 
   @override
   String get paste => 'Incolla';

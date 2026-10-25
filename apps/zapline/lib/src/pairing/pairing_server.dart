@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'pairing_page.dart';
 import 'pin_server.dart';
+import 'setup_receiver.dart';
+import 'transfer_crypto.dart';
 
 /// What a phone submitted through the pairing page.
 class PairingSubmission {
@@ -29,24 +31,57 @@ class PairingReply {
 
 /// Lets a phone fill in a source for this TV over the LAN, so nobody types
 /// long URLs with a remote. Runs while the add-source screen is open.
+///
+/// The same code serves both ways of using a phone: its camera opens the
+/// page to type a source in, and Zapline on it ([onSetup]) sends its whole
+/// setup, sealed with the key in the code's fragment.
 class PairingServer extends PinServer {
-  PairingServer._(super.server, super.pin, super.address, this._onSubmit);
+  PairingServer._(
+    super.server,
+    super.pin,
+    super.address,
+    this._onSubmit,
+    this._onSetup,
+    this._key,
+  );
 
   final Future<PairingReply> Function(PairingSubmission) _onSubmit;
+  final Future<String> Function(String json)? _onSetup;
+  final String? _key;
+
+  @override
+  String? get fragmentKey => _key;
 
   static Future<PairingServer?> start({
     required Future<PairingReply> Function(PairingSubmission) onSubmit,
+    Future<String> Function(String json)? onSetup,
     String? pin,
     InternetAddress? bindTo,
   }) async {
     final b = await PinServer.bind(pin: pin, bindTo: bindTo);
     if (b == null) return null;
     final (server, address, p, others) = b;
-    return PairingServer._(server, p, address, onSubmit)..alternates = others;
+    return PairingServer._(
+      server,
+      p,
+      address,
+      onSubmit,
+      onSetup,
+      onSetup == null ? null : TransferCipher.newKey(),
+    )..alternates = others;
   }
 
   @override
   Future<void> handle(HttpRequest req) async {
+    if (await serveSetup(
+      this,
+      req,
+      name: Platform.localHostname,
+      key: _key,
+      restore: _onSetup,
+    )) {
+      return;
+    }
     final res = req.response;
     if (req.method == 'GET' && req.uri.path == '/') {
       res.headers.contentType = ContentType.html;

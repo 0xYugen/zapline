@@ -896,7 +896,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pairingHint =>
-      'Scan the code and paste your details there. No typing on the TV.';
+      'With the phone\'s camera, type your playlist details there; with Zapline on the phone (Send to another device), copy your whole setup.';
 
   @override
   String get paste => 'Paste';

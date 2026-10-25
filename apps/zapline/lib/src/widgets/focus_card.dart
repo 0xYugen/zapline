@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -52,6 +54,7 @@ class _FocusCardState extends State<FocusCard> {
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
     _ownNode?.dispose();
     super.dispose();
   }
@@ -75,6 +78,18 @@ class _FocusCardState extends State<FocusCard> {
   DateTime? _downAt;
   bool _longFired = false;
 
+  /// Fires the long press after a hold even when the remote sends no key
+  /// repeats while OK is held (Fire TV remotes, some Bluetooth ones).
+  Timer? _holdTimer;
+  static const _holdTime = Duration(milliseconds: 550);
+
+  void _fireLong() {
+    _holdTimer?.cancel();
+    if (_downAt == null || _longFired || !mounted) return;
+    _longFired = true;
+    widget.onLongPress?.call();
+  }
+
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     final onLong = widget.onLongPress;
     if (onLong == null) return KeyEventResult.ignored;
@@ -87,14 +102,14 @@ class _FocusCardState extends State<FocusCard> {
       case KeyDownEvent():
         _downAt = DateTime.now();
         _longFired = false;
+        _holdTimer?.cancel();
+        _holdTimer = Timer(_holdTime, _fireLong);
       case KeyRepeatEvent():
         // The platform only starts repeating after its own hold delay, so
         // the first repeat already means "held".
-        if (_downAt != null && !_longFired) {
-          _longFired = true;
-          onLong();
-        }
+        _fireLong();
       case KeyUpEvent():
+        _holdTimer?.cancel();
         if (_downAt != null && !_longFired) widget.onPressed();
         _downAt = null;
     }

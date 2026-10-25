@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:zapline/src/pairing/pairing_server.dart';
+import 'package:zapline/src/pairing/transfer_crypto.dart';
 import 'package:test/test.dart';
 
 /// Plain `test` (no widget binding) so real sockets are used.
@@ -79,5 +80,34 @@ void main() {
     expect(code, 429, reason: 'locked even with the right PIN');
     expect(body['message'], contains('Too many'));
     expect(received, isEmpty);
+  });
+
+  test('the same code takes a whole setup from Zapline on a phone', () async {
+    final setups = <String>[];
+    final tv = (await PairingServer.start(
+      pin: '1357',
+      bindTo: InternetAddress.loopbackIPv4,
+      onSubmit: (s) async => const PairingReply.ok('ok'),
+      onSetup: (json) async {
+        setups.add(json);
+        return '1 sources restored';
+      },
+    ))!;
+    addTearDown(tv.close);
+    final key = Uri.splitQueryString(tv.url.fragment)['k']!;
+    final client = HttpClient();
+    addTearDown(client.close);
+
+    final hello = await client.get('127.0.0.1', tv.port, '/hello');
+    hello.headers.set('x-zapline-pin', '1357');
+    expect((await hello.close()).statusCode, 200);
+
+    final send = await client.post('127.0.0.1', tv.port, '/restore');
+    send.headers.set('x-zapline-pin', '1357');
+    send.write(await TransferCipher.seal('{"backup":1}', key));
+    final res = await send.close();
+    expect(res.statusCode, 200);
+    expect(await utf8.decodeStream(res), contains('1 sources restored'));
+    expect(setups, ['{"backup":1}']);
   });
 }

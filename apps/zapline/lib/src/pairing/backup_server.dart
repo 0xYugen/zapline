@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'pin_server.dart';
+import 'setup_receiver.dart';
 import 'transfer_crypto.dart';
 
 /// Serves backup download and restore to a phone or PC browser over the
@@ -30,8 +31,6 @@ class BackupServer extends PinServer {
   /// What a phone sending its setup calls this device.
   final String _name;
 
-  static const _maxBackupBytes = 5 << 20;
-
   static Future<BackupServer?> start({
     required String Function()? export,
     required Future<String> Function(String json) restore,
@@ -56,6 +55,15 @@ class BackupServer extends PinServer {
 
   @override
   Future<void> handle(HttpRequest req) async {
+    if (await serveSetup(
+      this,
+      req,
+      name: _name,
+      key: _key,
+      restore: _restore,
+    )) {
+      return;
+    }
     final res = req.response;
     final pin = req.uri.queryParameters['pin'];
     final export = _export;
@@ -63,10 +71,6 @@ class BackupServer extends PinServer {
       case ('GET', '/'):
         res.headers.contentType = ContentType.html;
         res.write(_page(pin ?? ''));
-      case ('GET', '/hello'):
-        // A Zapline app checking it found the right device.
-        if (!checkPin(req, res)) return;
-        PinServer.writeJson(res, HttpStatus.ok, true, _name);
       case ('GET', '/backup.json') when export != null:
         if (!checkPin(req, res)) return;
         final now = DateTime.now();
@@ -79,34 +83,6 @@ class BackupServer extends PinServer {
                 '${now.year}${two(now.month)}${two(now.day)}.json"',
           );
         res.write(export());
-      case ('POST', '/restore'):
-        if (!checkPin(req, res)) return;
-        var body = await PinServer.readBody(req, _maxBackupBytes);
-        if (body == null) {
-          PinServer.writeJson(
-            res,
-            HttpStatus.requestEntityTooLarge,
-            false,
-            'The file is too large to be a Zapline backup.',
-          );
-          return;
-        }
-        try {
-          final key = _key;
-          if (TransferCipher.isSealed(body)) {
-            if (key == null) throw const FormatException('Not expected here.');
-            body = await TransferCipher.open(body, key);
-          }
-          final summary = await _restore(body);
-          PinServer.writeJson(res, HttpStatus.ok, true, 'Done: $summary.');
-        } catch (e) {
-          PinServer.writeJson(
-            res,
-            HttpStatus.unprocessableEntity,
-            false,
-            e.toString().replaceFirst('Exception: ', ''),
-          );
-        }
       default:
         res.statusCode = HttpStatus.notFound;
     }
