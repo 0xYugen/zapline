@@ -7,6 +7,7 @@ import '../app_state.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../desktop_window.dart';
+import '../device_controls.dart';
 import '../playback/playback_engine.dart';
 import '../playback/player_sound.dart';
 import '../theme.dart';
@@ -84,6 +85,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     super.initState();
     _sound; // the saved volume, before the first stream
     DesktopWindow.fullScreen.addListener(_fullScreenChanged);
+    DeviceControls.inPip.addListener(_fullScreenChanged);
     _errors = _engine.errors.listen((e) {
       if (mounted) setState(() => _error = e);
     });
@@ -106,6 +108,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
+      // Home while watching: the film goes on in a small window.
+      DeviceControls.enablePip();
     }
   }
 
@@ -119,6 +123,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
       SystemChrome.setPreferredOrientations(const []);
     }
     DesktopWindow.fullScreen.removeListener(_fullScreenChanged);
+    DeviceControls.inPip.removeListener(_fullScreenChanged);
+    DeviceControls.disablePip();
     DesktopWindow.exitFullScreen();
     _sound.dispose();
     _tick?.cancel();
@@ -289,6 +295,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     // Saved as the page starts closing, so the page below already shows
     // where to resume from.
     final fullScreen = DesktopWindow.fullScreen.value;
+    final pip = DeviceControls.inPip.value;
     return PopScope(
       // Esc leaves full screen before the player.
       canPop: !fullScreen,
@@ -325,45 +332,48 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
               children: [
                 // The native video view would swallow taps otherwise.
                 IgnorePointer(child: _engine.buildView(fit: _fit)),
-                Positioned(
-                  top: 64,
-                  left: 0,
-                  right: 0,
-                  child: Center(child: VolumeBadge(sound: _sound)),
-                ),
-                if (_error != null) _errorView(_error!),
-                if (_duration == Duration.zero && _error == null)
-                  const Center(
-                    child: CircularProgressIndicator(
-                      color: ZaplineColors.focus,
-                    ),
-                  ),
-                AnimatedOpacity(
-                  opacity: _overlay ? 1 : 0,
-                  duration: const Duration(milliseconds: 180),
-                  child: IgnorePointer(
-                    ignoring: !_overlay,
-                    child: _controls(l),
-                  ),
-                ),
-                if (offerNext)
+                // In picture-in-picture only the picture shows.
+                if (!pip) ...[
                   Positioned(
-                    right: 24,
-                    bottom: _overlay ? 104 : 32,
-                    child: FilledButton.icon(
-                      onPressed: _next,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: ZaplineColors.text,
-                        foregroundColor: ZaplineColors.ground,
-                        textStyle: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w800,
-                        ),
+                    top: 64,
+                    left: 0,
+                    right: 0,
+                    child: Center(child: VolumeBadge(sound: _sound)),
+                  ),
+                  if (_error != null) _errorView(_error!),
+                  if (_duration == Duration.zero && _error == null)
+                    const Center(
+                      child: CircularProgressIndicator(
+                        color: ZaplineColors.focus,
                       ),
-                      icon: const Icon(Icons.skip_next_rounded),
-                      label: Text(l.nextEpisodeIn(remaining.inSeconds)),
+                    ),
+                  AnimatedOpacity(
+                    opacity: _overlay ? 1 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: IgnorePointer(
+                      ignoring: !_overlay,
+                      child: _controls(l),
                     ),
                   ),
+                  if (offerNext)
+                    Positioned(
+                      right: 24,
+                      bottom: _overlay ? 104 : 32,
+                      child: FilledButton.icon(
+                        onPressed: _next,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: ZaplineColors.text,
+                          foregroundColor: ZaplineColors.ground,
+                          textStyle: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        icon: const Icon(Icons.skip_next_rounded),
+                        label: Text(l.nextEpisodeIn(remaining.inSeconds)),
+                      ),
+                    ),
+                ],
               ],
             ),
           ),

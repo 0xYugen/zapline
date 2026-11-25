@@ -129,7 +129,7 @@
   "trackNumber": "Track {n}",
   "@trackNumber": {"placeholders": {"n": {"type": "int"}}},
   "noOtherTracks": "This channel has a single audio track.",
-  "swipeHint": "Swipe up or down to change channel",
+  "swipeHint": "Swipe in the middle to change channel; on the sides, brightness and volume",
   "noArchive": "No archive for this programme",
   "channelUnavailable": "This channel is not available right now",
   "archiveUnavailable": "This programme is not available in the archive",

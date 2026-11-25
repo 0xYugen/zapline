@@ -374,7 +374,8 @@ class AppLocalizationsIt extends AppLocalizations {
   String get noOtherTracks => 'Questo canale ha una sola traccia audio.';
 
   @override
-  String get swipeHint => 'Scorri su o giù per cambiare canale';
+  String get swipeHint =>
+      'Scorri al centro per cambiare canale; ai lati, luminosità e volume';
 
   @override
   String get noArchive => 'Nessun archivio per questo programma';

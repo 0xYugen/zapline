@@ -749,7 +749,7 @@ abstract class AppLocalizations {
   /// No description provided for @swipeHint.
   ///
   /// In en, this message translates to:
-  /// **'Swipe up or down to change channel'**
+  /// **'Swipe in the middle to change channel; on the sides, brightness and volume'**
   String get swipeHint;
 
   /// No description provided for @noArchive.

@@ -117,7 +117,7 @@
   "subtitlesOff": "Disattivati",
   "trackNumber": "Traccia {n}",
   "noOtherTracks": "Questo canale ha una sola traccia audio.",
-  "swipeHint": "Scorri su o giù per cambiare canale",
+  "swipeHint": "Scorri al centro per cambiare canale; ai lati, luminosità e volume",
   "noArchive": "Nessun archivio per questo programma",
   "channelUnavailable": "Questo canale ora non è disponibile",
   "archiveUnavailable": "Questo programma non è disponibile nell'archivio",

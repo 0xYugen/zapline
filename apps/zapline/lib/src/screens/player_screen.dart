@@ -13,6 +13,7 @@ import '../l10n.dart';
 import '../layout.dart';
 import '../mobile/programme_sheet.dart';
 import '../desktop_window.dart';
+import '../device_controls.dart';
 import '../playback/playback_engine.dart';
 import '../playback/player_sound.dart';
 import '../theme.dart';
@@ -136,6 +137,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// at the top edge (the system bar) and must not zap.
   double? _dragFrom;
 
+  /// What a drag on a side of the picture sets, and where it is (0–1);
+  /// shown while it changes.
+  _Level? _levelKind;
+  double? _level;
+  final _levelShown = ValueNotifier<(_Level, double)?>(null);
+  Timer? _levelHide;
+  bool _brightnessChanged = false;
+
+  Future<void> _startLevel(_Level kind) async {
+    _levelKind = kind;
+    final v = kind == _Level.volume
+        ? await DeviceControls.volume()
+        : await DeviceControls.brightness();
+    // Still the same drag, and no value moved yet.
+    if (_levelKind == kind && _level == null) _level = v ?? 0.5;
+  }
+
+  void _moveLevel(double dy) {
+    final kind = _levelKind, start = _level;
+    if (kind == null || start == null) return;
+    // Up raises; the whole height of the picture is the whole range.
+    final h = MediaQuery.sizeOf(context).height;
+    final v = (start - dy / (h * 0.8)).clamp(0.0, 1.0);
+    _level = v;
+    if (kind == _Level.volume) {
+      DeviceControls.setVolume(v);
+    } else {
+      _brightnessChanged = true;
+      DeviceControls.setBrightness(v);
+    }
+    _levelShown.value = (kind, v);
+    _levelHide?.cancel();
+    _levelHide = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted) _levelShown.value = null;
+    });
+  }
+
   /// OK held down: options instead of the channel list.
   DateTime? _okDownAt;
   bool _okLong = false;
@@ -146,6 +184,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _sound; // the saved volume, before the first stream
     DesktopWindow.fullScreen.addListener(_fullScreenChanged);
+    DeviceControls.inPip.addListener(_pipChanged);
     widget.state.guideVersion.addListener(_guideArrived);
     _subs
       ..add(
@@ -214,6 +253,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
+      // Home while watching: the channel goes on in a small window.
+      DeviceControls.enablePip();
     }
   }
 
@@ -225,6 +266,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     widget.state.guideVersion.removeListener(_guideArrived);
     DesktopWindow.fullScreen.removeListener(_fullScreenChanged);
+    DeviceControls.inPip.removeListener(_pipChanged);
+    DeviceControls.disablePip();
+    // The brightness set by a swipe was for watching.
+    if (_brightnessChanged) DeviceControls.setBrightness(null);
+    _levelHide?.cancel();
+    _levelShown.dispose();
     // The home and other screens are never full screen.
     DesktopWindow.exitFullScreen();
     _sound.dispose();
@@ -261,6 +308,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _fullScreenChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _pipChanged() {
+    if (!mounted) return;
+    // Back from the small window: the controls come back with it.
+    setState(() {
+      if (!DeviceControls.inPip.value) _overlay = true;
+    });
   }
 
   void _readGuide() {
@@ -823,6 +878,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     final c = _channel;
     final fullScreen = DesktopWindow.fullScreen.value;
+    final pip = DeviceControls.inPip.value;
     return PopScope(
       // Back (Esc) closes the channel list, then full screen, before
       // leaving the player.
@@ -860,17 +916,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
               onTap: () => context.isPhone && _overlay
                   ? setState(() => _overlay = false)
                   : _showOverlay(),
-              // A deliberate swipe zaps; a short drag, or one from the top
-              // edge pulling down the system bar, does not.
+              // Phones: up and down on the left third sets the brightness,
+              // on the right third the volume, in the middle a deliberate
+              // swipe zaps. A short drag, or one from the top edge pulling
+              // down the system bar, does nothing.
               onVerticalDragStart: (d) {
                 _dragFrom = d.localPosition.dy < 40 ? null : 0;
+                _level = null;
+                final w = MediaQuery.sizeOf(context).width;
+                if (_dragFrom == null || !context.isPhone) return;
+                final x = d.localPosition.dx;
+                if (x < w / 3) _startLevel(_Level.brightness);
+                if (x > w * 2 / 3) _startLevel(_Level.volume);
               },
               onVerticalDragUpdate: (d) {
                 if (_dragFrom != null) _dragFrom = _dragFrom! + d.delta.dy;
+                if (_levelKind != null) _moveLevel(d.delta.dy);
               },
               onVerticalDragEnd: (d) {
                 final moved = _dragFrom;
                 _dragFrom = null;
+                if (_levelKind != null) {
+                  _levelKind = null;
+                  return;
+                }
                 if (moved == null) return;
                 final v = d.primaryVelocity ?? 0;
                 if (moved.abs() >= 72 || v.abs() >= 900) {
@@ -896,68 +965,77 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                     ),
                   ),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _spinner,
-                    builder: (context, on, _) =>
-                        on ? _loadingView() : const SizedBox.shrink(),
-                  ),
-                  if (_error != null) _errorView(),
-                  if (_digits.isNotEmpty)
-                    Positioned(top: 40, right: 56, child: _digitPreview()),
-                  Positioned(
-                    top: 40,
-                    left: 0,
-                    right: 0,
-                    child: Center(child: VolumeBadge(sound: _sound)),
-                  ),
-                  if (context.isPhone)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        ignoring: !_overlay,
-                        child: AnimatedOpacity(
-                          opacity: _overlay ? 1 : 0,
-                          duration: const Duration(milliseconds: 180),
-                          child: _phoneControls(c),
-                        ),
-                      ),
-                    )
-                  else
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 180),
+                  // In picture-in-picture only the picture shows.
+                  if (!pip) ...[
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _spinner,
+                      builder: (context, on, _) =>
+                          on ? _loadingView() : const SizedBox.shrink(),
+                    ),
+                    if (_error != null) _errorView(),
+                    if (_digits.isNotEmpty)
+                      Positioned(top: 40, right: 56, child: _digitPreview()),
+                    Positioned(
+                      top: 40,
                       left: 0,
                       right: 0,
-                      bottom: _overlay ? 0 : -160,
-                      // Rebuild when switching between mouse and keys.
-                      child: ListenableBuilder(
-                        listenable: InputMode.instance,
-                        builder: (context, _) => _infoBar(c),
-                      ),
+                      child: Center(child: VolumeBadge(sound: _sound)),
                     ),
-                  if (_list && context.isPhone)
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onTap: _closeList,
-                        child: const ColoredBox(color: Colors.black45),
+                    if (context.isPhone)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          ignoring: !_overlay,
+                          child: AnimatedOpacity(
+                            opacity: _overlay ? 1 : 0,
+                            duration: const Duration(milliseconds: 180),
+                            child: _phoneControls(c),
+                          ),
+                        ),
+                      )
+                    else
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 180),
+                        left: 0,
+                        right: 0,
+                        bottom: _overlay ? 0 : -160,
+                        // Rebuild when switching between mouse and keys.
+                        child: ListenableBuilder(
+                          listenable: InputMode.instance,
+                          builder: (context, _) => _infoBar(c),
+                        ),
                       ),
-                    ),
-                  if (_list)
-                    Positioned(
-                      top: 0,
-                      bottom: 0,
-                      left: 0,
-                      width: MediaQuery.sizeOf(context).width < 480
-                          ? MediaQuery.sizeOf(context).width
-                          : 400,
-                      child: _ChannelList(
-                        state: widget.state,
-                        channels: _channels,
-                        current: _index,
-                        onSelected: (i) {
-                          _closeList();
-                          _goTo(i);
-                        },
+                    if (_list && context.isPhone)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: _closeList,
+                          child: const ColoredBox(color: Colors.black45),
+                        ),
                       ),
+                    if (_list)
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        width: MediaQuery.sizeOf(context).width < 480
+                            ? MediaQuery.sizeOf(context).width
+                            : 400,
+                        child: _ChannelList(
+                          state: widget.state,
+                          channels: _channels,
+                          current: _index,
+                          onSelected: (i) {
+                            _closeList();
+                            _goTo(i);
+                          },
+                        ),
+                      ),
+                    ValueListenableBuilder(
+                      valueListenable: _levelShown,
+                      builder: (context, level, _) => level == null
+                          ? const SizedBox.shrink()
+                          : Center(child: _LevelBadge(level.$1, level.$2)),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -1689,6 +1767,65 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ],
         ),
       ],
+    ),
+  );
+}
+
+/// What a drag on a side of the phone's picture sets.
+enum _Level { brightness, volume }
+
+/// The brightness or volume being set by a drag, in the middle of the
+/// picture.
+class _LevelBadge extends StatelessWidget {
+  const _LevelBadge(this.kind, this.value);
+
+  final _Level kind;
+  final double value;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: ZaplineColors.ground.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            kind == _Level.brightness
+                ? Icons.brightness_6_rounded
+                : value == 0
+                ? Icons.volume_off_rounded
+                : Icons.volume_up_rounded,
+            size: 26,
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 140,
+            child: LinearProgressIndicator(
+              value: value,
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(3),
+              color: ZaplineColors.focus,
+              backgroundColor: ZaplineColors.line,
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 40,
+            child: Text(
+              '${(value * 100).round()}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
