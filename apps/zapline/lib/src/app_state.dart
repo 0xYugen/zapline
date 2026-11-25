@@ -350,6 +350,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Redraws screens after a preference that changes no list (the picture
+  /// size), without reloading the channels.
+  void displayChanged() => notifyListeners();
+
   /// Clock time in the user's 12/24-hour format.
   String time(DateTime t) => formatTime(t, h24: settings.clock24h);
 

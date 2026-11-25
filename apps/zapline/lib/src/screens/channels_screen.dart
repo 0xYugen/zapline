@@ -328,174 +328,186 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     );
 
     // Back goes up a level, grid → groups → menu, before leaving the app.
-    return PopScope(
-      canPop: _area == _Area.menu,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        // In the grid, Back first returns to what's on now.
-        final grid = _grid.currentState;
-        if (_area == _Area.grid && grid != null && !grid.atNow) {
-          grid.focusNow();
-        } else {
-          _area == _Area.grid ? _toGroups() : _toMenu();
-        }
+    // The remote's search key (or Ctrl+F) opens search from anywhere here.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.browserSearch): _search,
+        const SingleActivator(LogicalKeyboardKey.find): _search,
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true): _search,
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): _search,
       },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            // The grid keeps its room; menu and groups open over it.
-            Positioned.fill(left: _SideMenu.narrowWidth, child: grid),
-            // Refreshing a playlist that already has channels, or one that
-            // couldn't be refreshed (an expired subscription, a moved
-            // server): said here, details in Settings.
-            if (state.isSyncing && visible.isNotEmpty)
-              _Badge(
-                leading: const SizedBox.square(
-                  dimension: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                text: l.updatingList,
-              )
-            else if (state.sources
-                    .where((s) => state.syncFailure(s.id) != null)
-                    .firstOrNull
-                case final failed?)
-              _Badge(
-                leading: const Icon(
-                  Icons.error_outline_rounded,
-                  size: 16,
-                  color: ZaplineColors.live,
-                ),
-                text: l.sourceUpdateFailedNamed(failed.name),
-              ),
-            // Dims the grid while the menu or the groups are open; a click on
-            // it goes back to the grid.
-            Positioned.fill(
-              left: _SideMenu.narrowWidth,
-              child: IgnorePointer(
-                ignoring: _area == _Area.grid,
-                child: GestureDetector(
-                  onTap: _toGrid,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 180),
-                    opacity: _area == _Area.grid ? 0 : 1,
-                    child: const ColoredBox(color: Color(0xA6000000)),
+      child: PopScope(
+        canPop: _area == _Area.menu,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          // In the grid, Back first returns to what's on now.
+          final grid = _grid.currentState;
+          if (_area == _Area.grid && grid != null && !grid.atNow) {
+            grid.focusNow();
+          } else {
+            _area == _Area.grid ? _toGroups() : _toMenu();
+          }
+        },
+        child: Scaffold(
+          body: Stack(
+            children: [
+              // The grid keeps its room; menu and groups open over it.
+              Positioned.fill(left: _SideMenu.narrowWidth, child: grid),
+              // Refreshing a playlist that already has channels, or one that
+              // couldn't be refreshed (an expired subscription, a moved
+              // server): said here, details in Settings.
+              if (state.isSyncing && visible.isNotEmpty)
+                _Badge(
+                  leading: const SizedBox.square(
+                    dimension: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
+                  text: l.updatingList,
+                )
+              else if (state.sources
+                      .where((s) => state.syncFailure(s.id) != null)
+                      .firstOrNull
+                  case final failed?)
+                _Badge(
+                  leading: const Icon(
+                    Icons.error_outline_rounded,
+                    size: 16,
+                    color: ZaplineColors.live,
+                  ),
+                  text: l.sourceUpdateFailedNamed(failed.name),
                 ),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _part(
-                    _Area.menu,
-                    right: _toGroups,
-                    _SideMenu(
-                      wide: wide,
-                      syncing: state.isSyncing,
-                      items: [
-                        _MenuEntry(
-                          focusNode: _menuFirst,
-                          icon: Icons.live_tv_rounded,
-                          label: l.liveTv,
-                          selected: _group != _favourites,
-                          onPressed: () {
-                            if (_group == _favourites) {
-                              setState(() => _group = null);
-                            }
-                            _toGrid();
-                          },
-                        ),
-                        _MenuEntry(
-                          icon: Icons.star_outline_rounded,
-                          label: l.favourites,
-                          selected: _group == _favourites,
-                          onPressed: () {
-                            setState(() => _group = _favourites);
-                            _toGrid();
-                          },
-                        ),
-                        if (state.hasMovies)
-                          _MenuEntry(
-                            icon: Icons.movie_outlined,
-                            label: l.movies,
-                            onPressed: () => _open(
-                              VodScreen(state: state, kind: VodKind.movies),
-                            ),
-                          ),
-                        if (state.hasShows)
-                          _MenuEntry(
-                            icon: Icons.video_library_outlined,
-                            label: l.series,
-                            onPressed: () => _open(
-                              VodScreen(state: state, kind: VodKind.shows),
-                            ),
-                          ),
-                        // From live TV: channels and the guide; films and series have their own
-                        // search.
-                        _MenuEntry(
-                          icon: Icons.search,
-                          label: l.search,
-                          onPressed: () => _open(SearchScreen(state: state)),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.settings_outlined,
-                          label: l.settings,
-                          dot: state.update != null,
-                          onPressed: () => _open(SettingsScreen(state: state)),
-                        ),
-                      ],
+              // Dims the grid while the menu or the groups are open; a click on
+              // it goes back to the grid.
+              Positioned.fill(
+                left: _SideMenu.narrowWidth,
+                child: IgnorePointer(
+                  ignoring: _area == _Area.grid,
+                  child: GestureDetector(
+                    onTap: _toGrid,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 180),
+                      opacity: _area == _Area.grid ? 0 : 1,
+                      child: const ColoredBox(color: Color(0xA6000000)),
                     ),
                   ),
-                  // The groups slide in when moving left from the grid.
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    width: showGroups ? 270 : 0,
-                    color: ZaplineColors.surface,
-                    child: ClipRect(
-                      child: OverflowBox(
-                        alignment: Alignment.topLeft,
-                        minWidth: 270,
-                        maxWidth: 270,
-                        child: ExcludeFocus(
-                          excluding: !showGroups,
-                          child: _part(
-                            _Area.groups,
-                            left: _toMenu,
-                            right: _toGrid,
-                            _Groups(
-                              title: l.groups,
-                              groups: groups,
-                              selected: _group,
-                              nameOf: _groupName,
-                              nodeOf: _groupNode,
-                              locked: (g) =>
-                                  g != null && state.lockedGroups.contains(g)
-                                  ? state.isLocked(g)
-                                  : null,
-                              // Moving over a group previews it, like most TV
-                              // apps; Select jumps into the grid.
-                              onFocused: (g) => setState(() => _group = g),
-                              onPressed: _enterGroup,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _part(
+                      _Area.menu,
+                      right: _toGroups,
+                      _SideMenu(
+                        wide: wide,
+                        syncing: state.isSyncing,
+                        items: [
+                          _MenuEntry(
+                            focusNode: _menuFirst,
+                            icon: Icons.live_tv_rounded,
+                            label: l.liveTv,
+                            selected: _group != _favourites,
+                            onPressed: () {
+                              if (_group == _favourites) {
+                                setState(() => _group = null);
+                              }
+                              _toGrid();
+                            },
+                          ),
+                          _MenuEntry(
+                            icon: Icons.star_outline_rounded,
+                            label: l.favourites,
+                            selected: _group == _favourites,
+                            onPressed: () {
+                              setState(() => _group = _favourites);
+                              _toGrid();
+                            },
+                          ),
+                          if (state.hasMovies)
+                            _MenuEntry(
+                              icon: Icons.movie_outlined,
+                              label: l.movies,
+                              onPressed: () => _open(
+                                VodScreen(state: state, kind: VodKind.movies),
+                              ),
+                            ),
+                          if (state.hasShows)
+                            _MenuEntry(
+                              icon: Icons.video_library_outlined,
+                              label: l.series,
+                              onPressed: () => _open(
+                                VodScreen(state: state, kind: VodKind.shows),
+                              ),
+                            ),
+                          // From live TV: channels and the guide; films and series have their own
+                          // search.
+                          _MenuEntry(
+                            icon: Icons.search,
+                            label: l.search,
+                            onPressed: () => _open(SearchScreen(state: state)),
+                          ),
+                          _MenuEntry(
+                            icon: Icons.settings_outlined,
+                            label: l.settings,
+                            dot: state.update != null,
+                            onPressed: () =>
+                                _open(SettingsScreen(state: state)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // The groups slide in when moving left from the grid.
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      width: showGroups ? 270 : 0,
+                      color: ZaplineColors.surface,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topLeft,
+                          minWidth: 270,
+                          maxWidth: 270,
+                          child: ExcludeFocus(
+                            excluding: !showGroups,
+                            child: _part(
+                              _Area.groups,
+                              left: _toMenu,
+                              right: _toGrid,
+                              _Groups(
+                                title: l.groups,
+                                groups: groups,
+                                selected: _group,
+                                nameOf: _groupName,
+                                nodeOf: _groupNode,
+                                locked: (g) =>
+                                    g != null && state.lockedGroups.contains(g)
+                                    ? state.isLocked(g)
+                                    : null,
+                                // Moving over a group previews it, like most TV
+                                // apps; Select jumps into the grid.
+                                onFocused: (g) => setState(() => _group = g),
+                                onPressed: _enterGroup,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  void _search() => _open(SearchScreen(state: widget.state));
 }
 
 /// The menu down the left: icons, opening to show their names while it

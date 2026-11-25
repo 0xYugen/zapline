@@ -922,6 +922,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _ => BoxFit.contain,
     };
     // Only the picture changes: no need to reload every list.
+    widget.state.displayChanged();
     setState(() {});
     _showOverlay();
   }
