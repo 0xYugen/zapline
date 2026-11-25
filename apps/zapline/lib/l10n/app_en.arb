@@ -635,5 +635,9 @@
   "@sourceUpdateFailedNamed": {"placeholders": {"name": {"type": "String"}}},
   "restoreSummary": "{added, plural, =1{1 source restored} other{{added} sources restored}}{updated, plural, =0{} =1{, 1 updated} other{, {updated} updated}}",
   "@restoreSummary": {"placeholders": {"added": {"type": "int"}, "updated": {"type": "int"}}},
-  "moreOptions": "More"
+  "moreOptions": "More",
+  "muted": "Muted",
+  "volumeKey": "Volume (M mutes)",
+  "fullScreenKey": "Full screen (F)",
+  "exitFullScreen": "Exit full screen"
 }

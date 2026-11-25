@@ -1966,4 +1966,16 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get moreOptions => 'Altro';
+
+  @override
+  String get muted => 'Muto';
+
+  @override
+  String get volumeKey => 'Volume (M per il muto)';
+
+  @override
+  String get fullScreenKey => 'Schermo intero (F)';
+
+  @override
+  String get exitFullScreen => 'Esci da schermo intero';
 }

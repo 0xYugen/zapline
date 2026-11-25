@@ -167,4 +167,30 @@ void main() {
     // The channel list over the picture, on the current channel.
     expect(find.text('Channel 2'), findsOneWidget);
   });
+
+  testWidgets('M mutes, + and - set the volume, kept for next time', (
+    tester,
+  ) async {
+    final (state, engine) = await _player(tester);
+    expect(engine.volume, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.pump();
+    expect(engine.volume, closeTo(0.9, 0.001));
+    expect(state.settings.volume, 90);
+    expect(find.text('90'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+    await tester.pump();
+    expect(engine.volume, 0);
+    expect(find.text('Muted'), findsOneWidget);
+    // Zapping keeps it.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(seconds: 2));
+    expect(state.settings.muted, isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+    await tester.pump();
+    expect(engine.volume, closeTo(0.95, 0.001));
+    await tester.pump(const Duration(seconds: 2));
+  });
 }

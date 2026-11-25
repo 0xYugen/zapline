@@ -15,6 +15,9 @@ class NativeEngine implements PlaybackEngine {
   final _errors = StreamController<String>.broadcast();
   final _buffering = StreamController<bool>.broadcast();
 
+  /// Applied to every stream opened.
+  double _volume = 1;
+
   /// Bumped on every open so a slow, superseded initialisation is discarded.
   int _generation = 0;
   String? _lastError;
@@ -76,6 +79,7 @@ class NativeEngine implements PlaybackEngine {
       return;
     }
     _controller.value = c;
+    if (_volume < 1) await c.setVolume(_volume);
     await c.play();
   }
 
@@ -163,6 +167,12 @@ class NativeEngine implements PlaybackEngine {
           selected: t.isSelected,
         ),
     ];
+  }
+
+  @override
+  Future<void> setVolume(double volume) async {
+    _volume = volume.clamp(0.0, 1.0);
+    await _controller.value?.setVolume(_volume);
   }
 
   @override

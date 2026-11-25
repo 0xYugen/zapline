@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../l10n.dart';
 import '../layout.dart';
+import '../desktop_window.dart';
 import '../playback/playback_engine.dart';
+import '../playback/player_sound.dart';
 import '../theme.dart';
 import '../cast/cast_ui.dart';
 import '../widgets/tracks_sheet.dart';
@@ -51,6 +53,9 @@ class VodPlayerScreen extends StatefulWidget {
 
 class _VodPlayerScreenState extends State<VodPlayerScreen> {
   final PlaybackEngine _engine = createDefaultEngine();
+
+  /// Volume, mute and full screen keys and buttons.
+  late final _sound = PlayerSound(_engine, widget.state.settings);
   late int _index = widget.initialIndex;
   final _focus = FocusNode(debugLabel: 'vod player');
 
@@ -77,6 +82,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _sound; // the saved volume, before the first stream
+    DesktopWindow.fullScreen.addListener(_fullScreenChanged);
     _errors = _engine.errors.listen((e) {
       if (mounted) setState(() => _error = e);
     });
@@ -111,6 +118,9 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations(const []);
     }
+    DesktopWindow.fullScreen.removeListener(_fullScreenChanged);
+    DesktopWindow.exitFullScreen();
+    _sound.dispose();
     _tick?.cancel();
     _hideTimer?.cancel();
     _errors?.cancel();
@@ -228,10 +238,15 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     _showOverlay();
   }
 
+  void _fullScreenChanged() {
+    if (mounted) setState(() {});
+  }
+
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    if (_sound.handleKey(e)) return KeyEventResult.handled;
     final k = e.logicalKey;
     if (k == LogicalKeyboardKey.arrowLeft ||
         k == LogicalKeyboardKey.mediaRewind) {
@@ -273,9 +288,16 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
         remaining < const Duration(seconds: 30);
     // Saved as the page starts closing, so the page below already shows
     // where to resume from.
+    final fullScreen = DesktopWindow.fullScreen.value;
     return PopScope(
+      // Esc leaves full screen before the player.
+      canPop: !fullScreen,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) _save();
+        if (didPop) {
+          _save();
+        } else if (fullScreen) {
+          DesktopWindow.exitFullScreen();
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -287,7 +309,13 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
             behavior: HitTestBehavior.opaque,
             onTap: () =>
                 _overlay ? setState(() => _overlay = false) : _showOverlay(),
+            // Phones: a double tap skips 10 s back or ahead, by side.
+            // Computers: a double click is full screen.
             onDoubleTapDown: (d) {
+              if (DesktopWindow.supported) {
+                DesktopWindow.toggleFullScreen();
+                return;
+              }
               final w = MediaQuery.sizeOf(context).width;
               _seekBy(Duration(seconds: d.localPosition.dx < w / 2 ? -10 : 10));
             },
@@ -297,6 +325,12 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
               children: [
                 // The native video view would swallow taps otherwise.
                 IgnorePointer(child: _engine.buildView(fit: _fit)),
+                Positioned(
+                  top: 64,
+                  left: 0,
+                  right: 0,
+                  child: Center(child: VolumeBadge(sound: _sound)),
+                ),
                 if (_error != null) _errorView(_error!),
                 if (_duration == Duration.zero && _error == null)
                   const Center(
@@ -431,6 +465,21 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                     ),
                   ),
                   round(Icons.cast_rounded, l.castButton, _sendToTv, 24),
+                  round(_sound.icon, l.volumeKey, () {
+                    setState(_sound.toggleMute);
+                    _showOverlay();
+                  }, 24),
+                  if (DesktopWindow.supported)
+                    round(
+                      DesktopWindow.fullScreen.value
+                          ? Icons.fullscreen_exit_rounded
+                          : Icons.fullscreen_rounded,
+                      DesktopWindow.fullScreen.value
+                          ? l.exitFullScreen
+                          : l.fullScreenKey,
+                      DesktopWindow.toggleFullScreen,
+                      24,
+                    ),
                   round(
                     Icons.subtitles_outlined,
                     l.audioAndSubtitles,

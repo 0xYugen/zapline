@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
 import 'src/cast/cast_link.dart';
+import 'src/desktop_window.dart';
 import 'src/vod/vod_detail_screens.dart';
 import 'src/keep_awake.dart';
 import 'src/input_mode.dart';
@@ -48,6 +49,7 @@ Future<void> main() async {
   // libmpv is bundled only where MpvEngine is the default (desktop, iOS).
   if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
     MediaKit.ensureInitialized();
+    await DesktopWindow.init();
   }
   // Bounded image memory: logo-heavy lists on 1-2 GB TV sticks.
   PaintingBinding.instance.imageCache

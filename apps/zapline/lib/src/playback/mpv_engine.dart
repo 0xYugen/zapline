@@ -108,6 +108,10 @@ class MpvEngine implements PlaybackEngine {
   ];
 
   @override
+  Future<void> setVolume(double volume) =>
+      _player.setVolume((volume.clamp(0.0, 1.0)) * 100);
+
+  @override
   Future<void> selectSubtitleTrack(String? id) async {
     if (id == null) return _player.setSubtitleTrack(SubtitleTrack.no());
     final t = _player.state.tracks.subtitle

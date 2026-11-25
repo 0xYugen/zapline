@@ -3211,6 +3211,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More'**
   String get moreOptions;
+
+  /// No description provided for @muted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get muted;
+
+  /// No description provided for @volumeKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume (M mutes)'**
+  String get volumeKey;
+
+  /// No description provided for @fullScreenKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen (F)'**
+  String get fullScreenKey;
+
+  /// No description provided for @exitFullScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit full screen'**
+  String get exitFullScreen;
 }
 
 class _AppLocalizationsDelegate

@@ -528,5 +528,9 @@
   "channelHiddenNamed": "{name} è nascosto",
   "sourceUpdateFailedNamed": "Impossibile aggiornare {name}",
   "restoreSummary": "{added, plural, =1{1 sorgente ripristinata} other{{added} sorgenti ripristinate}}{updated, plural, =0{} =1{, 1 aggiornata} other{, {updated} aggiornate}}",
-  "moreOptions": "Altro"
+  "moreOptions": "Altro",
+  "muted": "Muto",
+  "volumeKey": "Volume (M per il muto)",
+  "fullScreenKey": "Schermo intero (F)",
+  "exitFullScreen": "Esci da schermo intero"
 }

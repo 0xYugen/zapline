@@ -67,6 +67,9 @@ abstract class PlaybackEngine {
 
   /// `null` turns subtitles off.
   Future<void> selectSubtitleTrack(String? id);
+
+  /// Playback volume, 0 (silent) to 1 (full), kept across streams.
+  Future<void> setVolume(double volume);
 }
 
 /// An audio or subtitle track as the player shows it.

@@ -43,6 +43,12 @@ class AppSettings {
   int get refreshHours => _int('refreshHours', 12);
   set refreshHours(int v) => _db.setSetting('refreshHours', '$v');
 
+  /// Players' volume, 0–100, and whether sound is off.
+  int get volume => _int('volume', 100).clamp(0, 100);
+  set volume(int v) => _db.setSetting('volume', '${v.clamp(0, 100)}');
+  bool get muted => _bool('muted', false);
+  set muted(bool v) => _db.setSetting('muted', '$v');
+
   /// The screen stays on while Zapline is open.
   bool get keepScreenOn => _bool('keepScreenOn', true);
   set keepScreenOn(bool v) => _db.setSetting('keepScreenOn', '$v');

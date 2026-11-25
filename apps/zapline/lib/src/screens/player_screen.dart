@@ -12,7 +12,9 @@ import '../input_mode.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../mobile/programme_sheet.dart';
+import '../desktop_window.dart';
 import '../playback/playback_engine.dart';
+import '../playback/player_sound.dart';
 import '../theme.dart';
 import '../cast/cast_ui.dart';
 import '../widgets/channel_logo.dart';
@@ -50,6 +52,9 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   final PlaybackEngine _engine = createDefaultEngine();
+
+  /// Volume, mute and full screen keys and buttons.
+  late final _sound = PlayerSound(_engine, widget.state.settings);
 
   /// The list being zapped through; digits typed for a channel outside it
   /// switch to all channels.
@@ -139,6 +144,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _sound; // the saved volume, before the first stream
+    DesktopWindow.fullScreen.addListener(_fullScreenChanged);
     widget.state.guideVersion.addListener(_guideArrived);
     _subs
       ..add(
@@ -217,6 +224,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       SystemChrome.setPreferredOrientations(const []);
     }
     widget.state.guideVersion.removeListener(_guideArrived);
+    DesktopWindow.fullScreen.removeListener(_fullScreenChanged);
+    // The home and other screens are never full screen.
+    DesktopWindow.exitFullScreen();
+    _sound.dispose();
     for (final t in [
       _hideTimer,
       _digitTimer,
@@ -246,6 +257,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _guideArrived() {
     if (mounted) setState(_readGuide);
+  }
+
+  void _fullScreenChanged() {
+    if (mounted) setState(() {});
   }
 
   void _readGuide() {
@@ -513,6 +528,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_list) return KeyEventResult.ignored;
     final k = e.logicalKey;
     if (_okKeys.contains(k)) return _onOk(e);
+    if (_sound.handleKey(e)) return KeyEventResult.handled;
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
@@ -806,11 +822,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final c = _channel;
+    final fullScreen = DesktopWindow.fullScreen.value;
     return PopScope(
-      // Back closes the channel list before leaving the player.
-      canPop: !_list,
+      // Back (Esc) closes the channel list, then full screen, before
+      // leaving the player.
+      canPop: !_list && !fullScreen,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _list) _closeList();
+        if (didPop) return;
+        if (_list) {
+          _closeList();
+        } else if (fullScreen) {
+          DesktopWindow.exitFullScreen();
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -825,7 +848,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             },
             onPointerSignal: (e) {
               if (e is PointerScrollEvent && e.scrollDelta.dy != 0) {
-                _zap(e.scrollDelta.dy > 0 ? 1 : -1);
+                // The volume button may take this scroll first.
+                GestureBinding.instance.pointerSignalResolver.register(
+                  e,
+                  (_) => _zap(e.scrollDelta.dy > 0 ? 1 : -1),
+                );
               }
             },
             child: GestureDetector(
@@ -855,9 +882,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 children: [
                   // Android draws the picture in a native view that would
                   // swallow taps, leaving no way to bring the controls back.
-                  IgnorePointer(
-                    child: _engine.buildView(
-                      fit: widget.state.settings.videoFit,
+                  // A double click on the picture itself (not on the
+                  // controls, which stay instant) is full screen, as video
+                  // players do on a computer.
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onDoubleTap: DesktopWindow.supported
+                        ? DesktopWindow.toggleFullScreen
+                        : null,
+                    child: IgnorePointer(
+                      child: _engine.buildView(
+                        fit: widget.state.settings.videoFit,
+                      ),
                     ),
                   ),
                   ValueListenableBuilder<bool>(
@@ -868,6 +904,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   if (_error != null) _errorView(),
                   if (_digits.isNotEmpty)
                     Positioned(top: 40, right: 56, child: _digitPreview()),
+                  Positioned(
+                    top: 40,
+                    left: 0,
+                    right: 0,
+                    child: Center(child: VolumeBadge(sound: _sound)),
+                  ),
                   if (context.isPhone)
                     Positioned.fill(
                       child: IgnorePointer(
@@ -1506,6 +1548,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
           icon: const Icon(Icons.tune_rounded),
           tooltip: context.l10n.playerOptions,
         ),
+        // Click mutes; the wheel over it sets the volume (elsewhere the
+        // wheel zaps).
+        Listener(
+          onPointerSignal: (e) {
+            if (e is PointerScrollEvent && e.scrollDelta.dy != 0) {
+              GestureBinding.instance.pointerSignalResolver.register(e, (_) {
+                _sound.step(e.scrollDelta.dy < 0 ? 5 : -5);
+                setState(() {});
+              });
+            }
+          },
+          child: IconButton(
+            onPressed: () => setState(_sound.toggleMute),
+            icon: Icon(_sound.icon),
+            tooltip: context.l10n.volumeKey,
+          ),
+        ),
+        if (DesktopWindow.supported)
+          IconButton(
+            onPressed: DesktopWindow.toggleFullScreen,
+            icon: Icon(
+              DesktopWindow.fullScreen.value
+                  ? Icons.fullscreen_exit_rounded
+                  : Icons.fullscreen_rounded,
+            ),
+            tooltip: DesktopWindow.fullScreen.value
+                ? context.l10n.exitFullScreen
+                : context.l10n.fullScreenKey,
+          ),
         if (_replay != null)
           TextButton.icon(
             onPressed: _goLive,

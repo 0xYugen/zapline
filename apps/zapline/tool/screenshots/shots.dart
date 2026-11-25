@@ -211,6 +211,12 @@ class FakeEngine implements PlaybackEngine {
   @override
   Future<void> selectSubtitleTrack(String? id) async {}
 
+  /// The last volume asked for.
+  double volume = 1;
+
+  @override
+  Future<void> setVolume(double volume) async => this.volume = volume;
+
   @override
   Widget buildView({BoxFit fit = BoxFit.contain}) => const DecoratedBox(
     decoration: BoxDecoration(
