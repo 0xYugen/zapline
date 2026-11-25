@@ -527,5 +527,6 @@
   "pairingBusy": "La TV sta caricando un'altra sorgente. Riprova tra un momento.",
   "channelHiddenNamed": "{name} è nascosto",
   "sourceUpdateFailedNamed": "Impossibile aggiornare {name}",
-  "restoreSummary": "{added, plural, =1{1 sorgente ripristinata} other{{added} sorgenti ripristinate}}{updated, plural, =0{} =1{, 1 aggiornata} other{, {updated} aggiornate}}"
+  "restoreSummary": "{added, plural, =1{1 sorgente ripristinata} other{{added} sorgenti ripristinate}}{updated, plural, =0{} =1{, 1 aggiornata} other{, {updated} aggiornate}}",
+  "moreOptions": "Altro"
 }

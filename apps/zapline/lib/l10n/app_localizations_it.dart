@@ -1963,4 +1963,7 @@ class AppLocalizationsIt extends AppLocalizations {
     );
     return '$_temp0$_temp1';
   }
+
+  @override
+  String get moreOptions => 'Altro';
 }

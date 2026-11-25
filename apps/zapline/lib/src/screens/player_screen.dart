@@ -1074,29 +1074,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ],
                     ),
                   ),
-                  if (p != null)
-                    tool(Icons.info_outline_rounded, l.programmeInfo, () {
-                      _showInfo(c, p);
-                    }),
-                  tool(
-                    widget.state.isFavourite(c)
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    widget.state.isFavourite(c)
-                        ? l.removeFromFavourites
-                        : l.addToFavourites,
-                    () => setState(() => widget.state.toggleFavourite(c)),
-                  ),
-                  tool(Icons.cast_rounded, l.castButton, _sendToTv),
-                  if (widget.state.versionsOf(c).length > 1)
-                    tool(Icons.hd_outlined, l.channelVersion, _pickVersion),
-                  tool(Icons.subtitles_outlined, l.audioAndSubtitles, _tracks),
-                  tool(Icons.aspect_ratio_rounded, l.pictureSize, _cycleFit),
-                  tool(
-                    Icons.format_list_bulleted_rounded,
-                    l.channelList,
-                    _openList,
-                  ),
+                  ..._tools(c, p, tool),
                 ],
               ),
               Expanded(
@@ -1252,6 +1230,70 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ),
       ),
     );
+  }
+
+  /// The phone's tools, most used last (nearest the thumb). Upright there
+  /// is room for the channel's name and three of them: the rest go in a
+  /// "More" menu.
+  List<Widget> _tools(
+    Channel c,
+    Programme? p,
+    Widget Function(IconData, String, VoidCallback) tool,
+  ) {
+    final l = context.l10n;
+    final state = widget.state;
+    final favourite = state.isFavourite(c);
+    final all = <(IconData, String, VoidCallback)>[
+      if (p != null)
+        (Icons.info_outline_rounded, l.programmeInfo, () => _showInfo(c, p)),
+      (
+        favourite ? Icons.star_rounded : Icons.star_outline_rounded,
+        favourite ? l.removeFromFavourites : l.addToFavourites,
+        () => setState(() => state.toggleFavourite(c)),
+      ),
+      (Icons.cast_rounded, l.castButton, _sendToTv),
+      if (state.versionsOf(c).length > 1)
+        (Icons.hd_outlined, l.channelVersion, _pickVersion),
+      (Icons.aspect_ratio_rounded, l.pictureSize, _cycleFit),
+      (Icons.subtitles_outlined, l.audioAndSubtitles, _tracks),
+      (Icons.format_list_bulleted_rounded, l.channelList, _openList),
+    ];
+    if (MediaQuery.sizeOf(context).width >= 600) {
+      return [for (final (i, t, f) in all) tool(i, t, f)];
+    }
+    final shown = all.sublist(all.length - 2);
+    final more = all.sublist(0, all.length - 2);
+    return [
+      Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: PopupMenuButton<VoidCallback>(
+          tooltip: l.moreOptions,
+          icon: const Icon(Icons.more_horiz_rounded),
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.white.withValues(alpha: 0.12),
+            foregroundColor: Colors.white,
+            visualDensity: VisualDensity.compact,
+          ),
+          onOpened: () => _hideTimer?.cancel(),
+          onCanceled: _showOverlay,
+          onSelected: (f) => f(),
+          itemBuilder: (_) => [
+            for (final (icon, text, f) in more)
+              PopupMenuItem(
+                value: f,
+                child: Row(
+                  children: [
+                    Icon(icon, size: 20),
+                    const SizedBox(width: 14),
+                    Flexible(child: Text(text)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+      for (final (i, t, f) in shown) tool(i, t, f),
+    ];
   }
 
   /// The programme's sheet; its actions act on this player.

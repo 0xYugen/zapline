@@ -43,13 +43,14 @@ const phoneLandscape = Device(
 const tv = Device('tv', Size(960, 540), 2);
 
 Future<void> loadFonts() async {
+  // Forward slashes work on Windows too.
   final dir =
-      '${Platform.environment['FLUTTER_ROOT'] ?? r'D:\tools\flutter'}'
-      r'\bin\cache\artifacts\material_fonts';
+      '${Platform.environment['FLUTTER_ROOT'] ?? 'D:/tools/flutter'}'
+      '/bin/cache/artifacts/material_fonts';
   Future<void> family(String name, List<String> files) async {
     final loader = FontLoader(name);
     for (final f in files) {
-      final bytes = File('$dir\\$f').readAsBytesSync();
+      final bytes = File('$dir/$f').readAsBytesSync();
       loader.addFont(Future.value(ByteData.sublistView(bytes)));
     }
     await loader.load();
@@ -63,7 +64,7 @@ Future<void> loadFonts() async {
     loader.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
   }
   await loader.load();
-  await family('MaterialIcons', ['materialicons-regular.otf']);
+  await family('MaterialIcons', ['MaterialIcons-Regular.otf']);
 }
 
 void useDevice(WidgetTester tester, Device d) {

@@ -3205,6 +3205,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{added, plural, =1{1 source restored} other{{added} sources restored}}{updated, plural, =0{} =1{, 1 updated} other{, {updated} updated}}'**
   String restoreSummary(int added, int updated);
+
+  /// No description provided for @moreOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreOptions;
 }
 
 class _AppLocalizationsDelegate
