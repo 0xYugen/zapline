@@ -138,6 +138,9 @@ Xtream login.
 - [x] Guide on a remote: Page Up/Down and Channel +/- by a screen, digits
       jump to a channel, fast-forward/rewind by two hours, the full archive
       window, Back to now, focus follows the channel zapped to
+- [ ] Move from `package:flutter/material.dart` (deprecated in Flutter 3.50)
+      to `package:material_ui` once media_kit_video and flutter_zxing have
+      moved too; until then CI and releases stay on Flutter 3.47.9
 - [ ] Google Play and Amazon Appstore (Fire OS); iOS after licence review
 
 ## Phase 3 — Differentiation (~18 weeks, month 16)
