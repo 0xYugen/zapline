@@ -131,8 +131,9 @@ class SourceSync {
             claimed,
           );
           // A guide the user didn't shift is lined up with the guides
-          // before it, for when it is off by an hour or more.
-          if (shift == Duration.zero) {
+          // before it, for when it is off by an hour or more. (An unchanged
+          // guide was lined up when it was imported.)
+          if (shift == Duration.zero && r.starts.isNotEmpty) {
             db.alignGuide(r.starts, before, now: now);
           }
           guide = GuideImportResult(
@@ -149,6 +150,7 @@ class SourceSync {
     onProgress?.call(const SyncProgress(SyncStage.linking));
     final coverage = db.rebuildGuideLinks();
     db.markSynced(source.id, DateTime.now().toUtc(), serverOffset: offset);
+    db.maintain();
     onProgress?.call(SyncProgress(SyncStage.done, count: coverage.matched));
     return SyncResult(
       channels: channelCount,
@@ -410,14 +412,43 @@ class SourceSync {
     onProgress?.call(
       SyncProgress(SyncStage.guide, count: offset, message: url.host),
     );
-    final res = await _sendRetrying(url);
+    // The same guide, imported lately with the same settings: ask the
+    // server whether it changed, and keep what is there when it didn't.
+    final params =
+        '${guidePast.inMinutes}/${guideAhead.inMinutes}/${shift.inMinutes}';
+    final known = db.guideFeed(url.toString());
+    final usable =
+        known != null &&
+        known.params == params &&
+        (known.etag != null || known.lastModified != null) &&
+        now.difference(known.fetchedAt) < _unchangedFor &&
+        known.ids.every((id) => !claimed.contains(id)) &&
+        db.guideHasProgrammes(known.ids, now);
+    final res = await _sendRetrying(
+      url,
+      headers: {
+        if (usable && known.etag != null) 'If-None-Match': known.etag!,
+        if (usable && known.lastModified != null)
+          'If-Modified-Since': known.lastModified!,
+      },
+    );
+    if (res.statusCode == 304 && usable) {
+      claimed.addAll(known.ids);
+      return GuideImportResult(
+        channels: known.channels,
+        programmes: known.programmes,
+      );
+    }
+    db.forgetGuideFeed(url.toString());
     var count = offset;
     Object? failure;
+    var whole = false;
     final items =
         XmltvParser(
           // Widen the window by the shift so no programme is lost to it.
           from: now.subtract(guidePast).subtract(shift),
           to: now.add(guideAhead).subtract(shift),
+          onComplete: () => whole = true,
         ).parseBytes(_maybeGunzip(res.stream)).map((item) {
           if (item is! XmltvProgramme) return item;
           if (++count % 2000 == 0) {
@@ -439,23 +470,48 @@ class SourceSync {
         },
       ),
     );
-    final r = await db.importGuide(
-      safe,
-      claimed: claimed,
-      now: now,
-      batchSize: 2000,
-    );
+    final r = await db.importGuide(safe, claimed: claimed, now: now);
     if (r.programmes == 0 && failure != null) throw failure!;
+    // Only a guide that arrived whole is worth keeping as is next time.
+    final etag = res.headers['etag'];
+    final modified = res.headers['last-modified'];
+    if (whole && failure == null && (etag != null || modified != null)) {
+      db.saveGuideFeed(
+        GuideFeed(
+          url: url.toString(),
+          etag: etag,
+          lastModified: modified,
+          params: params,
+          ids: r.starts.keys.toSet(),
+          channels: r.channels,
+          programmes: r.programmes,
+          fetchedAt: now,
+        ),
+      );
+    }
     return r;
   }
 
+  /// How long a guide the server says is unchanged is kept without
+  /// downloading it again. Past that, the window of days kept has moved on
+  /// enough that the far end is worth reading again.
+  static const _unchangedFor = Duration(hours: 20);
+
   /// Guides are big downloads from free servers that are sometimes busy:
   /// one more try after a short wait, and no waiting forever on a server
-  /// that stopped answering.
-  Future<http.StreamedResponse> _sendRetrying(Uri url) async {
+  /// that stopped answering. A 304 (with [headers] asking whether the
+  /// guide changed) comes back as is.
+  Future<http.StreamedResponse> _sendRetrying(
+    Uri url, {
+    Map<String, String> headers = const {},
+  }) async {
     for (var attempt = 1; ; attempt++) {
       try {
-        final res = await _send(url).timeout(const Duration(seconds: 30));
+        final res = await _send(
+          url,
+          headers: headers,
+        ).timeout(const Duration(seconds: 30));
+        if (res.statusCode == 304) return res;
         return http.StreamedResponse(
           res.stream.timeout(const Duration(seconds: 45)),
           res.statusCode,
@@ -473,10 +529,19 @@ class SourceSync {
     }
   }
 
-  Future<http.StreamedResponse> _send(Uri uri) async {
+  Future<http.StreamedResponse> _send(
+    Uri uri, {
+    Map<String, String> headers = const {},
+  }) async {
     final res = await _http.send(
-      http.Request('GET', uri)..headers['User-Agent'] = userAgent,
+      http.Request('GET', uri)
+        ..headers['User-Agent'] = userAgent
+        ..headers.addAll(headers),
     );
+    if (res.statusCode == 304 && headers.isNotEmpty) {
+      await res.stream.drain<void>();
+      return res;
+    }
     if (res.statusCode != 200) {
       await res.stream.drain<void>();
       throw SyncException('HTTP ${res.statusCode} from ${uri.host}');
