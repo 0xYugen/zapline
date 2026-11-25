@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
@@ -106,6 +108,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   @override
   void dispose() {
     widget.state.lastPlayed.removeListener(_backFromPlayer);
+    _previewTimer?.cancel();
     _menuFirst.dispose();
     for (final n in _groupNodes.values) {
       n.dispose();
@@ -182,7 +185,20 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
 
   /// Select on a group: enter its channels, asking for the PIN first when
   /// it is locked.
+  /// Moving over a group previews it once focus rests there: holding a
+  /// key through the groups doesn't load each one's channels and guide.
+  void _preview(String? g) {
+    _previewTimer?.cancel();
+    _previewTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted && _group != g) setState(() => _group = g);
+    });
+  }
+
+  Timer? _previewTimer;
+
   Future<void> _enterGroup(String? g) async {
+    _previewTimer?.cancel();
+    if (_group != g) setState(() => _group = g);
     final state = widget.state;
     if (g != null && state.isLocked(g)) {
       if (!await unlockWithPin(context, state) || !mounted) return;
@@ -491,7 +507,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                                     : null,
                                 // Moving over a group previews it, like most TV
                                 // apps; Select jumps into the grid.
-                                onFocused: (g) => setState(() => _group = g),
+                                onFocused: _preview,
                                 onPressed: _enterGroup,
                               ),
                             ),

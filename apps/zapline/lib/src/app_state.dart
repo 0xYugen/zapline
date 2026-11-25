@@ -1509,6 +1509,27 @@ class AppState extends ChangeNotifier {
     DateTime to,
   ) => db.guide(channels, from, to);
 
+  /// [guide] for rows on screen: channels with nothing on now are asked of
+  /// their source, as the channel lists do.
+  Map<String, List<Programme>> guideRows(
+    List<Channel> channels,
+    DateTime from,
+    DateTime to,
+  ) {
+    final found = db.guide(channels, from, to);
+    final now = DateTime.now().toUtc();
+    // A source's own short guide covers around now: worth asking only
+    // when that is on screen.
+    if (guideFetcher != null && !now.isBefore(from) && now.isBefore(to)) {
+      for (final c in channels) {
+        if (found[ZaplineDatabase.channelKey(c)]?.isNotEmpty != true) {
+          _wantGuide(c);
+        }
+      }
+    }
+    return found;
+  }
+
   GuideCoverage coverage(String sourceId) =>
       db.guideCoverage(sourceId: sourceId);
 

@@ -55,11 +55,31 @@
 - Every source's JSON is parsed tolerantly (ids as strings or ints, dates as
   strings, numbers or null; empty results as `[]`, `{}` or `null`).
 
+## Measuring
+
+`apps/zapline/integration_test/perf_test.dart` drives the TV home with the
+remote's keys (down the guide, a page at a time, through the groups,
+zapping) and flings the phone's channel list, over a made-up library of
+5,000 channels (`--dart-define=PERF_CHANNELS=50000` for more). On a
+device, in profile mode:
+
+```sh
+cd apps/zapline
+flutter drive --profile --driver=test_driver/perf_driver.dart \
+  --target=integration_test/perf_test.dart
+```
+
+Build and raster times per scenario (average, 90th percentile, worst,
+missed frames) are written to `build/integration_response_data.json`. A
+frame has 16 ms at 60 Hz. Build times on a desktop CPU, as a reference
+(a TV stick is several times slower): guide row by row 3 ms, a page at a
+time 10 ms, groups 2 ms, zapping 2 ms at the 90th percentile.
+
 ## Open risks
 
 - LGPL relinking obligations for statically linked libmpv on iOS: legal review
   before App Store submission.
 - No official Xtream or Stalker specification: test against real panels and
   keep parsers tolerant.
-- Flutter performance on low-end sticks is unmeasured: the Phase 0 prototype
-  must prove it on a Fire TV Stick 4K.
+- Flutter performance on low-end sticks is unmeasured: run the
+  measurement above on a Fire TV Stick 4K.

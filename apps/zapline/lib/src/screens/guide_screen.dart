@@ -179,10 +179,27 @@ class GuideGridState extends State<GuideGrid> {
     if (i >= 0) focusNow(i);
   }
 
-  List<Programme> _row(Channel c) {
-    final key = ZaplineDatabase.channelKey(c);
-    return _rows[key] ??=
-        widget.state.guide([c], _from, _to)[key] ?? const <Programme>[];
+  /// Row [i]'s programmes in the window. Rows not loaded yet around it
+  /// load in one query: a page of new rows costs one, not one each.
+  List<Programme> _row(int i) {
+    final list = widget.channels;
+    final key = ZaplineDatabase.channelKey(list[i]);
+    final cached = _rows[key];
+    if (cached != null) return cached;
+    final batch = [
+      for (
+        var j = (i - 8).clamp(0, list.length);
+        j < list.length && j < i + 24;
+        j++
+      )
+        if (!_rows.containsKey(ZaplineDatabase.channelKey(list[j]))) list[j],
+    ];
+    final found = widget.state.guideRows(batch, _from, _to);
+    for (final c in batch) {
+      final k = ZaplineDatabase.channelKey(c);
+      _rows[k] = found[k] ?? const <Programme>[];
+    }
+    return _rows[key]!;
   }
 
   DateTime? _earliest;
@@ -539,7 +556,7 @@ class GuideGridState extends State<GuideGrid> {
   Widget _buildRow(int i, double pxPerMin) {
     final c = widget.channels[i];
     final key = ZaplineDatabase.channelKey(c);
-    final programmes = _row(c);
+    final programmes = _row(i);
     final cells = <Widget>[];
     final now = DateTime.now().toUtc();
 
@@ -700,7 +717,7 @@ class GuideGridState extends State<GuideGrid> {
     if (row >= widget.channels.length) return;
     final c = widget.channels[row];
     final key = ZaplineDatabase.channelKey(c);
-    final programmes = _row(c);
+    final programmes = _row(row);
     final p = programmes
         .where((p) => !at.isBefore(p.start) && at.isBefore(p.stop))
         .firstOrNull;
