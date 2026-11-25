@@ -95,21 +95,23 @@ extension VodStore on ZaplineDatabase {
   // ------------------------------------------------------------- catalogue
 
   /// Replaces [sourceId]'s films, keeping their order.
-  void replaceMovies(String sourceId, Iterable<Movie> movies) =>
-      _transaction(() {
-        _db.execute('DELETE FROM movies WHERE source_id = ?', [sourceId]);
-        final insert = _db.prepare(
-          'INSERT OR IGNORE INTO movies(source_id, id, sort, name, category, '
-          'poster, rating, added, ext, stream_url) '
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        );
-        try {
-          var sort = 0;
-          for (final m in movies) {
-            insert.execute([
-              sourceId,
-              m.id,
-              sort++,
+  void replaceMovies(String sourceId, Iterable<Movie> movies) {
+    const cols = [
+      'name',
+      'category',
+      'poster',
+      'rating',
+      'added',
+      'ext',
+      'stream_url',
+    ];
+    _readThenWrite(
+      () => _storedRows('movies', sourceId, cols.join(', ')),
+      (old) => _replaceRows('movies', sourceId, cols, old, [
+        for (final m in movies)
+          (
+            m.id,
+            [
               m.name,
               m.category,
               m.posterUrl?.toString(),
@@ -117,50 +119,119 @@ extension VodStore on ZaplineDatabase {
               m.addedAt == null ? null : ZaplineDatabase._secs(m.addedAt!),
               m.containerExtension,
               m.streamUrl?.toString(),
-            ]);
-          }
-        } finally {
-          insert.close();
+            ],
+          ),
+      ]),
+    );
+  }
+
+  /// Writes [rows] (id, values of [cols]) as [sourceId]'s rows of [table]
+  /// in their order, touching only what changed against [old] (the stored
+  /// rows, see _storedRows): a re-sync of an unchanged catalogue of 100k
+  /// films writes nothing, instead of holding the database for seconds
+  /// while the app waits to save. When an id comes twice, the first counts.
+  void _replaceRows(
+    String table,
+    String sourceId,
+    List<String> cols,
+    Map<String, (int, List<Object?>)> old,
+    Iterable<(String, List<Object?>)> rows,
+  ) {
+    final insert = _db.prepare(
+      'INSERT INTO $table(source_id, id, sort, ${cols.join(', ')}) '
+      'VALUES (?, ?, ?${', ?' * cols.length})',
+    );
+    final update = _db.prepare(
+      'UPDATE $table SET sort = ?, ${cols.map((c) => '$c = ?').join(', ')} '
+      'WHERE source_id = ? AND id = ?',
+    );
+    final move = _db.prepare(
+      'UPDATE $table SET sort = ? WHERE source_id = ? AND id = ?',
+    );
+    final delete = _db.prepare(
+      'DELETE FROM $table WHERE source_id = ? AND id = ?',
+    );
+    try {
+      var sort = 0;
+      final seen = <String>{};
+      for (final (id, values) in rows) {
+        final at = sort++;
+        if (!seen.add(id)) continue;
+        final before = old.remove(id);
+        if (before == null) {
+          insert.execute([sourceId, id, at, ...values]);
+        } else if (!ZaplineDatabase._sameValues(before.$2, values)) {
+          update.execute([at, ...values, sourceId, id]);
+        } else if (before.$1 != at) {
+          move.execute([at, sourceId, id]);
         }
-      });
+      }
+      for (final id in old.keys) {
+        delete.execute([sourceId, id]);
+      }
+    } finally {
+      insert.close();
+      update.close();
+      move.close();
+      delete.close();
+    }
+  }
 
   /// Replaces [sourceId]'s series and, for playlists, their episodes.
   void replaceShows(
     String sourceId,
     Iterable<Show> shows, {
     Iterable<(String showId, Episode)> playlistEpisodes = const [],
-  }) => _transaction(() {
-    _db.execute('DELETE FROM shows WHERE source_id = ?', [sourceId]);
+  }) {
+    const cols = [
+      'name',
+      'category',
+      'cover',
+      'backdrop',
+      'rating',
+      'plot',
+      'genre',
+      'released',
+      'updated',
+    ];
+    _readThenWrite(
+      () => _storedRows('shows', sourceId, cols.join(', ')),
+      (old) => _writeShows(sourceId, cols, old, shows, playlistEpisodes),
+    );
+  }
+
+  void _writeShows(
+    String sourceId,
+    List<String> cols,
+    Map<String, (int, List<Object?>)> old,
+    Iterable<Show> shows,
+    Iterable<(String, Episode)> playlistEpisodes,
+  ) {
+    _replaceRows('shows', sourceId, cols, old, [
+      for (final s in shows)
+        (
+          s.id,
+          [
+            s.name,
+            s.category,
+            s.coverUrl?.toString(),
+            s.backdropUrl?.toString(),
+            s.rating,
+            s.plot,
+            s.genre,
+            s.releaseDate,
+            s.updatedAt == null ? null : ZaplineDatabase._secs(s.updatedAt!),
+          ],
+        ),
+    ]);
     _db.execute('DELETE FROM playlist_episodes WHERE source_id = ?', [
       sourceId,
     ]);
-    final insert = _db.prepare(
-      'INSERT OR IGNORE INTO shows(source_id, id, sort, name, category, '
-      'cover, backdrop, rating, plot, genre, released, updated) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    );
     final episode = _db.prepare(
       'INSERT OR IGNORE INTO playlist_episodes(source_id, show_id, season, '
       'number, title, stream_url) VALUES (?, ?, ?, ?, ?, ?)',
     );
     try {
-      var sort = 0;
-      for (final s in shows) {
-        insert.execute([
-          sourceId,
-          s.id,
-          sort++,
-          s.name,
-          s.category,
-          s.coverUrl?.toString(),
-          s.backdropUrl?.toString(),
-          s.rating,
-          s.plot,
-          s.genre,
-          s.releaseDate,
-          s.updatedAt == null ? null : ZaplineDatabase._secs(s.updatedAt!),
-        ]);
-      }
       for (final (showId, e) in playlistEpisodes) {
         episode.execute([
           sourceId,
@@ -172,10 +243,9 @@ extension VodStore on ZaplineDatabase {
         ]);
       }
     } finally {
-      insert.close();
       episode.close();
     }
-  });
+  }
 
   int movieCount({String? sourceId}) => _count('movies', sourceId);
   int showCount({String? sourceId}) => _count('shows', sourceId);
