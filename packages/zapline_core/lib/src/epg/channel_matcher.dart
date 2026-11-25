@@ -109,13 +109,35 @@ const _diacritics = {
   'ß': 'ss',
 };
 
+/// [s] with the accented letters of [_diacritics] replaced; [s] itself
+/// (no copy) when it has none, as most channel names.
+String _stripAccents(String s) {
+  var i = 0;
+  // All the accented letters are at U+00DF and above.
+  while (i < s.length && s.codeUnitAt(i) < 0xdf) {
+    i++;
+  }
+  if (i == s.length) return s;
+  final b = StringBuffer(s.substring(0, i));
+  for (; i < s.length; i++) {
+    final c = s.codeUnitAt(i);
+    if (c < 0xdf) {
+      b.writeCharCode(c);
+    } else {
+      final ch = String.fromCharCode(c);
+      b.write(_diacritics[ch] ?? ch);
+    }
+  }
+  return b.toString();
+}
+
 /// Reduces a channel name to a comparison key: lower case, no accents, no
 /// country prefix (`IT:`, `[UK]`), no quality tags (`HD`, `4K`, `HEVC`), no
 /// punctuation. `+1` style timeshift suffixes are kept because they are
 /// different channels.
 String normalizeChannelName(String name) {
   var s = name.toLowerCase();
-  s = s.split('').map((c) => _diacritics[c] ?? c).join();
+  s = _stripAccents(s);
   s = s.replaceFirst(_prefix, '');
   s = s.replaceAll(_quality, ' ');
   s = s.replaceAll(_nonAlnum, '');
@@ -150,7 +172,7 @@ final _wordSplit = RegExp(r'[^a-z0-9+]+');
 /// goes. Matched only when a single guide channel has the key.
 String looseChannelKey(String name) {
   var s = name.toLowerCase();
-  s = s.split('').map((c) => _diacritics[c] ?? c).join();
+  s = _stripAccents(s);
   s = s.replaceFirst(_prefix, '');
   s = s.replaceAll(_quality, ' ');
   final words = [
@@ -213,17 +235,24 @@ class GuideIndex {
                       : target.length / n.length) +
               0.1;
         } else {
-          final shared = words.intersection(targetWords).length;
-          // Prefix matches catch abbreviations ("Cinema 1" vs "Cinema One").
-          final prefix = words.any((w) => targetWords.any((t) =>
-                  w.length >= 3 &&
-                  t.length >= 3 &&
-                  (w.startsWith(t) || t.startsWith(w))))
-              ? 0.5
-              : 0.0;
-          final union = words.union(targetWords).length;
-          s = union == 0 ? 0 : 0.6 * shared / union;
-          if (shared == 0) s = prefix * 0.6;
+          // Counted without building sets: this runs for every guide name
+          // against every channel being matched.
+          var shared = 0;
+          for (final w in words) {
+            if (targetWords.contains(w)) shared++;
+          }
+          if (shared > 0) {
+            final union = words.length + targetWords.length - shared;
+            s = 0.6 * shared / union;
+          } else {
+            // Prefix matches catch abbreviations ("Cinema 1" vs "Cinema
+            // One").
+            final prefix = words.any((w) => targetWords.any((t) =>
+                w.length >= 3 &&
+                t.length >= 3 &&
+                (w.startsWith(t) || t.startsWith(w))));
+            s = prefix ? 0.3 : 0;
+          }
         }
         if (s > best) best = s;
       }
@@ -238,7 +267,7 @@ final _wordSplitter = RegExp(r'[^a-z0-9+]+');
 
 Set<String> _words(String s) {
   var t = s.toLowerCase();
-  t = t.split('').map((c) => _diacritics[c] ?? c).join();
+  t = _stripAccents(t);
   t = t.replaceFirst(_prefix, '').replaceAll(_quality, ' ');
   return t.split(_wordSplitter).where((w) => w.isNotEmpty).toSet();
 }
