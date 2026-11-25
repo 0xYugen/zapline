@@ -524,5 +524,8 @@
   "pairingDone": "Fatto! {count} canali aggiunti.",
   "pairingDoneWithGuide": "Fatto! {count} canali aggiunti con la guida TV.",
   "pairingFailed": "La TV non è riuscita a collegarsi: {reason}",
-  "pairingBusy": "La TV sta caricando un'altra sorgente. Riprova tra un momento."
+  "pairingBusy": "La TV sta caricando un'altra sorgente. Riprova tra un momento.",
+  "channelHiddenNamed": "{name} è nascosto",
+  "sourceUpdateFailedNamed": "Impossibile aggiornare {name}",
+  "restoreSummary": "{added, plural, =1{1 sorgente ripristinata} other{{added} sorgenti ripristinate}}{updated, plural, =0{} =1{, 1 aggiornata} other{, {updated} aggiornate}}"
 }

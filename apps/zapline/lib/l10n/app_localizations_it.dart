@@ -1935,4 +1935,32 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get pairingBusy =>
       'La TV sta caricando un\'altra sorgente. Riprova tra un momento.';
+
+  @override
+  String channelHiddenNamed(String name) {
+    return '$name è nascosto';
+  }
+
+  @override
+  String sourceUpdateFailedNamed(String name) {
+    return 'Impossibile aggiornare $name';
+  }
+
+  @override
+  String restoreSummary(int added, int updated) {
+    String _temp0 = intl.Intl.pluralLogic(
+      added,
+      locale: localeName,
+      other: '$added sorgenti ripristinate',
+      one: '1 sorgente ripristinata',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      updated,
+      locale: localeName,
+      other: ', $updated aggiornate',
+      one: ', 1 aggiornata',
+      zero: '',
+    );
+    return '$_temp0$_temp1';
+  }
 }

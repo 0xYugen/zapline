@@ -233,25 +233,32 @@ class _FocusCardState extends State<FocusCard> {
             },
             onLongPress: widget.onLongPress,
             onSecondaryTap: widget.onLongPress,
-            child: AnimatedScale(
-              scale: lit ? 1.02 : 1,
-              duration: const Duration(milliseconds: 100),
-              child: AnimatedContainer(
+            // Read out as a button, with its text as the label.
+            child: Semantics(
+              button: true,
+              selected: widget.selected,
+              child: AnimatedScale(
+                scale: lit ? 1.02 : 1,
                 duration: const Duration(milliseconds: 100),
-                padding: widget.padding,
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(widget.radius),
-                  border: Border.all(
-                    color: lit ? ZaplineColors.focusBorder : Colors.transparent,
-                    width: 3,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  padding: widget.padding,
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(widget.radius),
+                    border: Border.all(
+                      color: lit
+                          ? ZaplineColors.focusBorder
+                          : Colors.transparent,
+                      width: 3,
+                    ),
                   ),
-                ),
-                child: DefaultTextStyle.merge(
-                  style: TextStyle(color: fg),
-                  child: IconTheme.merge(
-                    data: IconThemeData(color: fg),
-                    child: widget.child,
+                  child: DefaultTextStyle.merge(
+                    style: TextStyle(color: fg),
+                    child: IconTheme.merge(
+                      data: IconThemeData(color: fg),
+                      child: widget.child,
+                    ),
                   ),
                 ),
               ),

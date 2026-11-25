@@ -493,8 +493,15 @@ class AppState extends ChangeNotifier {
   Channel? get resumeChannel =>
       settings.resumeLastChannel ? recents().firstOrNull : null;
 
-  void setChannelHidden(Channel c, bool hidden) {
-    db.setChannelHidden(c, hidden);
+  void setChannelHidden(Channel c, bool hidden) =>
+      setChannelsHidden([c], hidden);
+
+  /// Hides or shows several channels (a channel's versions) with one
+  /// reload.
+  void setChannelsHidden(Iterable<Channel> channels, bool hidden) {
+    for (final c in channels) {
+      db.setChannelHidden(c, hidden);
+    }
     _reload();
     notifyListeners();
   }
@@ -1665,11 +1672,15 @@ class AppState extends ChangeNotifier {
     _reload();
     notifyListeners();
     restoreDownloads = _syncRestored(toSync);
+    lastRestore = (added: added, updated: updated);
     return [
       '$added sources restored',
       if (updated > 0) '$updated updated',
     ].join(', ');
   }
+
+  /// Sources the last restore added and updated, for a translated summary.
+  ({int added, int updated})? lastRestore;
 
   /// The downloads started by the last restore: the receiving screen
   /// follows them.

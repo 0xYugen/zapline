@@ -220,7 +220,11 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
   /// Zapline on a phone scanned the code and sent its whole setup: it is
   /// restored at once (channels download afterwards) and the TV moves on.
   Future<String> _setupFromPhone(String json) async {
-    final summary = await widget.state.restoreBackup(json);
+    final l = context.l10n;
+    var summary = await widget.state.restoreBackup(json);
+    if (widget.state.lastRestore case (:final added, :final updated)) {
+      summary = l.restoreSummary(added, updated);
+    }
     if (mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(context.l10n.setupReceived)));

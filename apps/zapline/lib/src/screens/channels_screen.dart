@@ -345,40 +345,28 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
           children: [
             // The grid keeps its room; menu and groups open over it.
             Positioned.fill(left: _SideMenu.narrowWidth, child: grid),
-            // Refreshing a playlist that already has channels.
+            // Refreshing a playlist that already has channels, or one that
+            // couldn't be refreshed (an expired subscription, a moved
+            // server): said here, details in Settings.
             if (state.isSyncing && visible.isNotEmpty)
-              Positioned(
-                top: 18,
-                right: 28,
-                child: IgnorePointer(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: ZaplineColors.surfaceHigh,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox.square(
-                          dimension: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          l.updatingList,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              _Badge(
+                leading: const SizedBox.square(
+                  dimension: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
+                text: l.updatingList,
+              )
+            else if (state.sources
+                    .where((s) => state.syncFailure(s.id) != null)
+                    .firstOrNull
+                case final failed?)
+              _Badge(
+                leading: const Icon(
+                  Icons.error_outline_rounded,
+                  size: 16,
+                  color: ZaplineColors.live,
+                ),
+                text: l.sourceUpdateFailedNamed(failed.name),
               ),
             // Dims the grid while the menu or the groups are open; a click on
             // it goes back to the grid.
@@ -746,6 +734,40 @@ class _Groups extends StatelessWidget {
         ),
       ),
     ],
+  );
+}
+
+/// A small note at the top right of the home, out of the remote's way.
+class _Badge extends StatelessWidget {
+  const _Badge({required this.leading, required this.text});
+
+  final Widget leading;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Positioned(
+    top: 18,
+    right: 28,
+    child: IgnorePointer(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: ZaplineColors.surfaceHigh,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            leading,
+            const SizedBox(width: 10),
+            Text(
+              text,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 

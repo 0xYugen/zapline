@@ -66,7 +66,11 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
   /// until they are done.
   Future<String> _received(String json) async {
     Backup.parse(json); // throws on anything that isn't a backup
-    final summary = await widget.state.restoreBackup(json);
+    final l = context.l10n;
+    var summary = await widget.state.restoreBackup(json);
+    if (widget.state.lastRestore case (:final added, :final updated)) {
+      summary = l.restoreSummary(added, updated);
+    }
     if (mounted) {
       setState(() => _stage = _Receive.receiving);
       ScaffoldMessenger.of(context)

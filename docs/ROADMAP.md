@@ -119,14 +119,25 @@ Xtream login.
       or opens the channel
 - [x] Android TV: keyboard opens only on OK in text fields; Back no longer
       closes the app on Android 16 (it popped twice)
-- [ ] Audio and subtitle track selection
-- [ ] Programme reminders (notify / switch when a programme starts)
+- [x] Audio and subtitle track selection (subtitles carried in the stream
+      on desktop; Android shows audio tracks)
+- [x] Programme reminders: set from the guide, search or a programme's
+      details; a notice with "Watch" when the programme starts
 - [ ] Picture-in-picture (Android, desktop mini-player)
 - [ ] Stalker portals
 - [ ] Logical channels with fallback across sources
-- [ ] Movies/series with resume
+- [x] Movies/series with resume
 - [ ] Selectable video engine
-- [ ] Translations (Italian first)
+- [x] Translations (Italian first), including the pages a phone opens
+      from the TV's QR code
+- [x] Player recovery and remote polish: zapping opens only the channel
+      stopped on, a spinner while a channel starts or stalls, three
+      automatic retries then OK to retry; options on hold OK / Menu (tracks,
+      picture, version, programme, favourite, last channel); digits with a
+      preview across all channels, 0 for the last channel
+- [x] Guide on a remote: Page Up/Down and Channel +/- by a screen, digits
+      jump to a channel, fast-forward/rewind by two hours, the full archive
+      window, Back to now, focus follows the channel zapped to
 - [ ] Google Play and Amazon Appstore (Fire OS); iOS after licence review
 
 ## Phase 3 — Differentiation (~18 weeks, month 16)

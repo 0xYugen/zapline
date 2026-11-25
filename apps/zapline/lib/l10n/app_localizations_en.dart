@@ -1931,4 +1931,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pairingBusy =>
       'The TV is busy loading another source. Try again in a moment.';
+
+  @override
+  String channelHiddenNamed(String name) {
+    return '$name is hidden';
+  }
+
+  @override
+  String sourceUpdateFailedNamed(String name) {
+    return '$name couldn\'t be updated';
+  }
+
+  @override
+  String restoreSummary(int added, int updated) {
+    String _temp0 = intl.Intl.pluralLogic(
+      added,
+      locale: localeName,
+      other: '$added sources restored',
+      one: '1 source restored',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      updated,
+      locale: localeName,
+      other: ', $updated updated',
+      one: ', 1 updated',
+      zero: '',
+    );
+    return '$_temp0$_temp1';
+  }
 }

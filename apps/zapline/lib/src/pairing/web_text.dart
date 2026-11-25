@@ -37,6 +37,8 @@ class WebText {
     required this.chooseFile,
     required this.restoring,
     required this.backupTvGone,
+    required this.tooLarge,
+    required this.done,
   });
 
   final String lang;
@@ -69,6 +71,12 @@ class WebText {
   final String chooseFile;
   final String restoring;
   final String backupTvGone;
+
+  /// A file too big to be a backup.
+  final String tooLarge;
+
+  /// "Done: summary."
+  final String Function(String summary) done;
 
   static const en = WebText._(
     lang: 'en',
@@ -109,7 +117,12 @@ class WebText {
     chooseFile: 'Choose a file first.',
     restoring: 'Restoring… the TV is downloading your sources.',
     backupTvGone: 'The TV did not answer. Is the backup screen still open?',
+    tooLarge: 'The file is too large to be a Zapline backup.',
+    done: _doneEn,
   );
+
+  static String _doneEn(String s) => 'Done: $s.';
+  static String _doneIt(String s) => 'Fatto: $s.';
 
   static const it = WebText._(
     lang: 'it',
@@ -157,6 +170,8 @@ class WebText {
     restoring: 'Ripristino… la TV sta scaricando le tue sorgenti.',
     backupTvGone:
         'La TV non ha risposto. La schermata di backup è ancora aperta?',
+    tooLarge: 'Il file è troppo grande per essere un backup di Zapline.',
+    done: _doneIt,
   );
 
   /// The language the browser or app prefers, by its Accept-Language.

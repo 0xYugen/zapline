@@ -3187,6 +3187,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The TV is busy loading another source. Try again in a moment.'**
   String get pairingBusy;
+
+  /// No description provided for @channelHiddenNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is hidden'**
+  String channelHiddenNamed(String name);
+
+  /// No description provided for @sourceUpdateFailedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} couldn\'t be updated'**
+  String sourceUpdateFailedNamed(String name);
+
+  /// No description provided for @restoreSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{added, plural, =1{1 source restored} other{{added} sources restored}}{updated, plural, =0{} =1{, 1 updated} other{, {updated} updated}}'**
+  String restoreSummary(int added, int updated);
 }
 
 class _AppLocalizationsDelegate

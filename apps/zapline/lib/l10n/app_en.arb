@@ -628,5 +628,11 @@
   "@pairingDoneWithGuide": {"placeholders": {"count": {"type": "int"}}},
   "pairingFailed": "The TV could not connect: {reason}",
   "@pairingFailed": {"placeholders": {"reason": {"type": "String"}}},
-  "pairingBusy": "The TV is busy loading another source. Try again in a moment."
+  "pairingBusy": "The TV is busy loading another source. Try again in a moment.",
+  "channelHiddenNamed": "{name} is hidden",
+  "@channelHiddenNamed": {"placeholders": {"name": {"type": "String"}}},
+  "sourceUpdateFailedNamed": "{name} couldn't be updated",
+  "@sourceUpdateFailedNamed": {"placeholders": {"name": {"type": "String"}}},
+  "restoreSummary": "{added, plural, =1{1 source restored} other{{added} sources restored}}{updated, plural, =0{} =1{, 1 updated} other{, {updated} updated}}",
+  "@restoreSummary": {"placeholders": {"added": {"type": "int"}, "updated": {"type": "int"}}}
 }
