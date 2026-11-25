@@ -68,6 +68,9 @@ class MpvEngine implements PlaybackEngine {
   Stream<String> get errors => _player.stream.error;
 
   @override
+  Stream<bool> get buffering => _player.stream.buffering;
+
+  @override
   Widget buildView({BoxFit fit = BoxFit.contain}) =>
       Video(controller: _video, controls: NoVideoControls, fit: fit);
 

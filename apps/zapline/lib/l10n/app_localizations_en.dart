@@ -1868,4 +1868,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchShows => 'Search series';
+
+  @override
+  String get playerOptions => 'Options';
+
+  @override
+  String get holdOkForOptions => 'Hold OK for options';
+
+  @override
+  String reconnecting(int attempt, int total) {
+    return 'Reconnecting… ($attempt of $total)';
+  }
+
+  @override
+  String get streamTimeout => 'The channel took too long to start';
+
+  @override
+  String get pressOkToRetry =>
+      'Press OK to try again, or Up and Down for another channel';
+
+  @override
+  String backToChannel(String channel) {
+    return 'Back to $channel';
+  }
+
+  @override
+  String noChannelNumber(int number) {
+    return 'No channel $number';
+  }
+
+  @override
+  String pictureSizeIs(String fit) {
+    return 'Picture: $fit';
+  }
+
+  @override
+  String get loadingChannel => 'Loading channel';
+
+  @override
+  String lastUpdateFailed(String reason) {
+    return 'Last update failed: $reason';
+  }
+
+  @override
+  String get dismiss => 'Dismiss';
+
+  @override
+  String pairingDone(int count) {
+    return 'Done! $count channels added.';
+  }
+
+  @override
+  String pairingDoneWithGuide(int count) {
+    return 'Done! $count channels added with their TV guide.';
+  }
+
+  @override
+  String pairingFailed(String reason) {
+    return 'The TV could not connect: $reason';
+  }
+
+  @override
+  String get pairingBusy =>
+      'The TV is busy loading another source. Try again in a moment.';
 }

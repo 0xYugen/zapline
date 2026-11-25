@@ -159,7 +159,17 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
         dur > Duration.zero &&
         !playing &&
         pos >= dur - const Duration(milliseconds: 1500);
-    if (pos != _position || dur != _duration || playing != _playing) {
+    // With the controls hidden nothing on screen shows the position, until
+    // the "next episode" button near the end: no need to redraw the whole
+    // player twice a second.
+    final quiet =
+        !_overlay &&
+        playing == _playing &&
+        dur == _duration &&
+        (dur <= Duration.zero || dur - pos > const Duration(seconds: 31));
+    if (quiet) {
+      _position = pos;
+    } else if (pos != _position || dur != _duration || playing != _playing) {
       setState(() {
         _position = pos;
         _duration = dur;

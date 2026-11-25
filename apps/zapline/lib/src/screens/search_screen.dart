@@ -114,13 +114,27 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       );
 
-  /// On air: watch live. Over and in the archive: replay it. Otherwise
-  /// the channel, live.
+  /// On air: watch live. Over and in the archive: replay it. Still to
+  /// come: its details, to be reminded. Otherwise the channel, live; Up
+  /// and Down then zap through all channels from there.
   void _openProgramme(Channel c, Programme p) {
     final now = DateTime.now();
+    final all = widget.state.channels();
+    final i = widget.state.indexOfChannel(all, c);
+    final (list, index) = i >= 0 ? (all, i) : ([c], 0);
+    if (p.start.isAfter(now)) {
+      showProgrammeSheet(
+        context,
+        state: widget.state,
+        channels: list,
+        index: index,
+        programme: p,
+      );
+      return;
+    }
     final past = !p.stop.isAfter(now);
     final replayable = past && widget.state.catchupUrl(c, p) != null;
-    _play([c], 0, replay: replayable ? p : null);
+    _play(list, index, replay: replayable ? p : null);
   }
 
   @override

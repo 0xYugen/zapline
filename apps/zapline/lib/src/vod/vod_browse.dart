@@ -10,6 +10,7 @@ import '../layout.dart';
 import '../theme.dart';
 import 'vod_detail_screens.dart';
 import 'vod_widgets.dart';
+import '../widgets/tab_visibility.dart';
 
 enum VodKind { movies, shows }
 
@@ -135,7 +136,7 @@ class _VodTabState extends State<VodTab> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
+  Widget build(BuildContext context) => TabListenableBuilder(
     listenable: widget.state,
     builder: (context, _) {
       final l = context.l10n;

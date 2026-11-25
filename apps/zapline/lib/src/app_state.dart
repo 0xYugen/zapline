@@ -202,8 +202,15 @@ class AppState extends ChangeNotifier {
   List<String> groups = const [];
   int channelCount = 0;
 
-  /// Progress of the sync in flight, if any.
-  SyncProgress? progress;
+  /// Progress of the sync in flight, if any. Changes several times a
+  /// second while a guide downloads, so only [syncProgress] tells: the
+  /// screens showing it listen to that, not to the whole state.
+  SyncProgress? get progress => syncProgress.value;
+  final syncProgress = ValueNotifier<SyncProgress?>(null);
+
+  /// This state and [syncProgress] together, for screens showing both.
+  late final Listenable withProgress = Listenable.merge([this, syncProgress]);
+
   String? syncingSourceId;
 
   bool get isEmpty => channelCount == 0 && movieCount == 0 && showCount == 0;
@@ -218,6 +225,32 @@ class AppState extends ChangeNotifier {
   /// Incremented whenever stored channels change; screens use it to cache
   /// query results.
   int version = 0;
+
+  /// Incremented when favourites change: only the favourites list goes
+  /// stale, not every channel list.
+  int favouritesVersion = 0;
+
+  /// Incremented when a channel is watched (the recent channels).
+  int recentsVersion = 0;
+
+  /// Bumped when programmes arrive or guide links change without the
+  /// channels changing; what shows programmes listens to it alone, so a
+  /// burst of guides fetched channel by channel doesn't rebuild every
+  /// screen.
+  final guideVersion = ValueNotifier<int>(0);
+
+  /// The channel the player was on when it closed, so the list it was
+  /// opened from can follow.
+  final lastPlayed = ValueNotifier<Channel?>(null);
+
+  @override
+  void dispose() {
+    _guideArrived?.cancel();
+    guideVersion.dispose();
+    lastPlayed.dispose();
+    syncProgress.dispose();
+    super.dispose();
+  }
 
   void _reload() {
     version++;
@@ -453,6 +486,7 @@ class AppState extends ChangeNotifier {
   void markWatched(Channel c) {
     db.markWatched(c);
     _hasRecents = true;
+    recentsVersion++;
   }
 
   /// The channel to reopen at startup, if the user wants that.
@@ -657,7 +691,9 @@ class AppState extends ChangeNotifier {
 
   void toggleFavourite(Channel c) {
     db.setFavourite(c, !isFavourite(c));
-    _reload();
+    // Channel lists stay as they are: only the favourites change.
+    _favouriteKeys = db.favouriteKeys();
+    favouritesVersion++;
     notifyListeners();
   }
 
@@ -738,6 +774,7 @@ class AppState extends ChangeNotifier {
     for (final v in versionsOf(c)) {
       db.linkGuide(ZaplineDatabase.channelKey(v), guideId);
     }
+    guideVersion.value++;
     notifyListeners();
   }
 
@@ -748,6 +785,7 @@ class AppState extends ChangeNotifier {
         db.linkGuide(ZaplineDatabase.channelKey(v), id);
       }
     }
+    guideVersion.value++;
     notifyListeners();
   }
 
@@ -933,12 +971,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Redraws once for a burst of fetched channels.
+  /// Redraws what shows programmes once for a burst of fetched channels.
   void _guideFetched() {
-    _guideArrived ??= Timer(const Duration(milliseconds: 300), () {
+    _guideArrived ??= Timer(const Duration(milliseconds: 500), () {
       _guideArrived = null;
-      // Programmes only: channel lists stay cached.
-      notifyListeners();
+      // Programmes only: channel lists and other screens stay as they are.
+      guideVersion.value++;
     });
   }
 
@@ -1019,37 +1057,51 @@ class AppState extends ChangeNotifier {
   // ------------------------------------------------------------ reminders
 
   /// Programmes the user asked to be reminded of, by channel key and start.
-  List<Reminder> get reminders {
+  /// Read once and kept: the guide asks for every programme it draws.
+  List<Reminder> get reminders => _reminders ??= _readReminders();
+  List<Reminder>? _reminders;
+
+  List<Reminder> _readReminders() {
     final raw = db.setting('reminders');
     if (raw == null) return const [];
-    return [
-      for (final r in jsonDecode(raw) as List)
-        Reminder(
-          channelKey: r['k'] as String,
-          start: DateTime.fromMillisecondsSinceEpoch(
-            (r['s'] as int) * 1000,
-            isUtc: true,
+    try {
+      return [
+        for (final r in jsonDecode(raw) as List)
+          Reminder(
+            channelKey: r['k'] as String,
+            start: DateTime.fromMillisecondsSinceEpoch(
+              (r['s'] as int) * 1000,
+              isUtc: true,
+            ),
+            title: r['t'] as String,
           ),
-          title: r['t'] as String,
-        ),
-    ];
+      ];
+    } on Object {
+      return const [];
+    }
   }
 
-  void _saveReminders(List<Reminder> list) => db.setSetting(
-    'reminders',
-    jsonEncode([
-      for (final r in list)
-        {
-          'k': r.channelKey,
-          's': r.start.millisecondsSinceEpoch ~/ 1000,
-          't': r.title,
-        },
-    ]),
-  );
+  void _saveReminders(List<Reminder> list) {
+    _reminders = List.unmodifiable(list);
+    db.setSetting(
+      'reminders',
+      jsonEncode([
+        for (final r in list)
+          {
+            'k': r.channelKey,
+            's': r.start.millisecondsSinceEpoch ~/ 1000,
+            't': r.title,
+          },
+      ]),
+    );
+  }
 
-  bool hasReminder(Channel c, Programme p) => reminders.any(
-    (r) => r.channelKey == ZaplineDatabase.channelKey(c) && r.start == p.start,
-  );
+  bool hasReminder(Channel c, Programme p) {
+    final list = reminders;
+    if (list.isEmpty) return false;
+    final key = ZaplineDatabase.channelKey(c);
+    return list.any((r) => r.channelKey == key && r.start == p.start);
+  }
 
   void toggleReminder(Channel c, Programme p) {
     final key = ZaplineDatabase.channelKey(c);
@@ -1060,6 +1112,7 @@ class AppState extends ChangeNotifier {
         if (j != i) r,
       if (i < 0) Reminder(channelKey: key, start: p.start, title: p.title),
     ]);
+    guideVersion.value++;
     notifyListeners();
   }
 
@@ -1661,27 +1714,34 @@ class AppState extends ChangeNotifier {
     _passwords.remove(id);
     secrets.delete(_secretKey(id)).catchError((Object _) {});
     db.deleteSource(id);
+    db.setSetting('syncFailure:$id', null);
     db.rebuildGuideLinks();
     _reload();
     notifyListeners();
   }
+
+  /// Why the last update of [sourceId] failed, as the error said it;
+  /// `null` once one succeeds. Kept across restarts so an expired
+  /// subscription or a moved server shows on the sources, not just as
+  /// channels that no longer play.
+  String? syncFailure(String sourceId) => db.setting('syncFailure:$sourceId');
 
   Future<SyncResult> _sync(SourceRecord s) async {
     await _secretsLoading;
     // Re-read: the password may have arrived from the keystore meanwhile.
     s = sources.where((e) => e.id == s.id).firstOrNull ?? s;
     syncingSourceId = s.id;
-    progress = const SyncProgress(SyncStage.channels);
+    syncProgress.value = const SyncProgress(SyncStage.channels);
     notifyListeners();
     try {
       var shown = DateTime(0);
       final result = await syncRunner(s, (p) {
-        progress = p;
-        // Every redraw rebuilds the open screens: a few a second at most.
+        // Only the progress readouts redraw, a few times a second at most.
         final now = DateTime.now();
-        if (now.difference(shown) > const Duration(milliseconds: 1500)) {
+        if (p.stage != progress?.stage ||
+            now.difference(shown) > const Duration(milliseconds: 400)) {
           shown = now;
-          notifyListeners();
+          syncProgress.value = p;
         }
       });
       db.setSetting(
@@ -1691,15 +1751,20 @@ class AppState extends ChangeNotifier {
           'errors': result.guideErrors,
         }),
       );
+      db.setSetting('syncFailure:${s.id}', null);
       // A new sync may have brought a guide: ask again where it didn't.
       _guideAsked.clear();
       _askGuidesWithout(s);
       return result;
+    } catch (e) {
+      db.setSetting('syncFailure:${s.id}', redactSecrets('$e'));
+      rethrow;
     } finally {
       syncingSourceId = null;
-      progress = null;
+      syncProgress.value = null;
       // Once: every reload redraws the open screens.
       _reload();
+      guideVersion.value++;
       notifyListeners();
     }
   }

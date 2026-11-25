@@ -222,7 +222,7 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
                 SizedBox(
                   width: 520,
                   child: ListenableBuilder(
-                    listenable: widget.state,
+                    listenable: widget.state.withProgress,
                     builder: (context, _) => Column(
                       children: [
                         SyncSteps(

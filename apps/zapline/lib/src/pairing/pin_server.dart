@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'transfer_crypto.dart';
+import 'web_text.dart';
 
 /// Base for the small LAN servers that let a phone or a PC browser talk to
 /// the TV (pairing, backup). They run only while their screen is open, bind
@@ -18,8 +19,6 @@ abstract class PinServer {
   }
 
   static const maxFailures = 5;
-  static const lockedMessage =
-      'Too many wrong codes. Reopen the screen on the TV to get a new one.';
 
   final HttpServer _server;
 
@@ -158,8 +157,9 @@ abstract class PinServer {
   bool checkPin(HttpRequest req, HttpResponse res, {String? candidate}) {
     final who = req.connectionInfo?.remoteAddress.address ?? '';
     final failures = _failures[who] ?? 0;
+    final t = WebText.of(req);
     if (failures >= maxFailures) {
-      writeJson(res, HttpStatus.tooManyRequests, false, lockedMessage);
+      writeJson(res, HttpStatus.tooManyRequests, false, t.tooManyCodes);
       return false;
     }
     if ((candidate ?? pinOf(req)) == pin) return true;
@@ -168,9 +168,7 @@ abstract class PinServer {
       res,
       HttpStatus.forbidden,
       false,
-      failures + 1 >= maxFailures
-          ? lockedMessage
-          : 'Wrong code. Check the 4 digits shown on the TV.',
+      failures + 1 >= maxFailures ? t.tooManyCodes : t.wrongCode,
     );
     return false;
   }

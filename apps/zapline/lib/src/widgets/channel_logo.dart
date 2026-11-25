@@ -212,10 +212,13 @@ class _Initials extends StatelessWidget {
     Color(0xFFFFB3D1),
   ];
 
+  static final _countryTag = RegExp(r'^[A-Za-z]{2,3}\s*[:|]\s*');
+  static final _separators = RegExp(r'[\s\-_.]+');
+
   String get _initials {
     final words = name
-        .replaceAll(RegExp(r'^[A-Za-z]{2,3}\s*[:|]\s*'), '')
-        .split(RegExp(r'[\s\-_.]+'))
+        .replaceAll(_countryTag, '')
+        .split(_separators)
         .where((w) => w.isNotEmpty)
         .toList();
     if (words.isEmpty) return '?';

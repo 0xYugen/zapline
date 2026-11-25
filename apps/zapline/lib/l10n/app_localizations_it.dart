@@ -1872,4 +1872,67 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get searchShows => 'Cerca una serie';
+
+  @override
+  String get playerOptions => 'Opzioni';
+
+  @override
+  String get holdOkForOptions => 'Tieni premuto OK per le opzioni';
+
+  @override
+  String reconnecting(int attempt, int total) {
+    return 'Riconnessione… ($attempt di $total)';
+  }
+
+  @override
+  String get streamTimeout => 'Il canale non è partito in tempo';
+
+  @override
+  String get pressOkToRetry =>
+      'Premi OK per riprovare, o Su e Giù per un altro canale';
+
+  @override
+  String backToChannel(String channel) {
+    return 'Torna a $channel';
+  }
+
+  @override
+  String noChannelNumber(int number) {
+    return 'Nessun canale $number';
+  }
+
+  @override
+  String pictureSizeIs(String fit) {
+    return 'Immagine: $fit';
+  }
+
+  @override
+  String get loadingChannel => 'Caricamento del canale';
+
+  @override
+  String lastUpdateFailed(String reason) {
+    return 'Ultimo aggiornamento non riuscito: $reason';
+  }
+
+  @override
+  String get dismiss => 'Chiudi';
+
+  @override
+  String pairingDone(int count) {
+    return 'Fatto! $count canali aggiunti.';
+  }
+
+  @override
+  String pairingDoneWithGuide(int count) {
+    return 'Fatto! $count canali aggiunti con la guida TV.';
+  }
+
+  @override
+  String pairingFailed(String reason) {
+    return 'La TV non è riuscita a collegarsi: $reason';
+  }
+
+  @override
+  String get pairingBusy =>
+      'La TV sta caricando un\'altra sorgente. Riprova tra un momento.';
 }

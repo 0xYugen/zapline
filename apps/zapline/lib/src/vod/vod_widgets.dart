@@ -31,7 +31,7 @@ class VodTitle {
   int? get year => movie != null
       ? movie!.year
       : int.tryParse(
-          RegExp(r'(19|20)\d\d').firstMatch(show!.releaseDate ?? '')?[0] ?? '',
+          _yearPattern.firstMatch(show!.releaseDate ?? '')?[0] ?? '',
         );
 
   /// The key positions and My list are stored under.
@@ -39,13 +39,18 @@ class VodTitle {
       movie != null ? VodCatalog.movieKey(movie!) : VodCatalog.showKey(show!);
 }
 
+final _yearPattern = RegExp(r'(19|20)\d\d');
+final _countryPrefix = RegExp(r'^[A-Z]{2,3}\s*[-:|]\s+');
+final _yearSuffix = RegExp(r'\s*[\(\[]?(19|20)\d\d[\)\]]?\s*$');
+final _trailingDash = RegExp(r'\s*-\s*$');
+
 /// "IT - Title (2019)" → "Title": providers prefix the country and append
 /// the year, which the card shows apart.
 String cleanTitle(String name) {
   var s = name.trim();
-  s = s.replaceFirst(RegExp(r'^[A-Z]{2,3}\s*[-:|]\s+'), '');
-  s = s.replaceFirst(RegExp(r'\s*[\(\[]?(19|20)\d\d[\)\]]?\s*$'), '');
-  s = s.replaceFirst(RegExp(r'\s*-\s*$'), '');
+  s = s.replaceFirst(_countryPrefix, '');
+  s = s.replaceFirst(_yearSuffix, '');
+  s = s.replaceFirst(_trailingDash, '');
   return s.isEmpty ? name.trim() : s;
 }
 

@@ -57,12 +57,13 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   final _menuFirst = FocusNode(debugLabel: 'menu');
   final _groupNodes = <String?, FocusNode>{};
 
-  (String?, int)? _cacheKey;
+  (String?, int, int)? _cacheKey;
   List<Channel> _cache = const [];
 
   @override
   void initState() {
     super.initState();
+    widget.state.lastPlayed.addListener(_backFromPlayer);
     // `autofocus` is ignored when the previous screen still held focus while
     // this one was built, so request it explicitly after the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -89,8 +90,20 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     });
   }
 
+  /// Back from the player: the grid shows the channel zapped to.
+  void _backFromPlayer() {
+    final c = widget.state.lastPlayed.value;
+    if (c == null || !mounted) return;
+    // Recent channels have changed; rebuild before focusing.
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _area == _Area.grid) _grid.currentState?.focusChannel(c);
+    });
+  }
+
   @override
   void dispose() {
+    widget.state.lastPlayed.removeListener(_backFromPlayer);
     _menuFirst.dispose();
     for (final n in _groupNodes.values) {
       n.dispose();
@@ -102,7 +115,17 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       _groupNodes.putIfAbsent(g, () => FocusNode(debugLabel: 'group $g'));
 
   List<Channel> get _visible {
-    final key = (_group, widget.state.version);
+    final state = widget.state;
+    // Favourites and recents change without the channels changing.
+    final key = (
+      _group,
+      state.version,
+      switch (_group) {
+        _favourites => state.favouritesVersion,
+        _recent => state.recentsVersion,
+        _ => 0,
+      },
+    );
     if (key != _cacheKey) {
       _cacheKey = key;
       _cache = switch (_group) {
@@ -277,7 +300,10 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    SyncSteps(state.progress),
+                    ValueListenableBuilder(
+                      valueListenable: state.syncProgress,
+                      builder: (context, progress, _) => SyncSteps(progress),
+                    ),
                     const LinearProgressIndicator(
                       color: ZaplineColors.focus,
                       backgroundColor: ZaplineColors.line,
@@ -306,7 +332,13 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       canPop: _area == _Area.menu,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        _area == _Area.grid ? _toGroups() : _toMenu();
+        // In the grid, Back first returns to what's on now.
+        final grid = _grid.currentState;
+        if (_area == _Area.grid && grid != null && !grid.atNow) {
+          grid.focusNow();
+        } else {
+          _area == _Area.grid ? _toGroups() : _toMenu();
+        }
       },
       child: Scaffold(
         body: Stack(

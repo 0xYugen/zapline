@@ -10,6 +10,7 @@ import '../widgets/channel_logo.dart';
 import 'mobile_home.dart';
 import 'programme_sheet.dart';
 import 'mobile_widgets.dart';
+import '../widgets/tab_visibility.dart';
 
 /// The guide on a phone: what's on at a chosen time on every channel of a
 /// group, one row each. A grid needs a TV-sized screen; here a tap opens the
@@ -54,8 +55,8 @@ class _MobileGuideState extends State<MobileGuide> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: widget.state,
+    return TabListenableBuilder(
+      listenable: Listenable.merge([widget.state, widget.state.guideVersion]),
       builder: (context, _) {
         final state = widget.state;
         if (!groupsOf(state).contains(_group)) _group = null;

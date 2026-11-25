@@ -3097,6 +3097,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search series'**
   String get searchShows;
+
+  /// No description provided for @playerOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get playerOptions;
+
+  /// No description provided for @holdOkForOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold OK for options'**
+  String get holdOkForOptions;
+
+  /// No description provided for @reconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting… ({attempt} of {total})'**
+  String reconnecting(int attempt, int total);
+
+  /// No description provided for @streamTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The channel took too long to start'**
+  String get streamTimeout;
+
+  /// No description provided for @pressOkToRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Press OK to try again, or Up and Down for another channel'**
+  String get pressOkToRetry;
+
+  /// No description provided for @backToChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to {channel}'**
+  String backToChannel(String channel);
+
+  /// No description provided for @noChannelNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'No channel {number}'**
+  String noChannelNumber(int number);
+
+  /// No description provided for @pictureSizeIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture: {fit}'**
+  String pictureSizeIs(String fit);
+
+  /// No description provided for @loadingChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading channel'**
+  String get loadingChannel;
+
+  /// No description provided for @lastUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last update failed: {reason}'**
+  String lastUpdateFailed(String reason);
+
+  /// No description provided for @dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismiss;
+
+  /// No description provided for @pairingDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done! {count} channels added.'**
+  String pairingDone(int count);
+
+  /// No description provided for @pairingDoneWithGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Done! {count} channels added with their TV guide.'**
+  String pairingDoneWithGuide(int count);
+
+  /// No description provided for @pairingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV could not connect: {reason}'**
+  String pairingFailed(String reason);
+
+  /// No description provided for @pairingBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV is busy loading another source. Try again in a moment.'**
+  String get pairingBusy;
 }
 
 class _AppLocalizationsDelegate

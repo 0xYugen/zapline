@@ -4,6 +4,7 @@ import 'pairing_page.dart';
 import 'pin_server.dart';
 import 'setup_receiver.dart';
 import 'transfer_crypto.dart';
+import 'web_text.dart';
 
 /// What a phone submitted through the pairing page.
 class PairingSubmission {
@@ -85,7 +86,12 @@ class PairingServer extends PinServer {
     final res = req.response;
     if (req.method == 'GET' && req.uri.path == '/') {
       res.headers.contentType = ContentType.html;
-      res.write(pairingPage(pin: req.uri.queryParameters['pin'] ?? ''));
+      res.write(
+        pairingPage(
+          pin: req.uri.queryParameters['pin'] ?? '',
+          text: WebText.of(req),
+        ),
+      );
     } else if (req.method == 'POST' && req.uri.path == '/add') {
       await _add(req);
     } else {
@@ -108,7 +114,7 @@ class PairingServer extends PinServer {
         res,
         HttpStatus.badRequest,
         false,
-        'Enter an address.',
+        WebText.of(req).enterAddress,
       );
       return;
     }

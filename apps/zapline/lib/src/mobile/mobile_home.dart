@@ -15,6 +15,7 @@ import '../widgets/brand.dart';
 import '../widgets/channel_actions.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/epg_suggestion.dart';
+import '../widgets/tab_visibility.dart';
 import '../vod/vod_browse.dart';
 import 'mobile_guide.dart';
 import 'mobile_widgets.dart';
@@ -34,6 +35,7 @@ class MobileHome extends StatefulWidget {
 
 class _MobileHomeState extends State<MobileHome> {
   _Tab _tab = _Tab.tv;
+  final _tabs = <_Tab, Widget>{};
 
   @override
   void initState() {
@@ -101,20 +103,31 @@ class _MobileHomeState extends State<MobileHome> {
           ),
         },
     ];
+    // Each tab is built once and kept: a change in the state redraws the
+    // tab on screen only, the others catch up when shown.
     final body = IndexedStack(
       index: index,
       children: [
         for (final t in tabs)
           KeyedSubtree(
             key: ValueKey(t),
-            child: switch (t) {
-              _Tab.tv => ChannelsTab(state: state),
-              _Tab.movies => VodTab(state: state, kind: VodKind.movies),
-              _Tab.shows => VodTab(state: state, kind: VodKind.shows),
-              _Tab.guide => MobileGuide(state: state),
-              _Tab.favourites => FavouritesTab(state: state),
-              _Tab.settings => SettingsScreen(state: state),
-            },
+            child: TabVisibility(
+              active: t == _tab,
+              child: TickerMode(
+                enabled: t == _tab,
+                child: _tabs.putIfAbsent(
+                  t,
+                  () => switch (t) {
+                    _Tab.tv => ChannelsTab(state: state),
+                    _Tab.movies => VodTab(state: state, kind: VodKind.movies),
+                    _Tab.shows => VodTab(state: state, kind: VodKind.shows),
+                    _Tab.guide => MobileGuide(state: state),
+                    _Tab.favourites => FavouritesTab(state: state),
+                    _Tab.settings => SettingsScreen(state: state),
+                  },
+                ),
+              ),
+            ),
           ),
       ],
     );
@@ -268,7 +281,7 @@ class MobileHeader extends StatelessWidget {
   final String? title;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
+  Widget build(BuildContext context) => TabListenableBuilder(
     listenable: state,
     builder: (context, _) => Padding(
       padding: isLandscape(context)
@@ -352,8 +365,8 @@ class _ChannelsTabState extends State<ChannelsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: widget.state,
+    return TabListenableBuilder(
+      listenable: Listenable.merge([widget.state, widget.state.guideVersion]),
       builder: (context, _) {
         final state = widget.state;
         if (!groupsOf(state).contains(_group)) _group = null;
@@ -537,8 +550,8 @@ class FavouritesTab extends StatelessWidget {
   final AppState state;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: state,
+  Widget build(BuildContext context) => TabListenableBuilder(
+    listenable: Listenable.merge([state, state.guideVersion]),
     builder: (context, _) {
       final list = state.favourites();
       return Column(

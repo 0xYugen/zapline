@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../input_mode.dart';
 import '../l10n.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -219,9 +220,11 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              for (final (icon, label, onTap, primary) in actions)
+              for (final (i, (icon, label, onTap, primary)) in actions.indexed)
                 primary
                     ? FilledButton.icon(
+                        // A remote needs a starting point; touch doesn't.
+                        autofocus: i == 0 && !InputMode.instance.touch,
                         onPressed: onTap,
                         icon: Icon(icon),
                         label: Text(label),

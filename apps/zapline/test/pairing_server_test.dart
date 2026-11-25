@@ -56,6 +56,25 @@ void main() {
     expect(server.url.queryParameters['pin'], '4729');
   });
 
+  test('speaks the phone\'s language, Italian or English', () async {
+    Future<String> page(String languages) async {
+      final client = HttpClient();
+      addTearDown(client.close);
+      final req = await client.get('127.0.0.1', server.port, '/?pin=4729');
+      req.headers.set(HttpHeaders.acceptLanguageHeader, languages);
+      final res = await req.close();
+      return utf8.decodeStream(res);
+    }
+
+    final it = await page('it-IT,it;q=0.9,en;q=0.8');
+    expect(it, contains('<html lang="it">'));
+    expect(it, contains('Aggiungi una sorgente alla TV'));
+    // Apostrophes in the Italian text don't break the page's script.
+    expect(it, contains('s.textContent = "Connessione'));
+    final en = await page('de-DE,en;q=0.5');
+    expect(en, contains('Add a source to your TV'));
+  });
+
   test('accepts a submission with the right PIN', () async {
     final (code, body) = await post({
       'pin': '4729',

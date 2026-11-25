@@ -149,7 +149,7 @@ class _BackupScreenState extends State<BackupScreen> {
                       autofocus: true,
                       child: Builder(
                         builder: (context) => ListenableBuilder(
-                          listenable: widget.state,
+                          listenable: widget.state.withProgress,
                           builder: (context, _) => Text(
                             widget.state.isSyncing
                                 ? context.l10n.restoring(

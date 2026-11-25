@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:zapline_data/zapline_data.dart';
 
+import 'layout.dart';
+
 /// User preferences backed by the database's settings table. Defaults are
 /// chosen for a TV on first run.
 class AppSettings {
@@ -24,8 +26,9 @@ class AppSettings {
   bool get sequentialNumbers => _bool('sequentialNumbers', false);
   set sequentialNumbers(bool v) => _db.setSetting('sequentialNumbers', '$v');
 
-  /// Reopen the last watched channel at startup.
-  bool get resumeLastChannel => _bool('resumeLastChannel', false);
+  /// Reopen the last watched channel at startup: on by default on TVs,
+  /// which are turned on to watch TV.
+  bool get resumeLastChannel => _bool('resumeLastChannel', FormFactor.isTv);
   set resumeLastChannel(bool v) => _db.setSetting('resumeLastChannel', '$v');
 
   bool get clock24h => _bool('clock24h', true);

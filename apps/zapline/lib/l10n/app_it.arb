@@ -509,5 +509,20 @@
   "updatingList": "Aggiorno la lista…",
   "setupReceived": "Configurazione ricevuta dal telefono",
   "searchMovies": "Cerca un film",
-  "searchShows": "Cerca una serie"
+  "searchShows": "Cerca una serie",
+  "playerOptions": "Opzioni",
+  "holdOkForOptions": "Tieni premuto OK per le opzioni",
+  "reconnecting": "Riconnessione… ({attempt} di {total})",
+  "streamTimeout": "Il canale non è partito in tempo",
+  "pressOkToRetry": "Premi OK per riprovare, o Su e Giù per un altro canale",
+  "backToChannel": "Torna a {channel}",
+  "noChannelNumber": "Nessun canale {number}",
+  "pictureSizeIs": "Immagine: {fit}",
+  "loadingChannel": "Caricamento del canale",
+  "lastUpdateFailed": "Ultimo aggiornamento non riuscito: {reason}",
+  "dismiss": "Chiudi",
+  "pairingDone": "Fatto! {count} canali aggiunti.",
+  "pairingDoneWithGuide": "Fatto! {count} canali aggiunti con la guida TV.",
+  "pairingFailed": "La TV non è riuscita a collegarsi: {reason}",
+  "pairingBusy": "La TV sta caricando un'altra sorgente. Riprova tra un momento."
 }

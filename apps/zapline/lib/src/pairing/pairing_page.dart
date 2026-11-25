@@ -1,23 +1,26 @@
+import 'web_text.dart';
+
 /// The page a phone sees after scanning the TV's QR code. Self-contained
 /// (no external assets) because it is served from the TV on the LAN.
-String pairingPage({required String pin}) {
+String pairingPage({required String pin, WebText text = WebText.en}) {
+  final t = text;
   // Only digits ever reach the markup.
   final safePin = pin.replaceAll(RegExp(r'[^0-9]'), '');
   final pinField = safePin.isEmpty
       ? '''
-      <label>Code shown on the TV
+      <label>${t.codeOnTv}
         <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
                autocomplete="one-time-code" required>
       </label>'''
       : '<input type="hidden" name="pin" value="$safePin">';
 
   return '''<!doctype html>
-<html lang="en">
+<html lang="${t.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Zapline · Add a source</title>
+<title>Zapline · ${t.addTitle}</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -49,33 +52,30 @@ String pairingPage({required String pin}) {
 <body>
 <main>
   <div class="brand">Zapline</div>
-  <h1>Add a source to your TV</h1>
-  <p class="lead">Paste your playlist link, or your server address with
-  username and password.</p>
+  <h1>${t.addHeading}</h1>
+  <p class="lead">${t.addLead}</p>
   <form id="f" autocomplete="off">
-    <label>Playlist link or server address
+    <label>${t.linkOrServer}
       <input name="url" type="url" inputmode="url" required
              placeholder="http://server.example:8080">
     </label>
-    <p class="hint">An Xtream link (get.php?username=…) already contains the
-    login: no need to fill the fields below.</p>
+    <p class="hint">${t.xtreamHint}</p>
     <div class="row">
-      <label>Username<input name="username" autocapitalize="none"></label>
-      <label>Password<input name="password" type="password"></label>
+      <label>${t.username}<input name="username" autocapitalize="none"></label>
+      <label>${t.password}<input name="password" type="password"></label>
     </div>
     <details>
-      <summary>Extra TV guide (optional)</summary>
-      <label style="margin-top:10px">EPG link (XMLTV)
+      <summary>${t.extraGuide}</summary>
+      <label style="margin-top:10px">${t.epgLink}
         <input name="guide" type="url" inputmode="url"
                placeholder="http://guide.example/epg.xml.gz">
       </label>
     </details>
     $pinField
-    <button id="b" type="submit">Send to TV</button>
+    <button id="b" type="submit">${t.sendToTv}</button>
     <div id="status" role="status" aria-live="polite"></div>
   </form>
-  <footer>Your details travel only over your home network, straight to the
-  TV. Zapline includes no channels or playlists.</footer>
+  <footer>${t.privacy}</footer>
 </main>
 <script>
   const f = document.getElementById('f');
@@ -85,7 +85,7 @@ String pairingPage({required String pin}) {
     e.preventDefault();
     b.disabled = true;
     s.className = '';
-    s.textContent = 'Connecting… the TV is loading your channels.';
+    s.textContent = ${WebText.js(t.connecting)};
     try {
       const r = await fetch('/add', {
         method: 'POST',
@@ -98,7 +98,7 @@ String pairingPage({required String pin}) {
       if (j.ok) f.reset();
     } catch (_) {
       s.className = 'err';
-      s.textContent = 'The TV did not answer. Is "Add a source" still open?';
+      s.textContent = ${WebText.js(t.addTvGone)};
     } finally {
       b.disabled = false;
     }

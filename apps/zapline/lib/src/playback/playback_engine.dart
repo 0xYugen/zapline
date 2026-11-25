@@ -48,6 +48,10 @@ abstract class PlaybackEngine {
   /// Human-readable playback errors.
   Stream<String> get errors;
 
+  /// `true` while the stream stalls to fill its buffer, `false` once the
+  /// picture moves again.
+  Stream<bool> get buffering;
+
   /// The video surface, scaled to the screen as [fit] says. Rebuilds
   /// itself when the stream changes.
   Widget buildView({BoxFit fit = BoxFit.contain});

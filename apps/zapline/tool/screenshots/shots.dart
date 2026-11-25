@@ -4,6 +4,7 @@
 //   flutter test tool/screenshots/phone_test.dart
 //
 // PNGs land in build/screenshots/.
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -144,15 +145,22 @@ Future<void> shot(WidgetTester tester, Device d, String name) async {
 
 /// Plays nothing; draws a test picture so overlays can be judged.
 class FakeEngine implements PlaybackEngine {
+  final _position = StreamController<Duration>.broadcast();
+
   @override
   String get name => 'fake';
 
+  /// "Starts" at once, so the player leaves its loading state.
   @override
   Future<void> open(
     Uri url, {
     Map<String, String> headers = const {},
     Duration start = Duration.zero,
-  }) async {}
+  }) async {
+    scheduleMicrotask(() {
+      if (!_position.isClosed) _position.add(const Duration(seconds: 1));
+    });
+  }
 
   @override
   Duration get currentPosition => const Duration(minutes: 42, seconds: 10);
@@ -176,13 +184,16 @@ class FakeEngine implements PlaybackEngine {
   Future<void> stop() async {}
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() => _position.close();
 
   @override
-  Stream<Duration> get position => const Stream.empty();
+  Stream<Duration> get position => _position.stream;
 
   @override
   Stream<String> get errors => const Stream.empty();
+
+  @override
+  Stream<bool> get buffering => const Stream.empty();
 
   @override
   Future<List<MediaTrack>> audioTracks() async => const [

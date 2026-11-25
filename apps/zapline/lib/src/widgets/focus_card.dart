@@ -1,10 +1,66 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../input_mode.dart';
 import '../theme.dart';
+
+/// When focus last moved to a card; moves closer together than a frame or
+/// two mean a key is held down.
+DateTime _lastReveal = DateTime(0);
+
+/// Scrolls every list around [context] just enough to show it whole: no
+/// move when it already shows, else its edge to the list's nearest edge.
+/// While a key is held the lists jump instead of animating, so they keep up
+/// with the focus instead of queueing animations.
+void revealFocused(BuildContext context) {
+  var object = context.findRenderObject();
+  if (object == null || !object.attached) return;
+  final now = DateTime.now();
+  final held = now.difference(_lastReveal) < const Duration(milliseconds: 160);
+  _lastReveal = now;
+  var scrollable = Scrollable.maybeOf(context);
+  while (scrollable != null) {
+    final position = scrollable.position;
+    // On a cold start focus can arrive before the window has a size;
+    // scrolling into a zero-height viewport would shift the list.
+    if (!position.hasViewportDimension || position.viewportDimension <= 0) {
+      return;
+    }
+    final viewport = RenderAbstractViewport.maybeOf(object);
+    if (viewport == null || object == null) return;
+    final start = viewport.getOffsetToReveal(object, 0).offset;
+    final end = viewport.getOffsetToReveal(object, 1).offset;
+    final current = position.pixels;
+    // Revealing at the start needs the larger offset when the card is
+    // above; at the end, the smaller when it's below.
+    final target = current > start
+        ? start
+        : current < end
+        ? end
+        : null;
+    if (target != null) {
+      final to = target.clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      if (held) {
+        position.jumpTo(to);
+      } else {
+        position.animateTo(
+          to,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+        );
+      }
+    }
+    // An outer list (a row of posters in a page) shows the inner one.
+    object = scrollable.context.findRenderObject();
+    scrollable = Scrollable.maybeOf(scrollable.context);
+  }
+}
 
 /// A D-pad friendly tile: highlights and grows slightly when focused, and
 /// activates on Select/Enter, gamepad A, or a tap/click.
@@ -148,22 +204,7 @@ class _FocusCardState extends State<FocusCard> {
             // (no menu item at the same height to move to).
             // On a cold start focus can arrive before the window has a size;
             // scrolling into a zero-height viewport would shift the list.
-            final viewport = Scrollable.maybeOf(context)?.position;
-            if (!fromPointer &&
-                viewport != null &&
-                viewport.hasViewportDimension &&
-                viewport.viewportDimension > 0) {
-              for (final policy in const [
-                ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-                ScrollPositionAlignmentPolicy.keepVisibleAtStart,
-              ]) {
-                Scrollable.ensureVisible(
-                  context,
-                  alignmentPolicy: policy,
-                  duration: const Duration(milliseconds: 120),
-                );
-              }
-            }
+            if (!fromPointer) revealFocused(context);
           }
         },
         // In long-press mode activation happens on key release (_onKey).
