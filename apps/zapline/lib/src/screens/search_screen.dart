@@ -179,7 +179,7 @@ class _SearchScreenState extends State<SearchScreen> {
       for (var i = 0; i < _results.length; i++)
         if (phone)
           () => SizedBox(
-            height: MobileChannelRow.height,
+            height: MobileChannelRow.heightOf(context),
             child: MobileChannelRow(
               state: widget.state,
               channel: _results[i],

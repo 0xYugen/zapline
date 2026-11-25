@@ -284,3 +284,10 @@ const systemBarsStyle = SystemUiOverlayStyle(
   statusBarIconBrightness: Brightness.light,
   systemNavigationBarIconBrightness: Brightness.light,
 );
+
+/// [base] grown with the system's text size, for rows of a fixed height:
+/// with large text their lines would otherwise be cut. Up to twice as tall.
+double scaledExtent(BuildContext context, double base) {
+  final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+  return (base * scale.clamp(1.0, 2.0)).roundToDouble();
+}

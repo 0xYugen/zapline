@@ -11,6 +11,7 @@ import 'mobile_home.dart';
 import 'programme_sheet.dart';
 import 'mobile_widgets.dart';
 import '../widgets/tab_visibility.dart';
+import '../layout.dart';
 
 /// The guide on a phone: what's on at a chosen time on every channel of a
 /// group, one row each. A grid needs a TV-sized screen; here a tap opens the
@@ -111,7 +112,7 @@ class _MobileGuideState extends State<MobileGuide> {
                   ? EmptyView(context.l10n.noChannelsInGroup)
                   : ListView.builder(
                       itemCount: list.length,
-                      itemExtent: 92,
+                      itemExtent: scaledExtent(context, 92),
                       itemBuilder: (context, i) => _WhatsOnRow(
                         state: state,
                         channel: list[i],
@@ -351,7 +352,10 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
     final i = list.indexWhere((p) => p.stop.isAfter(now));
     if (i <= 0) return;
     _scroll.jumpTo(
-      ((i - 1) * _rowHeight).clamp(0, _scroll.position.maxScrollExtent),
+      ((i - 1) * scaledExtent(context, _rowHeight)).clamp(
+        0,
+        _scroll.position.maxScrollExtent,
+      ),
     );
   }
 
@@ -443,7 +447,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
                 : ListView.builder(
                     controller: _scroll,
                     itemCount: list.length,
-                    itemExtent: _rowHeight,
+                    itemExtent: scaledExtent(context, _rowHeight),
                     itemBuilder: (context, i) {
                       final p = list[i];
                       final onAir =

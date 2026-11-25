@@ -79,8 +79,9 @@ documented.
 - [x] Source passwords in the platform keystore (flutter_secure_storage),
       migrated automatically, loaded after the first frame; database
       fallback where no keystore exists
-- [ ] Xtream channel URLs still embed username/password in their path:
-      store URL templates and fill credentials at play time
+- [x] Stream addresses are stored without the account's username and
+      password (placeholders), filled in when a stream opens; Xtream films
+      and episodes are built at play time
 - [x] Logos: disk cache, in-flight dedup, decoded at display size, bounded
       image memory (48 MB), initials badge as fallback; in list, guide and
       player

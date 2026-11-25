@@ -27,12 +27,16 @@ String? _focused() {
   return texts.join(' ');
 }
 
-Future<AppState> _home(WidgetTester tester, {int count = 60}) async {
+Future<AppState> _home(
+  WidgetTester tester, {
+  int count = 60,
+  List<String>? groups,
+}) async {
   await tester.binding.setSurfaceSize(const Size(1920, 1080));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   debugEngineFactory = FakeEngine.new;
   addTearDown(() => debugEngineFactory = null);
-  final state = fakeState(count: count);
+  final state = fakeState(count: count, groups: groups);
   await state.addSource(
     const SourceInput(url: 'http://x.example/get.php?username=a&password=b'),
   );
@@ -110,5 +114,36 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(_focused(), 'All channels');
+  });
+
+  testWidgets('groups: Page Down moves a screen, a letter finds a group', (
+    tester,
+  ) async {
+    await _home(
+      tester,
+      count: 80,
+      groups: [
+        for (var i = 1; i <= 38; i++) 'Group ${i.toString().padLeft(2, '0')}',
+        'IT | Sport',
+        'News',
+      ],
+    );
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(_focused(), 'All channels');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pumpAndSettle();
+    final paged = _focused()!;
+    expect(paged, startsWith('Group '));
+    expect(int.parse(paged.substring(6)), greaterThan(8));
+
+    // S: past the country tag, "IT | Sport", far down the list.
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await tester.pumpAndSettle();
+    expect(_focused(), 'IT | Sport');
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await tester.pumpAndSettle();
+    expect(_focused(), 'News');
   });
 }

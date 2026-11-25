@@ -19,6 +19,7 @@ import '../widgets/channel_logo.dart';
 import '../widgets/channel_versions.dart';
 import '../widgets/focus_card.dart';
 import '../widgets/tracks_sheet.dart';
+import 'search_screen.dart';
 
 /// Full-screen player for live channels and catch-up.
 ///
@@ -534,6 +535,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _openOptions();
     } else if (e is KeyDownEvent && k == LogicalKeyboardKey.backspace) {
       _recall();
+    } else if (e is KeyDownEvent &&
+        (k == LogicalKeyboardKey.browserSearch ||
+            k == LogicalKeyboardKey.find)) {
+      // Search takes the player's place: what's picked there plays in a
+      // new one, instead of a player stacked on this one.
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => SearchScreen(state: widget.state),
+        ),
+      );
     } else if (k == LogicalKeyboardKey.info ||
         k == LogicalKeyboardKey.keyI ||
         k == LogicalKeyboardKey.space ||
@@ -981,20 +992,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
           message: tip,
           child: SizedBox.square(
             dimension: size,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: size * 0.46, color: Colors.white),
-                if (caption != null)
-                  Text(
-                    caption,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+            // A caption inside a circle can't grow much with large text.
+            child: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.15,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: size * 0.46, color: Colors.white),
+                  if (caption != null)
+                    Text(
+                      caption,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1642,7 +1657,9 @@ class _ChannelListState extends State<_ChannelList> {
   static const _rowHeight = 72.0;
 
   late final _scroll = ScrollController(
-    initialScrollOffset: (widget.current - 3).clamp(0, 1 << 30) * _rowHeight,
+    initialScrollOffset:
+        (widget.current - 3).clamp(0, 1 << 30) *
+        scaledExtent(context, _rowHeight),
   );
 
   final _currentFocus = FocusNode(debugLabel: 'current channel');
@@ -1671,7 +1688,7 @@ class _ChannelListState extends State<_ChannelList> {
         controller: _scroll,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         itemCount: widget.channels.length,
-        itemExtent: _rowHeight,
+        itemExtent: scaledExtent(context, _rowHeight),
         itemBuilder: (context, i) {
           final c = widget.channels[i];
           final (now, _) = widget.state.nowNext(c);

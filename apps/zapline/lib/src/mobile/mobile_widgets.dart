@@ -8,6 +8,7 @@ import '../theme.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/channel_name.dart';
 import '../widgets/pin_pad.dart';
+import '../layout.dart';
 
 /// Asks for the PIN and opens locked groups for this session.
 Future<bool> unlockWithPin(BuildContext context, AppState state) async {
@@ -328,6 +329,9 @@ class MobileChannelRow extends StatelessWidget {
   });
 
   static const height = 76.0;
+
+  /// [height], taller with large system text.
+  static double heightOf(BuildContext context) => scaledExtent(context, height);
 
   final AppState state;
   final Channel channel;

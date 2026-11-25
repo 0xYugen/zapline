@@ -15,6 +15,7 @@ import '../theme.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
 import 'player_screen.dart';
+import '../layout.dart';
 
 /// The TV guide on a screen of its own.
 class GuideScreen extends StatelessWidget {
@@ -74,6 +75,9 @@ class GuideGridState extends State<GuideGrid> {
   static const _step = Duration(minutes: 30);
   static const _labelWidth = 240.0;
   static const _rowHeight = 64.0;
+
+  /// A row, taller with large system text.
+  double get _rowExtent => scaledExtent(context, _rowHeight);
 
   late DateTime _from = _floorToStep(DateTime.now().toUtc());
   DateTime get _to => _from.add(_span);
@@ -234,7 +238,7 @@ class GuideGridState extends State<GuideGrid> {
   /// Rows that fit on screen, for Page Up/Down.
   int get _pageRows {
     final h = _scroll.hasClients ? _scroll.position.viewportDimension : 0.0;
-    return h <= 0 ? 8 : (h / _rowHeight).floor().clamp(1, 50);
+    return h <= 0 ? 8 : (h / _rowExtent).floor().clamp(1, 50);
   }
 
   /// Moves focus [rows] rows up or down, at the time focus is on.
@@ -487,7 +491,7 @@ class GuideGridState extends State<GuideGrid> {
                             child: ListView.builder(
                               controller: _scroll,
                               itemCount: widget.channels.length,
-                              itemExtent: _rowHeight,
+                              itemExtent: _rowExtent,
                               itemBuilder: (context, i) =>
                                   _buildRow(i, pxPerMin),
                             ),
@@ -715,7 +719,7 @@ class GuideGridState extends State<GuideGrid> {
     final pos = _scroll.position;
     // A third of the way down, so the rows around it show too.
     pos.jumpTo(
-      (row * _rowHeight - pos.viewportDimension / 3).clamp(
+      (row * _rowExtent - pos.viewportDimension / 3).clamp(
         0.0,
         pos.maxScrollExtent,
       ),

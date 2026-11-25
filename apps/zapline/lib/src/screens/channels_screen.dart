@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../countries.dart';
 import '../l10n.dart';
 import '../theme.dart';
 import '../vod/vod_browse.dart';
@@ -16,6 +17,7 @@ import 'guide_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
+import '../layout.dart';
 
 /// The TV and desktop home: a side menu, the groups (shown when moving left)
 /// and the channels with their guide in one grid, as TV apps do.
@@ -556,7 +558,14 @@ class _SideMenu extends StatelessWidget {
                   else
                     const ZaplineMark(size: 38),
                   const SizedBox(width: 14),
-                  const ZaplineWordmark(height: 22),
+                  // The name is a picture of text: it stays its size.
+                  const Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: ZaplineWordmark(height: 22),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -651,7 +660,10 @@ class _MenuEntry extends StatelessWidget {
   }
 }
 
-class _Groups extends StatelessWidget {
+/// The groups, opened beside the grid. Long lists are quick to cross:
+/// Page Up/Down, Channel +/- and fast-forward/rewind move a screen, and a
+/// keyboard's letters go to the next group starting with that letter.
+class _Groups extends StatefulWidget {
   const _Groups({
     required this.title,
     required this.groups,
@@ -675,13 +687,103 @@ class _Groups extends StatelessWidget {
   final ValueChanged<String?> onPressed;
 
   @override
+  State<_Groups> createState() => _GroupsState();
+}
+
+class _GroupsState extends State<_Groups> {
+  static const _rowHeight = 52.0;
+  static final _letter = RegExp('[A-Za-z0-9]');
+
+  /// A row, taller with large system text.
+  double get _row => scaledExtent(context, _rowHeight);
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  int get _focused {
+    final i = widget.groups.indexWhere((g) => widget.nodeOf(g).hasFocus);
+    return i < 0 ? widget.groups.indexOf(widget.selected) : i;
+  }
+
+  /// Focuses group [i], bringing it on screen first: rows off screen are
+  /// not built, so their cards can't take focus yet.
+  void _focus(int i) {
+    final g = widget.groups[i];
+    final node = widget.nodeOf(g);
+    if (node.context?.mounted ?? false) {
+      node.requestFocus();
+      return;
+    }
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    pos.jumpTo(
+      (i * _row - pos.viewportDimension / 3).clamp(0.0, pos.maxScrollExtent),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.nodeOf(g).requestFocus();
+    });
+  }
+
+  int get _page {
+    final h = _scroll.hasClients ? _scroll.position.viewportDimension : 0.0;
+    return h <= 0 ? 8 : (h / _row).floor().clamp(2, 40) - 1;
+  }
+
+  KeyEventResult _onKey(FocusNode _, KeyEvent e) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final n = widget.groups.length;
+    if (n == 0) return KeyEventResult.ignored;
+    final at = _focused.clamp(0, n - 1);
+    final k = e.logicalKey;
+    int? to;
+    if (k == LogicalKeyboardKey.pageDown ||
+        k == LogicalKeyboardKey.channelDown ||
+        k == LogicalKeyboardKey.mediaFastForward) {
+      to = (at + _page).clamp(0, n - 1);
+    } else if (k == LogicalKeyboardKey.pageUp ||
+        k == LogicalKeyboardKey.channelUp ||
+        k == LogicalKeyboardKey.mediaRewind) {
+      to = (at - _page).clamp(0, n - 1);
+    } else if (k == LogicalKeyboardKey.home) {
+      to = 0;
+    } else if (k == LogicalKeyboardKey.end) {
+      to = n - 1;
+    } else if (e is KeyDownEvent &&
+        k.keyLabel.length == 1 &&
+        _letter.hasMatch(k.keyLabel)) {
+      // The next group after this one that starts with the letter, past a
+      // country tag ("IT | Sport" counts as S).
+      final letter = k.keyLabel.toLowerCase();
+      for (var step = 1; step <= n; step++) {
+        final i = (at + step) % n;
+        final name = withoutCountryTag(widget.nameOf(widget.groups[i]));
+        if (name.toLowerCase().startsWith(letter)) {
+          to = i;
+          break;
+        }
+      }
+      if (to == null) return KeyEventResult.ignored;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    if (to != at) _focus(to);
+    return KeyEventResult.handled;
+  }
+
+  @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(28, 32, 20, 14),
         child: Text(
-          title.toUpperCase(),
+          widget.title.toUpperCase(),
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w800,
@@ -691,58 +793,62 @@ class _Groups extends StatelessWidget {
         ),
       ),
       Expanded(
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
-          itemCount: groups.length,
-          itemBuilder: (context, i) {
-            final g = groups[i];
-            final lock = locked(g);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: FocusCard(
-                focusNode: nodeOf(g),
-                selected: g == selected,
-                radius: 12,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 11,
-                ),
-                onFocused: () => onFocused(g),
-                onPressed: () => onPressed(g),
-                child: Row(
-                  children: [
-                    if (switch (g) {
-                          _favourites => Icons.star_rounded,
-                          _recent => Icons.history_rounded,
-                          _ => null,
-                        }
-                        case final icon?) ...[
-                      Icon(icon, size: 20),
-                      const SizedBox(width: 10),
-                    ],
-                    Expanded(
-                      child: Text(
-                        nameOf(g),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: _onKey,
+          child: ListView.builder(
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+            itemCount: widget.groups.length,
+            itemExtent: _row,
+            itemBuilder: (context, i) {
+              final g = widget.groups[i];
+              final lock = widget.locked(g);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: FocusCard(
+                  focusNode: widget.nodeOf(g),
+                  selected: g == widget.selected,
+                  radius: 12,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  onFocused: () => widget.onFocused(g),
+                  onPressed: () => widget.onPressed(g),
+                  child: Row(
+                    children: [
+                      if (switch (g) {
+                            _favourites => Icons.star_rounded,
+                            _recent => Icons.history_rounded,
+                            _ => null,
+                          }
+                          case final icon?) ...[
+                        Icon(icon, size: 20),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Text(
+                          widget.nameOf(g),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                    if (lock != null)
-                      Icon(
-                        lock
-                            ? Icons.lock_outline_rounded
-                            : Icons.lock_open_rounded,
-                        size: 18,
-                      ),
-                  ],
+                      if (lock != null)
+                        Icon(
+                          lock
+                              ? Icons.lock_outline_rounded
+                              : Icons.lock_open_rounded,
+                          size: 18,
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     ],

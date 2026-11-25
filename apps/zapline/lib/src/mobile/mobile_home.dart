@@ -398,7 +398,7 @@ class _ChannelsTabState extends State<ChannelsTab> {
                             ),
                           ),
                         SliverFixedExtentList(
-                          itemExtent: MobileChannelRow.height,
+                          itemExtent: MobileChannelRow.heightOf(context),
                           delegate: SliverChildBuilderDelegate(
                             childCount: list.length,
                             (context, i) => MobileChannelRow(
@@ -568,7 +568,7 @@ class FavouritesTab extends StatelessWidget {
                   )
                 : ListView.builder(
                     itemCount: list.length,
-                    itemExtent: MobileChannelRow.height,
+                    itemExtent: MobileChannelRow.heightOf(context),
                     itemBuilder: (context, i) => MobileChannelRow(
                       state: state,
                       channel: list[i],
