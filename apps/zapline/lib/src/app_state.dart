@@ -119,6 +119,35 @@ Future<SyncResult> _syncInIsolate(
   }
 });
 
+/// Runs a job on another isolate with its own connection to the database,
+/// for work that would hold up the screen (matching every channel to the
+/// guides, searching the whole guide).
+typedef DatabaseRunner = Future<R> Function<R>(R Function(ZaplineDatabase) job);
+
+/// A [DatabaseRunner] over the database file at [dbPath].
+DatabaseRunner isolateDatabaseRunner(String dbPath) =>
+    <R>(job) => _runOnIsolate(dbPath, job);
+
+// Top level, so the closure sent to the isolate holds only these two.
+Future<R> _runOnIsolate<R>(String dbPath, R Function(ZaplineDatabase) job) =>
+    Isolate.run(() {
+      final db = ZaplineDatabase.open(dbPath);
+      try {
+        return job(db);
+      } finally {
+        db.close();
+      }
+    });
+
+GuideCoverage _rebuildLinks(ZaplineDatabase db) => db.rebuildGuideLinks();
+
+List<(Channel, Programme)> Function(ZaplineDatabase) _programmeSearch(
+  String query,
+  DateTime from,
+  ChannelVisibility visibility,
+) =>
+    (db) => db.searchProgrammes(query, from: from, visibility: visibility);
+
 /// App-wide state backed by the local database.
 class AppState extends ChangeNotifier {
   AppState(
@@ -128,6 +157,7 @@ class AppState extends ChangeNotifier {
     this.guideFetcher,
     this.vod,
     this.updater,
+    this.background,
   }) : secrets = secrets ?? MemorySecretStore() {
     _upgradeFreeEpgs();
     _reload();
@@ -152,6 +182,16 @@ class AppState extends ChangeNotifier {
 
   final ZaplineDatabase db;
   final SyncRunner syncRunner;
+
+  /// Runs heavy database work off screen; `null` runs it here (tests).
+  final DatabaseRunner? background;
+
+  /// [job] on another isolate when there is one, here otherwise (tests).
+  Future<R> _offScreen<R>(R Function(ZaplineDatabase) job) async {
+    final run = background;
+    return run == null ? job(db) : run(job);
+  }
+
   final SecretStore secrets;
 
   /// Passwords loaded from [secrets], by source id.
@@ -471,11 +511,15 @@ class AppState extends ChangeNotifier {
     return list.indexWhere((e) => _versionKey(e) == key);
   }
 
-  List<(Channel, Programme)> searchProgrammes(String query) =>
-      db.searchProgrammes(
-        query,
-        from: DateTime.now().toUtc().subtract(const Duration(days: 1)),
-        visibility: _visibility,
+  /// Programmes whose title has [query], from a day back; searched on
+  /// another isolate, the whole guide can take a moment on a TV stick.
+  Future<List<(Channel, Programme)>> searchProgrammes(String query) =>
+      _offScreen(
+        _programmeSearch(
+          query,
+          DateTime.now().toUtc().subtract(const Duration(days: 1)),
+          _visibility,
+        ),
       );
 
   List<Channel> favourites() => db.favourites(
@@ -765,18 +809,36 @@ class AppState extends ChangeNotifier {
     ];
   }
 
+  (List<XmltvChannel>, List<(XmltvChannel, List<String>)>)? _guideNames;
+
+  /// [guideChannels] with their id and names normalised once, not on
+  /// every key typed in the guide search.
+  List<(XmltvChannel, List<String>)> get _normalisedGuides {
+    final channels = guideChannels;
+    final cached = _guideNames;
+    if (cached != null && identical(cached.$1, channels)) return cached.$2;
+    final list = [
+      for (final g in channels)
+        (
+          g,
+          [
+            normalizeChannelName(g.id),
+            for (final n in g.displayNames) normalizeChannelName(n),
+          ],
+        ),
+    ];
+    _guideNames = (channels, list);
+    return list;
+  }
+
   /// Guide channels whose name or id contains [query].
   List<XmltvChannel> searchGuide(String query, {int limit = 30}) {
     final q = normalizeChannelName(query);
     if (q.isEmpty) return const [];
-    return guideChannels
-        .where(
-          (g) =>
-              normalizeChannelName(g.id).contains(q) ||
-              g.displayNames.any((n) => normalizeChannelName(n).contains(q)),
-        )
-        .take(limit)
-        .toList();
+    return [
+      for (final (g, names) in _normalisedGuides)
+        if (names.any((n) => n.contains(q))) g,
+    ].take(limit).toList();
   }
 
   /// Links [c] to [guideId] for good; survives re-syncs.
@@ -1672,7 +1734,7 @@ class AppState extends ChangeNotifier {
           db.setSetting(key, value);
       }
     }
-    db.rebuildGuideLinks();
+    await _offScreen(_rebuildLinks);
     _reload();
     notifyListeners();
     restoreDownloads = _syncRestored(toSync);
@@ -1730,9 +1792,17 @@ class AppState extends ChangeNotifier {
     secrets.delete(_secretKey(id)).catchError((Object _) {});
     db.deleteSource(id);
     db.setSetting('syncFailure:$id', null);
-    db.rebuildGuideLinks();
     _reload();
     notifyListeners();
+    // The other sources' channels may take its guides' place: matched off
+    // screen, shown once done.
+    unawaited(
+      _offScreen(_rebuildLinks).then((_) {
+        _reload();
+        guideVersion.value++;
+        notifyListeners();
+      }, onError: (Object e) => debugPrint('Guide links not rebuilt: $e')),
+    );
   }
 
   /// Why the last update of [sourceId] failed, as the error said it;

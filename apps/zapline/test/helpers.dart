@@ -16,6 +16,7 @@ AppState fakeState({
   bool vod = false,
   List<String>? names,
   List<String>? groups,
+  DatabaseRunner? background,
 }) {
   final db = database ?? ZaplineDatabase.inMemory();
   // An established user: the one-time TV hint has been seen.
@@ -24,6 +25,7 @@ AppState fakeState({
     db,
     secrets: secrets,
     guideFetcher: guideFetcher,
+    background: background,
     syncRunner: (source, onProgress) async {
       final channels = [
         for (var i = 1; i <= count; i++)

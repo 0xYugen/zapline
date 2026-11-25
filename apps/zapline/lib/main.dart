@@ -68,6 +68,7 @@ Future<void> main() async {
     guideFetcher: ChannelGuideFetcher(db),
     vod: VodCatalog(db),
     updater: updatesSupported ? Updater() : null,
+    background: isolateDatabaseRunner(dbPath),
   );
   // Show the UI at once; the keystore can take seconds on first use and
   // passwords are only needed when syncing (which waits for them).

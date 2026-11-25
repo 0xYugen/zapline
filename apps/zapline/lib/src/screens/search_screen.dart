@@ -77,11 +77,40 @@ class _SearchScreenState extends State<SearchScreen> {
           for (final x in widget.state.searchShows(q)) VodTitle.show(x),
       ];
       // Titles are matched anywhere in the text, so wait for a few letters.
-      _programmes = scope != SearchScope.live || q.trim().length < 3
-          ? const []
-          : _byRelevance(widget.state.searchProgrammes(q));
+      if (scope != SearchScope.live || q.trim().length < 3) {
+        _programmes = const [];
+        _lookingUp = false;
+        _programmeSearch++;
+      }
     });
+    if (scope != SearchScope.live || q.trim().length < 3) return;
+    // The guide is searched off screen: channels show at once, programmes
+    // as they're found, unless the text changed meanwhile.
+    final asked = ++_programmeSearch;
+    setState(() => _lookingUp = true);
+    widget.state
+        .searchProgrammes(q)
+        .then(
+          (found) {
+            if (!mounted || asked != _programmeSearch) return;
+            setState(() {
+              _programmes = _byRelevance(found);
+              _lookingUp = false;
+            });
+          },
+          onError: (Object _) {
+            if (mounted && asked == _programmeSearch) {
+              setState(() => _lookingUp = false);
+            }
+          },
+        );
   }
+
+  /// Bumped by each search, so a slow, outdated answer is dropped.
+  int _programmeSearch = 0;
+
+  /// The guide is being searched: not "nothing found" yet.
+  bool _lookingUp = false;
 
   /// On now first, then coming up, then already aired (most recent first).
   static List<(Channel, Programme)> _byRelevance(
@@ -143,7 +172,8 @@ class _SearchScreenState extends State<SearchScreen> {
         _query.text.trim().isNotEmpty &&
         _results.isEmpty &&
         _titles.isEmpty &&
-        _programmes.isEmpty;
+        _programmes.isEmpty &&
+        !_lookingUp;
     final phone = context.isPhone;
     final items = <Widget Function()>[
       for (var i = 0; i < _results.length; i++)
