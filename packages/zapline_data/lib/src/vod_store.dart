@@ -470,6 +470,25 @@ extension VodStore on ZaplineDatabase {
     [key, json, ZaplineDatabase._secs(DateTime.now().toUtc())],
   );
 
+  /// Keeps the details cache from growing for ever: details not fetched
+  /// in [maxAge] go, and beyond the [keep] fetched last only those of
+  /// titles in My List stay (a series' details are its every episode,
+  /// tens of kilobytes; browsing a big catalogue adds up). Details are
+  /// fetched again when opened. Run by [ZaplineDatabase.maintain].
+  int pruneVodDetails({
+    int keep = 1000,
+    Duration maxAge = const Duration(days: 60),
+  }) {
+    final old = ZaplineDatabase._secs(DateTime.now().toUtc().subtract(maxAge));
+    _db.execute(
+      'DELETE FROM vod_details WHERE fetched < ? OR (key NOT IN '
+      '(SELECT key FROM vod_details ORDER BY fetched DESC LIMIT ?) '
+      'AND key NOT IN (SELECT key FROM my_list))',
+      [old, keep],
+    );
+    return _db.updatedRows;
+  }
+
   // ------------------------------------------------------ positions, list
 
   /// `false` when the database stayed busy (see [ZaplineDatabase.tryWrite]):

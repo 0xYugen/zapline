@@ -112,4 +112,25 @@ void main() {
     expect(db.myList(), isEmpty);
     expect(db.vodDetails('movie:s/1'), isNull);
   });
+
+  test('the details cache is kept small', () {
+    for (var i = 0; i < 5; i++) {
+      db.saveVodDetails('movie:s/$i', '{}');
+    }
+    db.setInMyList('movie:s/0', true);
+    // All fetched in the same second: which three stay is up to the
+    // database, but the one in My List always does.
+    expect(db.pruneVodDetails(keep: 3), inInclusiveRange(1, 2));
+    expect(db.vodDetails('movie:s/0'), isNotNull);
+    expect(
+      [for (var i = 0; i < 5; i++) db.vodDetails('movie:s/$i')].nonNulls,
+      hasLength(inInclusiveRange(3, 4)),
+    );
+    // Too old: gone even from My List.
+    expect(
+      db.pruneVodDetails(maxAge: const Duration(days: -1)),
+      greaterThan(0),
+    );
+    expect(db.vodDetails('movie:s/0'), isNull);
+  });
 }

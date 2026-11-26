@@ -1479,10 +1479,12 @@ class ZaplineDatabase {
 
   static const _pruneChunk = 5000;
 
-  /// Housekeeping after a sync: refreshes the query planner's statistics
+  /// Housekeeping after a sync: trims the film and series details cache
+  /// (see [pruneVodDetails]), refreshes the query planner's statistics
   /// and folds the write-ahead log back into the database, so it doesn't
   /// keep the size of the biggest import. Cheap when nothing changed.
   void maintain() {
+    pruneVodDetails();
     _db.execute('PRAGMA optimize');
     // PASSIVE copies what it can without waiting for, or blocking, the
     // app's connection (TRUNCATE waits for every reader and writer);
