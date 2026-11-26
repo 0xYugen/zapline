@@ -101,6 +101,10 @@ class FocusCard extends StatefulWidget {
 class _FocusCardState extends State<FocusCard> {
   bool _focused = false;
 
+  /// Animated once first focused: a guide shows hundreds of cards, and an
+  /// animation controller each would cost a TV stick on every scroll.
+  bool _animated = false;
+
   FocusNode? _ownNode;
   FocusNode get _node => widget.focusNode ?? (_ownNode ??= FocusNode());
 
@@ -182,6 +186,22 @@ class _FocusCardState extends State<FocusCard> {
         : (widget.selected ? ZaplineColors.surfaceHigh : ZaplineColors.surface);
     final fg = lit ? ZaplineColors.onFocus : ZaplineColors.text;
 
+    final decoration = BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(widget.radius),
+      border: Border.all(
+        color: lit ? ZaplineColors.focusBorder : Colors.transparent,
+        width: 3,
+      ),
+    );
+    final content = DefaultTextStyle.merge(
+      style: TextStyle(color: fg),
+      child: IconTheme.merge(
+        data: IconThemeData(color: fg),
+        child: widget.child,
+      ),
+    );
+
     final longPressMode = widget.onLongPress != null;
     return Focus(
       canRequestFocus: false,
@@ -194,7 +214,16 @@ class _FocusCardState extends State<FocusCard> {
         // highlight mode can stay in "touch" on Android TV, which would hide
         // the only cue a remote user has.
         onFocusChange: (v) {
-          setState(() => _focused = v);
+          if (v && !_animated) {
+            // Built unlit with its animations first, then lit: the
+            // highlight animates in as before.
+            setState(() => _animated = true);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _node.hasFocus) setState(() => _focused = true);
+            });
+          } else {
+            setState(() => _focused = v);
+          }
           final fromPointer = _pointerFocus;
           _pointerFocus = false;
           if (v) {
@@ -237,31 +266,22 @@ class _FocusCardState extends State<FocusCard> {
             child: Semantics(
               button: true,
               selected: widget.selected,
-              child: AnimatedScale(
-                scale: lit ? 1.02 : 1,
-                duration: const Duration(milliseconds: 100),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 100),
-                  padding: widget.padding,
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(widget.radius),
-                    border: Border.all(
-                      color: lit
-                          ? ZaplineColors.focusBorder
-                          : Colors.transparent,
-                      width: 3,
+              child: _animated
+                  ? AnimatedScale(
+                      scale: lit ? 1.02 : 1,
+                      duration: const Duration(milliseconds: 100),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 100),
+                        padding: widget.padding,
+                        decoration: decoration,
+                        child: content,
+                      ),
+                    )
+                  : Container(
+                      padding: widget.padding,
+                      decoration: decoration,
+                      child: content,
                     ),
-                  ),
-                  child: DefaultTextStyle.merge(
-                    style: TextStyle(color: fg),
-                    child: IconTheme.merge(
-                      data: IconThemeData(color: fg),
-                      child: widget.child,
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),

@@ -32,9 +32,62 @@ class LogoCache {
     await dir.create(recursive: true);
     _dir = dir;
     // Posters of a big catalogue would fill a TV stick: keep the most
-    // recently fetched, within a budget.
-    unawaited(trim(dir));
+    // recently fetched, within a budget. Listing thousands of files is
+    // slow on a stick: once a day at most, well after the first screen.
+    Timer(const Duration(seconds: 30), () => unawaited(trimDaily(dir)));
   }
+
+  /// [trim], if it hasn't run in the last day.
+  @visibleForTesting
+  static Future<void> trimDaily(
+    Directory dir, {
+    DateTime? now,
+    int budget = _diskBudget,
+  }) async {
+    final mark = File('${dir.path}${Platform.pathSeparator}.trimmed');
+    final at = now ?? DateTime.now();
+    try {
+      if (await mark.exists() &&
+          at.difference(await mark.lastModified()) < const Duration(days: 1)) {
+        return;
+      }
+      await trim(dir, budget: budget);
+      await mark.writeAsString('');
+      await mark.setLastModified(at);
+    } on FileSystemException {
+      // Next start tries again.
+    }
+  }
+
+  /// Downloads at once: more only queue on a TV stick's Wi-Fi and slow the
+  /// stream playing. The newest request goes first: the rows on screen.
+  static const parallel = 6;
+  static int _running = 0;
+  static final _waiting = <Completer<void>>[];
+
+  static Future<T> _gated<T>(Future<T> Function() fetch) async {
+    if (_running >= parallel) {
+      final turn = Completer<void>();
+      _waiting.add(turn);
+      await turn.future;
+    } else {
+      _running++;
+    }
+    try {
+      return await fetch();
+    } finally {
+      if (_waiting.isNotEmpty) {
+        // The slot passes straight to the newest waiting.
+        _waiting.removeLast().complete();
+      } else {
+        _running--;
+      }
+    }
+  }
+
+  /// Logos are drawn at most about this size: one larger is kept on disk
+  /// scaled down, so reading and decoding it later costs a fraction.
+  static const thumbSize = 160;
 
   static const _diskBudget = 150 * 1024 * 1024;
 
@@ -46,7 +99,7 @@ class LogoCache {
       final files = <(File, int, DateTime)>[];
       var total = 0;
       await for (final e in dir.list()) {
-        if (e is! File) continue;
+        if (e is! File || e.uri.pathSegments.last.startsWith('.')) continue;
         final st = await e.stat();
         files.add((e, st.size, st.modified));
         total += st.size;
@@ -67,69 +120,120 @@ class LogoCache {
   @visibleForTesting
   static Future<Uint8List> Function(String url)? debugLoader;
 
-  static Future<Uint8List> load(String url) {
+  /// The image at [url]; with [thumb], scaled down to [thumbSize] if
+  /// larger (channel logos, not posters).
+  static Future<Uint8List> load(String url, {bool thumb = false}) {
     if (_failed.contains(url)) {
       return Future.error(StateError('logo previously failed'));
     }
+    final key = thumb ? '$url#thumb' : url;
     // Block body on purpose: `() => _inflight.remove(url)` would return the
     // future itself, and whenComplete would then wait on itself forever.
-    return _inflight[url] ??= _fetch(url).whenComplete(() {
-      _inflight.remove(url);
+    return _inflight[key] ??= _fetch(url, thumb).whenComplete(() {
+      _inflight.remove(key);
     });
   }
 
-  static Future<Uint8List> _fetch(String url) async {
+  static Future<Uint8List> _fetch(String url, bool thumb) async {
     try {
       final override = debugLoader;
-      return override != null ? await override(url) : await _load(url);
+      return override != null
+          ? await _gated(() => override(url))
+          : await _load(url, thumb);
     } catch (_) {
       _failed.add(url);
       rethrow;
     }
   }
 
-  static Future<Uint8List> _load(String url) async {
+  static Future<Uint8List> _load(String url, bool thumb) async {
     final dir = _dir;
-    final file = dir == null
-        ? null
-        : File(
-            '${dir.path}${Platform.pathSeparator}'
-            '${sha1.convert(utf8.encode(url))}',
-          );
+    final name = sha1.convert(utf8.encode(url)).toString();
+    File? at(String n) =>
+        dir == null ? null : File('${dir.path}${Platform.pathSeparator}$n');
+    final file = at(thumb ? '$name-t' : name);
     if (file != null && await file.exists()) {
       final bytes = await file.readAsBytes();
       if (bytes.isNotEmpty) return bytes;
     }
-    final res = await _client
-        .get(
-          Uri.parse(url),
-          headers: {'User-Agent': XtreamClient.defaultUserAgent},
-        )
-        .timeout(const Duration(seconds: 10));
-    final type = res.headers['content-type'] ?? '';
-    if (res.statusCode != 200 ||
-        res.bodyBytes.isEmpty ||
-        res.bodyBytes.length > _maxBytes ||
-        (type.isNotEmpty && !type.startsWith('image/'))) {
-      throw StateError('HTTP ${res.statusCode} $type');
+    // A full-size copy fetched before (a poster) serves for a thumbnail.
+    final full = thumb ? at(name) : null;
+    Uint8List? bytes;
+    if (full != null && await full.exists()) bytes = await full.readAsBytes();
+    if (bytes == null || bytes.isEmpty) {
+      final res = await _gated(
+        () => _client
+            .get(
+              Uri.parse(url),
+              headers: {'User-Agent': XtreamClient.defaultUserAgent},
+            )
+            .timeout(const Duration(seconds: 10)),
+      );
+      final type = res.headers['content-type'] ?? '';
+      if (res.statusCode != 200 ||
+          res.bodyBytes.isEmpty ||
+          res.bodyBytes.length > _maxBytes ||
+          (type.isNotEmpty && !type.startsWith('image/'))) {
+        throw StateError('HTTP ${res.statusCode} $type');
+      }
+      bytes = res.bodyBytes;
+      if (!thumb) {
+        await file?.writeAsBytes(bytes, flush: false);
+        return bytes;
+      }
     }
-    await file?.writeAsBytes(res.bodyBytes, flush: false);
-    return res.bodyBytes;
+    final small = await shrink(bytes);
+    await file?.writeAsBytes(small, flush: false);
+    return small;
+  }
+
+  /// [bytes] as a PNG at most [thumbSize] wide and high, or unchanged when
+  /// already small (or not an image Flutter can read: it fails later, as
+  /// before).
+  @visibleForTesting
+  static Future<Uint8List> shrink(Uint8List bytes) async {
+    // Small files are small pictures: not worth the work.
+    if (bytes.length < 24 * 1024) return bytes;
+    try {
+      final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      final codec = await ui.instantiateImageCodecWithSize(
+        buffer,
+        getTargetSize: (w, h) {
+          if (w <= thumbSize && h <= thumbSize) return ui.TargetImageSize();
+          return w >= h
+              ? ui.TargetImageSize(width: thumbSize)
+              : ui.TargetImageSize(height: thumbSize);
+        },
+      );
+      final frame = await codec.getNextFrame();
+      codec.dispose();
+      final png = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      frame.image.dispose();
+      if (png == null || png.lengthInBytes >= bytes.length) return bytes;
+      return png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
+    } catch (_) {
+      return bytes;
+    }
   }
 
   @visibleForTesting
   static void debugReset() {
     _failed.clear();
     _inflight.clear();
+    _waiting.clear();
+    _running = 0;
   }
 }
 
 /// Image provider backed by [LogoCache].
 @immutable
 class CachedLogo extends ImageProvider<CachedLogo> {
-  const CachedLogo(this.url);
+  const CachedLogo(this.url, {this.thumb = false});
 
   final String url;
+
+  /// Kept scaled down (channel logos, see [LogoCache.thumbSize]).
+  final bool thumb;
 
   @override
   Future<CachedLogo> obtainKey(ImageConfiguration configuration) =>
@@ -138,18 +242,20 @@ class CachedLogo extends ImageProvider<CachedLogo> {
   @override
   ImageStreamCompleter loadImage(CachedLogo key, ImageDecoderCallback decode) =>
       MultiFrameImageStreamCompleter(
-        codec: LogoCache.load(url)
-            .then((b) => ui.ImmutableBuffer.fromUint8List(b))
-            .then(decode),
+        codec: LogoCache.load(
+          url,
+          thumb: thumb,
+        ).then((b) => ui.ImmutableBuffer.fromUint8List(b)).then(decode),
         scale: 1,
         debugLabel: url,
       );
 
   @override
-  bool operator ==(Object other) => other is CachedLogo && other.url == url;
+  bool operator ==(Object other) =>
+      other is CachedLogo && other.url == url && other.thumb == thumb;
 
   @override
-  int get hashCode => url.hashCode;
+  int get hashCode => Object.hash(url, thumb);
 }
 
 /// A channel's logo, or a badge with its initials when there is none or it
@@ -177,7 +283,7 @@ class ChannelLogo extends StatelessWidget {
       height: height,
       child: Image(
         image: ResizeImage(
-          CachedLogo(url.toString()),
+          CachedLogo(url.toString(), thumb: width * dpr <= LogoCache.thumbSize),
           width: (width * dpr).round(),
           height: (height * dpr).round(),
           policy: ResizeImagePolicy.fit,
