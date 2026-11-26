@@ -101,6 +101,24 @@ void main() {
     expect(db.search('"weird'), isEmpty);
   });
 
+  test('the guide is wanted only for channels shown', () {
+    db.replaceChannels('a', [
+      _ch('a', '1', 'Rai 1', group: 'Italia', epg: 'rai1.it'),
+      _ch('a', '2', 'BBC One', group: 'UK', epg: 'bbc1.uk'),
+    ]);
+    db.applyGroupVisibility('a', const GroupFilter(exclude: ['UK']));
+    final wants = db.guideWants();
+    expect(wants(const XmltvChannel(id: 'rai1.it', displayNames: [])), isTrue);
+    expect(wants(const XmltvChannel(id: 'bbc1.uk', displayNames: [])), isFalse);
+    // Shown again: wanted again.
+    db.setGroupHidden('a', 'UK', false);
+    db.applyGroupVisibility('a', const GroupFilter(exclude: ['UK']));
+    expect(
+      db.guideWants()(const XmltvChannel(id: 'bbc1.uk', displayNames: [])),
+      isTrue,
+    );
+  });
+
   test(
     'a guide channel with only fillers loses to one with programmes',
     () async {
