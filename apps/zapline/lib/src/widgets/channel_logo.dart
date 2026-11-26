@@ -338,21 +338,27 @@ class _Initials extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A quiet tile, its letters tinted: a list of them reads as channels
+    // without a logo, not as a row of coloured blocks.
     final color = _palette[name.hashCode.abs() % _palette.length];
     return Container(
       width: width,
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(8),
+        color: Color.alphaBlend(
+          color.withValues(alpha: 0.10),
+          ZaplineColors.surfaceHigh,
+        ),
+        borderRadius: BorderRadius.circular(height * 0.2),
       ),
       child: Text(
         _initials,
         style: TextStyle(
-          color: ZaplineColors.ground,
+          color: Color.lerp(color, ZaplineColors.text, 0.35),
           fontWeight: FontWeight.w600,
-          fontSize: height * 0.36,
+          letterSpacing: 0.4,
+          fontSize: height * 0.34,
         ),
       ),
     );

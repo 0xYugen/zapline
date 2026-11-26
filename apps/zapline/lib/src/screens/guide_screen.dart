@@ -618,6 +618,11 @@ class GuideGridState extends State<GuideGrid> {
           left: left,
           width: width,
           label: p.title,
+          time: '${widget.state.time(p.start)}–${widget.state.time(p.stop)}',
+          onAir: !past && !now.isBefore(p.start)
+              ? now.difference(p.start).inSeconds /
+                    p.stop.difference(p.start).inSeconds
+              : null,
           dim: past,
           replayable: past && canReplay(c, p),
           reminder: p.start.isAfter(now) && widget.state.hasReminder(c, p),
@@ -683,6 +688,8 @@ class GuideGridState extends State<GuideGrid> {
     required double left,
     required double width,
     required String label,
+    String? time,
+    double? onAir,
     required bool dim,
     bool replayable = false,
     bool reminder = false,
@@ -700,31 +707,60 @@ class GuideGridState extends State<GuideGrid> {
       top: 0,
       bottom: 0,
       width: width - 4,
+      // What's on now stands out a little.
       child: FocusCard(
         focusNode: _node(nodeKey),
         radius: 10,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        selected: onAir != null,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         onFocused: onFocus,
         onPressed: onPressed,
         onLongPress: onLongPress,
-        child: Row(
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18),
-              const SizedBox(width: 6),
-            ],
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                // Dim past programmes unless they can still be watched.
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: dim && !replayable ? ZaplineColors.textMuted : null,
+            Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        // Dim past programmes unless they can still be
+                        // watched.
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: dim && !replayable
+                              ? ZaplineColors.textMuted
+                              : null,
+                        ),
+                      ),
+                      // The times, where there is room for them.
+                      if (time != null && width > 150)
+                        Opacity(
+                          opacity: 0.6,
+                          child: Text(
+                            time,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

@@ -245,11 +245,7 @@ class _FocusCardState extends State<FocusCard> {
       color: bg,
       borderRadius: BorderRadius.circular(widget.radius),
       border: Border.all(
-        color: lit
-            ? ZaplineColors.focusBorder
-            : widget.selected
-            ? ZaplineColors.accent.withValues(alpha: 0.6)
-            : Colors.transparent,
+        color: lit ? ZaplineColors.focusBorder : Colors.transparent,
         width: 2,
       ),
       boxShadow: lit
