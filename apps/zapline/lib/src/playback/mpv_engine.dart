@@ -52,6 +52,9 @@ class MpvEngine implements PlaybackEngine {
   bool get hasPicture => true;
 
   @override
+  bool get playsNothing => false;
+
+  @override
   Future<void> play() => _player.play();
 
   @override

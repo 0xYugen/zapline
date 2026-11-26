@@ -21,8 +21,16 @@ class _Engine extends FakeEngine {
   /// Streams that play sound but show no picture.
   final black = <String>{};
 
+  /// Streams that play neither sound nor picture.
+  final silent = <String>{};
+
   @override
-  bool get hasPicture => opened.isEmpty || !black.contains(opened.last);
+  bool get hasPicture =>
+      opened.isEmpty ||
+      !(black.contains(opened.last) || silent.contains(opened.last));
+
+  @override
+  bool get playsNothing => opened.isNotEmpty && silent.contains(opened.last);
 
   @override
   Future<void> open(
@@ -249,6 +257,30 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     expect(engine.opened, hasLength(3));
     expect(state.channels().first.name, 'Rai 1 HD');
+    await tester.pump(const Duration(seconds: 30));
+  });
+
+  testWidgets('no sound and no picture counts as failed, even alone', (
+    tester,
+  ) async {
+    final (_, engine) = await _player(tester);
+    engine.silent.add('2.ts');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(engine.opened, ['1.ts', '2.ts']);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(seconds: 1));
+    // Tried again, said on screen.
+    expect(engine.opened, ['1.ts', '2.ts', '2.ts']);
+
+    // Sound only on a channel with no other version: maybe a radio, kept.
+    engine.silent.clear();
+    engine.black.add('3.ts');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(seconds: 10));
+    expect(engine.opened.last, '3.ts');
+    expect(engine.opened.where((u) => u == '3.ts'), hasLength(1));
     await tester.pump(const Duration(seconds: 30));
   });
 }

@@ -127,6 +127,8 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
         _playing = e['value'] == true;
       case 'picture':
         _hasPicture = true;
+      case 'tracks':
+        _playsNothing = e['audio'] != true && e['video'] != true;
       case 'buffering':
         if (!_buffering.isClosed) _buffering.add(e['value'] == true);
       case 'error':
@@ -156,6 +158,7 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
     _pausedByApp = false;
     _isLive = null;
     _hasPicture = false;
+    _playsNothing = false;
     _current = _duration = Duration.zero;
     return _call('open', {
       'url': url.toString(),
@@ -197,6 +200,10 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
   bool get isPlaying => _playing;
 
   bool _hasPicture = false;
+  bool _playsNothing = false;
+
+  @override
+  bool get playsNothing => _playsNothing;
 
   @override
   bool get hasPicture => _hasPicture;

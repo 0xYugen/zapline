@@ -266,9 +266,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _stallTimer?.cancel();
           // A picture frozen this long won't come back by itself.
           if (b && !_opening) {
-            _stallTimer = Timer(const Duration(seconds: 20), () {
-              if (mounted && _stalled) _onFailure(_streamTimeout);
-            });
+            // Before any picture, a stall is a start that didn't take.
+            _stallTimer = Timer(
+              Duration(seconds: _engine.hasPicture ? 20 : 8),
+              () {
+                if (mounted && _stalled) _onFailure(_streamTimeout);
+              },
+            );
           }
           _updateSpinner();
         }),
@@ -462,7 +466,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ZaplineDatabase.channelKey(_channel) &&
                   !_failed.contains(ZaplineDatabase.channelKey(v)),
             );
-    _openTimeout = Timer(Duration(seconds: otherVersion ? 8 : 15), () {
+    _openTimeout = Timer(Duration(seconds: otherVersion ? 8 : 12), () {
       if (mounted && _opening && _engine.currentPosition == Duration.zero) {
         _onFailure(_streamTimeout);
       }
@@ -495,16 +499,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _updateSpinner();
   }
 
-  /// A channel with other versions that plays sound but no picture (a
-  /// version the device can't decode, or a broken one) goes on to the
-  /// next version, as if it had failed. The one that then shows a picture
-  /// is remembered, so the channel starts on it next time. With no other
-  /// version left, the sound keeps playing.
+  /// A moment after a channel starts, it should show a picture:
+  /// * neither picture nor sound (stuck loading, or nothing the device can
+  ///   decode) counts as failed: the next version, or tried again;
+  /// * sound only (a picture the device can't decode, a broken stream) on
+  ///   a channel with other versions goes on to the next; alone, it may be
+  ///   a radio and keeps playing.
+  /// The version that then shows a picture is remembered, so the channel
+  /// starts on it next time.
   void _checkPicture() {
     _pictureTimer?.cancel();
     if (_replay != null) return;
-    final multiple = widget.state.versionsOf(_channel).length > 1;
-    if (!multiple && !_skippedBlack) return;
     final seq = _openSeq;
     _pictureTimer = Timer(_pictureWait, () {
       if (!mounted || seq != _openSeq || _opening) return;
@@ -515,7 +520,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
         return;
       }
-      if (_tryNextVersion()) _skippedBlack = true;
+      if (_stalled || !_engine.isPlaying || _engine.playsNothing) {
+        _onFailure(_streamTimeout);
+        return;
+      }
+      if (widget.state.versionsOf(_channel).length > 1 && _tryNextVersion()) {
+        _skippedBlack = true;
+      }
     });
   }
 

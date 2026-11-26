@@ -418,6 +418,18 @@ class Media3Session(
     private var rateAsked = 0f
 
     override fun onTracksChanged(tracks: Tracks) {
+        // What of the stream this device can play: neither sound nor
+        // picture means a black, silent screen that should count as failed.
+        if (!tracks.isEmpty) {
+            emit(
+                mapOf(
+                    "id" to id,
+                    "event" to "tracks",
+                    "audio" to tracks.isTypeSupported(C.TRACK_TYPE_AUDIO),
+                    "video" to tracks.isTypeSupported(C.TRACK_TYPE_VIDEO),
+                )
+            )
+        }
         val ask = frameRate ?: return
         val video = tracks.groups.firstOrNull {
             it.type == C.TRACK_TYPE_VIDEO && it.isSelected

@@ -150,6 +150,10 @@ class NativeEngine implements PlaybackEngine {
   @override
   bool get isPlaying => _value?.isPlaying ?? false;
 
+  // video_player doesn't say which tracks the device can play.
+  @override
+  bool get playsNothing => false;
+
   @override
   bool get hasPicture {
     final size = _value?.size ?? Size.zero;

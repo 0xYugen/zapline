@@ -46,6 +46,10 @@ abstract class PlaybackEngine {
   /// radio channel). Engines that can't tell say true.
   bool get hasPicture;
 
+  /// Whether the stream plays neither sound nor picture the device can
+  /// decode: as good as failed. Engines that can't tell say false.
+  bool get playsNothing;
+
   Future<void> play();
 
   Future<void> pause();
