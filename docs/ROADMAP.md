@@ -128,7 +128,9 @@ Xtream login.
       full screen and volume
 - [ ] Desktop mini-player; background audio on phones
 - [ ] Stalker portals
-- [ ] Logical channels with fallback across sources
+- [x] Logical channels with fallback across sources: channels of several
+      sources with the same guide channel and name are one entry whose
+      versions span the sources; when one fails the next plays
 - [x] Movies/series with resume
 - [x] Selectable video engine: on Android, Settings › "Zapline player (beta)"
       uses Media3Host.kt, one ExoPlayer per player screen reused from

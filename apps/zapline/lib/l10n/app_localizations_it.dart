@@ -1993,4 +1993,16 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get preloadNeighboursHint =>
       'Mentre fai zapping, i canali prima e dopo iniziano a caricarsi. Serve un abbonamento con 2 o più connessioni: con una sola, i canali possono interrompersi.';
+
+  @override
+  String get mergeSources => 'Stesso canale da più sorgenti come uno solo';
+
+  @override
+  String get mergeSourcesHint =>
+      'I canali con la stessa guida e lo stesso nome compaiono una volta; se una sorgente non funziona, parte la successiva.';
+
+  @override
+  String versionFrom(String quality, String source) {
+    return '$quality · $source';
+  }
 }

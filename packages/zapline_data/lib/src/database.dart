@@ -637,6 +637,13 @@ class ZaplineDatabase {
     return [for (final r in _db.select(sql, args)) _channel(r)];
   }
 
+  /// Every channel's guide channel, by [channelKey]: channels of several
+  /// sources linked to the same guide channel may be one channel.
+  Map<String, String> guideLinks() => {
+    for (final r in _db.select('SELECT channel_key, guide_id FROM epg_map'))
+      r['channel_key'] as String: r['guide_id'] as String,
+  };
+
   /// One channel by its [channelKey] ("source/id"), or `null` when it is
   /// gone or [visibility] leaves it out. For reopening the last channel
   /// without loading the whole list.

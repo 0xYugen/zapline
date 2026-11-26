@@ -35,8 +35,9 @@ class AppSettings {
   set clock24h(bool v) => _db.setSetting('clock24h', '$v');
 
   /// Days of guide to keep ahead. Fewer days, smaller database and faster
-  /// syncs on low-end sticks.
-  int get guideDays => _int('guideDays', 7);
+  /// syncs: TVs (Fire TV sticks above all) keep 3 by default, which halves
+  /// a big guide's import there; other devices a week.
+  int get guideDays => _int('guideDays', FormFactor.isTv ? 3 : 7);
   set guideDays(int v) => _db.setSetting('guideDays', '$v');
 
   /// Hours between automatic refreshes of each source; 0 turns them off.
@@ -67,6 +68,11 @@ class AppSettings {
   /// Show "Rai 1 HD", "Rai 1 FHD" and "Rai 1 4K" as one channel.
   bool get mergeVersions => _bool('mergeVersions', true);
   set mergeVersions(bool v) => _db.setSetting('mergeVersions', '$v');
+
+  /// The same channel from several sources is one entry too: when one
+  /// source fails, the next plays it.
+  bool get mergeSources => _bool('mergeSources', true);
+  set mergeSources(bool v) => _db.setSetting('mergeSources', '$v');
 
   /// Which version of a merged channel plays: the best picture, or the
   /// one that uses less data (HD before Full HD and 4K).

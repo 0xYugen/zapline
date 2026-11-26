@@ -148,13 +148,21 @@ List<(Channel, Programme)> Function(ZaplineDatabase) _programmeSearch(
 ) =>
     (db) => db.searchProgrammes(query, from: from, visibility: visibility);
 
+/// How channel versions merge: see [AppState._mergeVersionsOf].
+typedef _MergeOptions = ({
+  bool merge,
+  bool saveData,
+  Map<String, String> choices,
+  bool acrossSources,
+});
+
 /// [group]'s channels, merged, for [AppState.channelsReady] on another
 /// isolate.
 (List<Channel>, Map<String, List<Channel>>) Function(ZaplineDatabase)
 _channelJob(
   String? group,
   ChannelVisibility visibility,
-  ({bool merge, bool saveData, Map<String, String> choices}) options,
+  _MergeOptions options,
 ) =>
     (db) => AppState._mergeVersionsOf(
       db.channels(group: group, visibility: visibility),
@@ -423,9 +431,11 @@ class AppState extends ChangeNotifier {
     _dropStaleLists();
     final cached = _lists[group];
     if (cached != null) return cached;
+    final o = _mergeOptions;
     final (list, versions) = _mergeVersionsOf(
       db.channels(group: group, visibility: _visibility),
-      _mergeOptions,
+      o,
+      o.acrossSources ? db.guideLinks() : null,
     );
     _versions.addAll(versions);
     return _lists[group] = list;
@@ -493,28 +503,39 @@ class AppState extends ChangeNotifier {
   static String _versionKey(Channel c) =>
       '${c.sourceId}\u0000${_variant(c.name).key}';
 
-  ({bool merge, bool saveData, Map<String, String> choices})
-  get _mergeOptions => (
+  _MergeOptions get _mergeOptions => (
     merge: settings.mergeVersions,
     saveData: settings.saveData,
     choices: settings.versionChoices,
+    // Across sources only when there are several.
+    acrossSources: settings.mergeSources && sources.length > 1,
   );
 
   /// One entry per channel: its versions ("HD", "FHD", "4K", backups) fold
   /// into the preferred one, at the place of the first.
   List<Channel> _mergeVersions(List<Channel> list) {
     _dropStaleLists();
-    final (out, versions) = _mergeVersionsOf(list, _mergeOptions);
+    final (out, versions) = _mergeVersionsOf(
+      list,
+      _mergeOptions,
+      _mergeOptions.acrossSources ? db.guideLinks() : null,
+    );
     _versions.addAll(versions);
     return out;
   }
 
-  /// [list] merged, with every merged channel's versions by version key.
-  /// Static and plain, so it runs on another isolate as well.
+  /// [list] merged, with every merged channel's versions by channel key.
+  /// Versions are the same channel: in one source, names equal but for
+  /// quality words ("Rai 1 HD", "Rai 1 FHD"); across sources (with
+  /// [guides], each channel's guide channel), the same guide channel and
+  /// the same plain name ("IT | Rai 1" and "RAI 1", but not "Rai 3" and
+  /// "Rai 3 TGR Lazio", which share a guide). Static and plain, so it
+  /// runs on another isolate as well.
   static (List<Channel>, Map<String, List<Channel>>) _mergeVersionsOf(
     List<Channel> list,
-    ({bool merge, bool saveData, Map<String, String> choices}) o,
-  ) {
+    _MergeOptions o, [
+    Map<String, String>? guides,
+  ]) {
     final versions = <String, List<Channel>>{};
     if (!o.merge || list.length < 2) return (list, versions);
     // Order of preference: best picture first, or HD first to save data.
@@ -526,31 +547,65 @@ class AppState extends ChangeNotifier {
             VideoQuality.uhd => 3,
           }
         : -(q == VideoQuality.unknown ? VideoQuality.hd.index : q.index);
-    final byKey = <String, List<Channel>>{};
-    for (final c in list) {
-      (byKey[_versionKey(c)] ??= []).add(c);
+
+    // Union-find over the list's places: each rule joins a channel to the
+    // first one sharing its key.
+    final parent = List<int>.generate(list.length, (i) => i);
+    int find(int i) {
+      while (parent[i] != i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
     }
-    if (byKey.length == list.length) return (list, versions);
+
+    void join(Map<String, int> firstOf, String key, int i) {
+      final first = firstOf.putIfAbsent(key, () => i);
+      if (first == i) return;
+      final a = find(first), b = find(i);
+      // The earlier place stays the group's, so it keeps its place.
+      if (a != b) a < b ? parent[b] = a : parent[a] = b;
+    }
+
+    final bySource = <String, int>{};
+    final byGuide = <String, int>{};
+    for (final (i, c) in list.indexed) {
+      join(bySource, _versionKey(c), i);
+      final guide = guides?[ZaplineDatabase.channelKey(c)];
+      if (guide != null) {
+        final plain = normalizeChannelName(_variant(c.name).baseName);
+        if (plain.isNotEmpty) join(byGuide, '$guide\u0000$plain', i);
+      }
+    }
+    final groups = <int, List<Channel>>{};
+    for (var i = 0; i < list.length; i++) {
+      (groups[find(i)] ??= []).add(list[i]);
+    }
+    if (groups.length == list.length) return (list, versions);
     final out = <Channel>[];
-    for (final c in list) {
-      final key = _versionKey(c);
-      final group = byKey[key];
+    for (var i = 0; i < list.length; i++) {
+      final group = groups.remove(i);
       if (group == null) continue;
-      byKey.remove(key);
       if (group.length == 1) {
-        out.add(c);
+        out.add(group.single);
         continue;
       }
-      final sorted = [...group]
-        ..sort(
-          (a, b) =>
-              rank(_variant(a.name).quality)
-                  .compareTo(rank(_variant(b.name).quality)),
-        );
+      // Best first; equal ones keep the list's order (source order).
+      final sorted = [...group];
+      mergeSort(
+        sorted,
+        compare: (a, b) =>
+            rank(_variant(a.name).quality)
+                .compareTo(rank(_variant(b.name).quality)),
+      );
       for (final v in sorted) {
         versions[ZaplineDatabase.channelKey(v)] = sorted;
       }
-      final chosen = o.choices[key];
+      // A version picked by hand, kept under the key of the version picked.
+      final keys = {for (final v in sorted) ZaplineDatabase.channelKey(v)};
+      final chosen = [for (final v in sorted) ?o.choices[_versionKey(v)]]
+          .where(keys.contains)
+          .firstOrNull;
       out.add(
         sorted.firstWhere(
           (v) => ZaplineDatabase.channelKey(v) == chosen,
@@ -590,6 +645,12 @@ class AppState extends ChangeNotifier {
       (e) => e.sourceId == c.sourceId && e.id == c.id,
     );
     if (exact >= 0) return exact;
+    // Another version of it, from this source or (merged) another one.
+    final keys = {for (final v in versionsOf(c)) ZaplineDatabase.channelKey(v)};
+    final merged = list.indexWhere(
+      (e) => keys.contains(ZaplineDatabase.channelKey(e)),
+    );
+    if (merged >= 0) return merged;
     final key = _versionKey(c);
     return list.indexWhere((e) => _versionKey(e) == key);
   }
@@ -930,6 +991,8 @@ class AppState extends ChangeNotifier {
     for (final v in versionsOf(c)) {
       db.linkGuide(ZaplineDatabase.channelKey(v), guideId);
     }
+    // Channels of several sources merge by their guide channel.
+    if (_mergeOptions.acrossSources) _reload();
     guideVersion.value++;
     notifyListeners();
   }
@@ -941,6 +1004,7 @@ class AppState extends ChangeNotifier {
         db.linkGuide(ZaplineDatabase.channelKey(v), id);
       }
     }
+    if (_mergeOptions.acrossSources) _reload();
     guideVersion.value++;
     notifyListeners();
   }

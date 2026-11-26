@@ -643,5 +643,9 @@
   "ownPlayer": "Zapline player (beta)",
   "ownPlayerHint": "Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.",
   "preloadNeighbours": "Instant channel change",
-  "preloadNeighboursHint": "While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop."
+  "preloadNeighboursHint": "While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.",
+  "mergeSources": "Same channel from several sources as one",
+  "mergeSourcesHint": "Channels with the same guide and name show once; if one source fails, the next one plays.",
+  "versionFrom": "{quality} · {source}",
+  "@versionFrom": {"placeholders": {"quality": {"type": "String"}, "source": {"type": "String"}}}
 }

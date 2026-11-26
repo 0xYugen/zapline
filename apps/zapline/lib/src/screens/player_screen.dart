@@ -85,7 +85,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// Another version of the channel (4K, HD…) picked or fallen back to.
   Channel? _version;
 
-  /// Versions that failed to play on this channel, by id.
+  /// Versions that failed to play on this channel, by channel key: versions
+  /// can come from several sources, whose ids may be the same.
   final _failed = <String>{};
 
   Channel get _channel => _version ?? _channels[_index];
@@ -529,10 +530,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// stream the connection can't keep up with falls back to Full HD).
   bool _tryNextVersion() {
     if (_replay != null) return false;
-    _failed.add(_channel.id);
+    _failed.add(ZaplineDatabase.channelKey(_channel));
     final next = widget.state
         .versionsOf(_channel)
-        .where((v) => !_failed.contains(v.id))
+        .where((v) => !_failed.contains(ZaplineDatabase.channelKey(v)))
         .firstOrNull;
     if (next == null) return false;
     _version = next;
@@ -544,7 +545,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final picked = await pickChannelVersion(context, widget.state, _channel);
     if (picked == null || !mounted) return;
     if (picked.remember) widget.state.preferVersion(picked.channel);
-    if (picked.channel.id == _channel.id) return;
+    if (ZaplineDatabase.channelKey(picked.channel) ==
+        ZaplineDatabase.channelKey(_channel)) {
+      return;
+    }
     _version = picked.channel;
     _failed.clear();
     _replay = null;

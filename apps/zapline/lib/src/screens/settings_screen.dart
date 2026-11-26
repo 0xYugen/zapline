@@ -231,6 +231,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: s.mergeVersions,
                   onChanged: (v) => _set(() => s.mergeVersions = v),
                 ),
+                if (s.mergeVersions && _state.sources.length > 1)
+                  SettingsSwitchTile(
+                    title: l.mergeSources,
+                    subtitle: l.mergeSourcesHint,
+                    value: s.mergeSources,
+                    onChanged: (v) => _set(() => s.mergeSources = v),
+                  ),
                 if (s.mergeVersions)
                   SettingsTile(
                     title: l.preferredQuality,

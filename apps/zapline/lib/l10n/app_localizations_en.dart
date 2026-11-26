@@ -1989,4 +1989,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get preloadNeighboursHint =>
       'While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.';
+
+  @override
+  String get mergeSources => 'Same channel from several sources as one';
+
+  @override
+  String get mergeSourcesHint =>
+      'Channels with the same guide and name show once; if one source fails, the next one plays.';
+
+  @override
+  String versionFrom(String quality, String source) {
+    return '$quality · $source';
+  }
 }

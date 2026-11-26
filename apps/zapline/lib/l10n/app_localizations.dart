@@ -3259,6 +3259,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.'**
   String get preloadNeighboursHint;
+
+  /// No description provided for @mergeSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Same channel from several sources as one'**
+  String get mergeSources;
+
+  /// No description provided for @mergeSourcesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels with the same guide and name show once; if one source fails, the next one plays.'**
+  String get mergeSourcesHint;
+
+  /// No description provided for @versionFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'{quality} · {source}'**
+  String versionFrom(String quality, String source);
 }
 
 class _AppLocalizationsDelegate
