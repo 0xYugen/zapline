@@ -395,6 +395,7 @@ class Media3Session(
 
     override fun onRenderedFirstFrame() {
         firstFrame = true
+        emit(mapOf("id" to id, "event" to "picture"))
         emitPosition()
     }
 

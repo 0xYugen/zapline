@@ -41,6 +41,11 @@ abstract class PlaybackEngine {
 
   bool get isPlaying;
 
+  /// Whether the stream playing shows a picture: false while only its
+  /// sound plays (a black screen: a video the device can't decode, or a
+  /// radio channel). Engines that can't tell say true.
+  bool get hasPicture;
+
   Future<void> play();
 
   Future<void> pause();

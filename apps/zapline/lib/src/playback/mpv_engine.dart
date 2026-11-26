@@ -46,6 +46,11 @@ class MpvEngine implements PlaybackEngine {
   @override
   bool get isPlaying => _player.state.playing;
 
+  // libmpv decodes in software what the hardware can't: always a picture
+  // when there is video.
+  @override
+  bool get hasPicture => true;
+
   @override
   Future<void> play() => _player.play();
 

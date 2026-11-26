@@ -18,6 +18,12 @@ class _Engine extends FakeEngine {
   final _errors = StreamController<String>.broadcast();
   bool fail = false;
 
+  /// Streams that play sound but show no picture.
+  final black = <String>{};
+
+  @override
+  bool get hasPicture => opened.isEmpty || !black.contains(opened.last);
+
   @override
   Future<void> open(
     Uri url, {
@@ -40,13 +46,14 @@ Future<(AppState, _Engine)> _player(
   WidgetTester tester, {
   int count = 20,
   int channels = 20,
+  List<String>? names,
 }) async {
   await tester.binding.setSurfaceSize(const Size(1920, 1080));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final engine = _Engine();
   debugEngineFactory = () => engine;
   addTearDown(() => debugEngineFactory = null);
-  final state = fakeState(count: count);
+  final state = fakeState(count: count, names: names);
   await state.addSource(
     const SourceInput(url: 'http://x.example/get.php?username=a&password=b'),
   );
@@ -57,7 +64,10 @@ Future<(AppState, _Engine)> _player(
       supportedLocales: AppLocalizations.supportedLocales,
       home: PlayerScreen(
         state: state,
-        channels: state.channels().sublist(0, channels),
+        channels: state.channels().sublist(
+          0,
+          channels.clamp(0, state.channels().length),
+        ),
         initialIndex: 0,
       ),
     ),
@@ -215,5 +225,30 @@ void main() {
     // Watching, not zapping: they are let go.
     await tester.pump(const Duration(seconds: 26));
     expect(engine.preloaded!.$2, isEmpty);
+  });
+
+  testWidgets('a version with sound but no picture gives way to the next', (
+    tester,
+  ) async {
+    final (state, engine) = await _player(
+      tester,
+      count: 4,
+      names: ['Rai 1 HD', 'Rai 1 FHD', 'Rai 1 4K', 'Rai 2'],
+    );
+    // 4K first (3.ts), then FHD (2.ts): set before the check runs.
+    engine.black.addAll(['3.ts', '2.ts']);
+    expect(engine.opened, ['3.ts']);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(seconds: 4));
+    expect(engine.opened, ['3.ts', '2.ts']);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(seconds: 4));
+    expect(engine.opened, ['3.ts', '2.ts', '1.ts']);
+    // HD shows a picture: the channel starts on it from now on.
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(seconds: 4));
+    expect(engine.opened, hasLength(3));
+    expect(state.channels().first.name, 'Rai 1 HD');
+    await tester.pump(const Duration(seconds: 30));
   });
 }

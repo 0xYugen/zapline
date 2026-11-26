@@ -151,6 +151,12 @@ class NativeEngine implements PlaybackEngine {
   bool get isPlaying => _value?.isPlaying ?? false;
 
   @override
+  bool get hasPicture {
+    final size = _value?.size ?? Size.zero;
+    return size.width > 0 && size.height > 0;
+  }
+
+  @override
   Future<void> play() async => _controller.value?.play();
 
   @override

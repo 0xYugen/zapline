@@ -173,6 +173,9 @@ class FakeEngine implements PlaybackEngine {
   bool get isPlaying => true;
 
   @override
+  bool hasPicture = true;
+
+  @override
   Future<void> play() async {}
 
   @override

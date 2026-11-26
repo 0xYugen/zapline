@@ -125,6 +125,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _retries = 0;
   Timer? _retryTimer;
   Timer? _openTimeout;
+
+  /// Checks, a moment after a channel starts, that it shows a picture.
+  Timer? _pictureTimer;
+
+  /// A version of this channel was skipped for showing no picture: the
+  /// one that does is then remembered (see [_checkPicture]).
+  bool _skippedBlack = false;
   Timer? _stallTimer;
 
   // -------------------------------------------- what's on, cached
@@ -240,6 +247,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _openTimeout?.cancel();
             _updateSpinner();
             _preloadNeighbours();
+            _checkPicture();
           }
           if (_retries > 0) {
             // Playing again: the next failure gets its full set of tries.
@@ -297,6 +305,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    _pictureTimer?.cancel();
     if (_phoneChrome) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations(const []);
@@ -408,6 +417,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _retryTimer?.cancel();
     _retryTimer = null;
     _openTimeout?.cancel();
+    _pictureTimer?.cancel();
     _stallTimer?.cancel();
     if (!retry) _retries = 0;
     final replay = _replay;
@@ -440,7 +450,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
     // Dead channels now fail fast natively; 15 s still lets a slow
     // provider start.
-    _openTimeout = Timer(const Duration(seconds: 15), () {
+    // With another version to fall back on, a channel that hasn't started
+    // in 8 s gives way to it.
+    final otherVersion =
+        replay == null &&
+        widget.state
+            .versionsOf(_channel)
+            .any(
+              (v) =>
+                  ZaplineDatabase.channelKey(v) !=
+                      ZaplineDatabase.channelKey(_channel) &&
+                  !_failed.contains(ZaplineDatabase.channelKey(v)),
+            );
+    _openTimeout = Timer(Duration(seconds: otherVersion ? 8 : 15), () {
       if (mounted && _opening && _engine.currentPosition == Duration.zero) {
         _onFailure(_streamTimeout);
       }
@@ -473,9 +495,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _updateSpinner();
   }
 
+  /// A channel with other versions that plays sound but no picture (a
+  /// version the device can't decode, or a broken one) goes on to the
+  /// next version, as if it had failed. The one that then shows a picture
+  /// is remembered, so the channel starts on it next time. With no other
+  /// version left, the sound keeps playing.
+  void _checkPicture() {
+    _pictureTimer?.cancel();
+    if (_replay != null) return;
+    final multiple = widget.state.versionsOf(_channel).length > 1;
+    if (!multiple && !_skippedBlack) return;
+    final seq = _openSeq;
+    _pictureTimer = Timer(_pictureWait, () {
+      if (!mounted || seq != _openSeq || _opening) return;
+      if (_engine.hasPicture) {
+        if (_skippedBlack) {
+          _skippedBlack = false;
+          widget.state.preferVersion(_channel);
+        }
+        return;
+      }
+      if (_tryNextVersion()) _skippedBlack = true;
+    });
+  }
+
+  static const _pictureWait = Duration(seconds: 4);
+
   /// Tries again from the first attempt, after the automatic ones gave up.
   void _retryNow() {
     _failed.clear();
+    _skippedBlack = false;
     _version = null;
     _open();
   }
@@ -487,6 +536,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _replay = null;
     _version = null;
     _failed.clear();
+    _skippedBlack = false;
     _scheduleOpen();
   }
 
@@ -529,6 +579,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _replay = null;
     _version = null;
     _failed.clear();
+    _skippedBlack = false;
     _open();
   }
 
@@ -564,6 +615,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _version = picked.channel;
     _failed.clear();
+    _skippedBlack = false;
     _replay = null;
     _open();
   }
