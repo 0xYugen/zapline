@@ -55,6 +55,7 @@ class VodPlayerScreen extends StatefulWidget {
 class _VodPlayerScreenState extends State<VodPlayerScreen> {
   late final PlaybackEngine _engine = createDefaultEngine(
     ownPlayer: widget.state.settings.ownPlayer,
+    background: widget.state.settings.backgroundAudio && !FormFactor.isTv,
   );
 
   /// Volume, mute and full screen keys and buttons.

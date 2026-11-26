@@ -2004,4 +2004,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get miniPlayerKey => 'Mini player (P)';
+
+  @override
+  String get backgroundAudio => 'Keep the sound when leaving the app';
+
+  @override
+  String get backgroundAudioHint =>
+      'With the screen off or in another app the channel goes on as sound, with a notification to pause it.';
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zapline/src/playback/media3_engine.dart';
 
@@ -145,4 +146,37 @@ void main() {
     expect((calls.last.arguments as Map)['items'], isEmpty);
     await e.dispose();
   });
+
+  test(
+    'leaving the app pauses, coming back plays; not with background sound',
+    () async {
+      final e = Media3Engine();
+      await e.open(Uri.parse('http://x.example/1.ts'));
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await Future<void>.delayed(Duration.zero);
+      expect(methods().where((m) => m == 'pause'), hasLength(1));
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(methods().last, 'play');
+      await e.dispose();
+
+      calls.clear();
+      final b = Media3Engine(background: true);
+      expect((calls.first.arguments as Map)['background'], isTrue);
+      await b.open(Uri.parse('http://x.example/1.ts'));
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await Future<void>.delayed(Duration.zero);
+      expect(methods(), isNot(contains('pause')));
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await b.dispose();
+    },
+  );
 }

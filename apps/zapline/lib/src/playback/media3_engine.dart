@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../device_controls.dart';
 import 'playback_engine.dart';
 
 /// Zapline's own Android player (android/…/Media3Host.kt): one ExoPlayer
@@ -13,10 +14,44 @@ import 'playback_engine.dart';
 /// changes what it plays. Raw MPEG-TS starts on the first picture it can
 /// show, playback starts after one second of buffer, and subtitles carried
 /// in the stream are shown.
-class Media3Engine implements PlaybackEngine {
-  Media3Engine() : _id = _nextId++ {
-    _ready = _method.invokeMethod<void>('create', {'id': _id});
+class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
+  Media3Engine({this.background = false}) : _id = _nextId++ {
+    _ready = _method.invokeMethod<void>('create', {
+      'id': _id,
+      'background': background,
+    });
     _sub = _events.receiveBroadcastStream().listen(_onEvent, onError: (_) {});
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Keeps playing, as sound with a media notification, when the app is
+  /// left (phones, when chosen in Settings). Otherwise leaving the app
+  /// pauses, as the system player does: Home on a TV must not leave a
+  /// channel playing behind the launcher.
+  final bool background;
+
+  /// Paused because the app was left: plays again when it is back.
+  bool _pausedByApp = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.hidden || AppLifecycleState.paused:
+        // Picture-in-picture shows the app shrunk, not left.
+        if (DeviceControls.inPip.value || _closedOpens == _opens) return;
+        // With background sound the media service keeps it going.
+        if (!background && !_pausedByApp) {
+          _pausedByApp = true;
+          _call('pause');
+        }
+      case AppLifecycleState.resumed:
+        if (_pausedByApp) {
+          _pausedByApp = false;
+          _call('play');
+        }
+      case _:
+        break;
+    }
   }
 
   static const _method = MethodChannel('zapline/media3');
@@ -97,6 +132,7 @@ class Media3Engine implements PlaybackEngine {
 
   @override
   Future<void> dispose() async {
+    WidgetsBinding.instance.removeObserver(this);
     _stopLater?.cancel();
     await _sub.cancel();
     await _call('dispose');

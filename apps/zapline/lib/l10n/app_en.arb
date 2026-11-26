@@ -648,5 +648,7 @@
   "mergeSourcesHint": "Channels with the same guide and name show once; if one source fails, the next one plays.",
   "versionFrom": "{quality} · {source}",
   "@versionFrom": {"placeholders": {"quality": {"type": "String"}, "source": {"type": "String"}}},
-  "miniPlayerKey": "Mini player (P)"
+  "miniPlayerKey": "Mini player (P)",
+  "backgroundAudio": "Keep the sound when leaving the app",
+  "backgroundAudioHint": "With the screen off or in another app the channel goes on as sound, with a notification to pause it."
 }

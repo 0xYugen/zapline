@@ -102,11 +102,15 @@ PlaybackEngine Function()? debugEngineFactory;
 
 /// The engine for this platform; on Android Zapline's own player when
 /// [ownPlayer] is set (Settings).
-PlaybackEngine createDefaultEngine({bool ownPlayer = false}) {
+PlaybackEngine createDefaultEngine({
+  bool ownPlayer = false,
+  bool background = false,
+}) {
   if (debugEngineFactory case final make?) return make();
   if (kIsWeb) return NativeEngine();
   return switch (defaultTargetPlatform) {
-    TargetPlatform.android => ownPlayer ? Media3Engine() : NativeEngine(),
+    TargetPlatform.android =>
+      ownPlayer ? Media3Engine(background: background) : NativeEngine(),
     _ => MpvEngine(),
   };
 }

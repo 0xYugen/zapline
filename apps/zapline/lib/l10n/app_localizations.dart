@@ -3283,6 +3283,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mini player (P)'**
   String get miniPlayerKey;
+
+  /// No description provided for @backgroundAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the sound when leaving the app'**
+  String get backgroundAudio;
+
+  /// No description provided for @backgroundAudioHint.
+  ///
+  /// In en, this message translates to:
+  /// **'With the screen off or in another app the channel goes on as sound, with a notification to pause it.'**
+  String get backgroundAudioHint;
 }
 
 class _AppLocalizationsDelegate

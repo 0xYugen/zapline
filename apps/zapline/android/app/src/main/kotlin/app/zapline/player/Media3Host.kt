@@ -1,6 +1,7 @@
 package app.zapline.player
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
@@ -23,6 +24,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.source.preload.TargetPreloadStatusControl
 import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.session.MediaSession
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -81,7 +83,11 @@ class Media3Host(private val context: Context, messenger: BinaryMessenger) :
         val id = call.argument<Int>("id") ?: return result.error("id", "No player id", null)
         if (call.method == "create") {
             sessions.remove(id)?.release()
-            val s = Media3Session(id, context) { sink?.success(it) }
+            val s = Media3Session(
+                id,
+                context,
+                call.argument<Boolean>("background") == true,
+            ) { sink?.success(it) }
             sessions[id] = s
             waiting.remove(id)?.let { s.attach(it) }
             return result.success(null)
@@ -131,7 +137,8 @@ class Media3Host(private val context: Context, messenger: BinaryMessenger) :
 @OptIn(UnstableApi::class)
 class Media3Session(
     private val id: Int,
-    context: Context,
+    private val context: Context,
+    background: Boolean,
     private val emit: (Map<String, Any?>) -> Unit,
 ) : Player.Listener {
 
@@ -233,8 +240,20 @@ class Media3Session(
         }
     }
 
+    // Sound in the background: a media session for the system's media
+    // controls and a service that keeps the app alive with a notification.
+    private val mediaSession: MediaSession? =
+        if (background) MediaSession.Builder(context, player).setId("zapline-$id").build()
+        else null
+
     init {
         ticker.postDelayed(tick, 500)
+        mediaSession?.let {
+            PlaybackService.session = it
+            // Started now, while the app is on screen: Android doesn't let
+            // an app in the background start it.
+            context.startService(Intent(context, PlaybackService::class.java))
+        }
     }
 
     fun open(url: String, headers: Map<String, String>, startMs: Long) {
@@ -367,6 +386,11 @@ class Media3Session(
     }
 
     fun release() {
+        mediaSession?.let {
+            if (PlaybackService.session === it) PlaybackService.session = null
+            context.stopService(Intent(context, PlaybackService::class.java))
+            it.release()
+        }
         preloader.release()
         preloaded.clear()
         playingPreloaded = null

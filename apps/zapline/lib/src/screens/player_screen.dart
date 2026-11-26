@@ -54,6 +54,7 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   late final PlaybackEngine _engine = createDefaultEngine(
     ownPlayer: widget.state.settings.ownPlayer,
+    background: widget.state.settings.backgroundAudio && !FormFactor.isTv,
   );
 
   /// Volume, mute and full screen keys and buttons.

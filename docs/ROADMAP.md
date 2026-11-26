@@ -128,7 +128,8 @@ Xtream login.
       full screen and volume
 - [x] Desktop mini-player (P, or the player's button): a small window in
       a corner above other apps, moved by dragging the picture
-- [ ] Background audio on phones
+- [x] Background audio on phones, with Zapline's player (Settings): a media
+      session and notification (PlaybackService.kt)
 - [ ] Stalker portals
 - [x] Logical channels with fallback across sources: channels of several
       sources with the same guide channel and name are one entry whose

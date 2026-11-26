@@ -218,6 +218,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: s.ownPlayer,
                     onChanged: (v) => _set(() => s.ownPlayer = v),
                   ),
+                if (ownPlayerAvailable && s.ownPlayer && !FormFactor.isTv)
+                  SettingsSwitchTile(
+                    title: l.backgroundAudio,
+                    subtitle: l.backgroundAudioHint,
+                    value: s.backgroundAudio,
+                    onChanged: (v) => _set(() => s.backgroundAudio = v),
+                  ),
                 if (ownPlayerAvailable && s.ownPlayer)
                   SettingsSwitchTile(
                     title: l.preloadNeighbours,

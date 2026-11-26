@@ -55,6 +55,11 @@ class AppSettings {
   bool get ownPlayer => _bool('ownPlayer', false);
   set ownPlayer(bool v) => _db.setSetting('ownPlayer', '$v');
 
+  /// Phones, with Zapline's player: leaving the app (or turning the
+  /// screen off) keeps the sound, with a media notification to pause it.
+  bool get backgroundAudio => _bool('backgroundAudio', false);
+  set backgroundAudio(bool v) => _db.setSetting('backgroundAudio', '$v');
+
   /// With Zapline's player: while zapping, the channels before and after
   /// the one playing load their first seconds, so Up and Down show the
   /// next at once. Needs a provider allowing more than one connection.

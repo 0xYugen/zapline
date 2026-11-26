@@ -80,4 +80,6 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-exoplayer-hls:$media3")
     implementation("androidx.media3:media3-ui:$media3")
+    // Sound in the background on phones, with a media notification.
+    implementation("androidx.media3:media3-session:$media3")
 }
