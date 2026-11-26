@@ -554,7 +554,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 textStyle: const TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: 'Figtree',
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),

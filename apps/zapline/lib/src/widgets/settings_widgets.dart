@@ -35,11 +35,33 @@ class SettingsGroup extends StatelessWidget {
                 ),
               ),
             ),
-          for (final (i, c) in children.indexed)
-            Padding(
-              padding: EdgeInsets.only(top: i == 0 ? 0 : 3),
-              child: c,
+          // One card for the group, fine lines between its rows; the
+          // focused row lights up inside it.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: ZaplineColors.surface,
+              borderRadius: BorderRadius.circular(16),
             ),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final (i, c) in children.indexed) ...[
+                    if (i > 0)
+                      const Divider(
+                        height: 1,
+                        thickness: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: Color(0x0DFFFFFF),
+                      ),
+                    c,
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -91,6 +113,7 @@ class SettingsTile extends StatelessWidget {
     );
     return FocusCard(
       autofocus: autofocus,
+      quiet: true,
       radius: 12,
       padding: EdgeInsets.symmetric(
         horizontal: 16,
@@ -168,8 +191,9 @@ class SettingsSwitchTile extends StatelessWidget {
     final m = Metrics.of(context);
     return FocusCard(
       autofocus: autofocus,
+      quiet: true,
       radius: 12,
-      padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
+      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
       onPressed: () => onChanged(!value),
       child: Row(
         children: [

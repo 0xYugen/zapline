@@ -232,7 +232,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                           minimumSize: const Size(0, 52),
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           textStyle: const TextStyle(
-                            fontFamily: 'Inter',
+                            fontFamily: 'Figtree',
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
@@ -250,7 +250,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                                 horizontal: 18,
                               ),
                               textStyle: const TextStyle(
-                                fontFamily: 'Inter',
+                                fontFamily: 'Figtree',
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
                               ),

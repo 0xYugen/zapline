@@ -900,30 +900,58 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
           final favourite = state.isFavourite(c);
           var first = true;
-          Widget action(IconData icon, String label, VoidCallback onPressed) {
+          // A row per option, its current value on the right; only the
+          // focused one is a card.
+          Widget action(
+            IconData icon,
+            String label,
+            VoidCallback onPressed, {
+            String? value,
+          }) {
             final autofocus = first;
             first = false;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 4),
               child: FocusCard(
                 autofocus: autofocus,
+                quiet: true,
+                radius: 14,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 onPressed: onPressed,
-                child: Row(
-                  children: [
-                    Icon(icon, size: 22),
-                    const SizedBox(width: 14),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w500,
+                child: Builder(
+                  builder: (context) {
+                    final lit = Lit.of(context);
+                    final muted = lit
+                        ? const Color(0xFF5F6368)
+                        : ZaplineColors.textMuted;
+                    return Row(
+                      children: [
+                        Icon(icon, size: 22, color: muted),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                        if (value != null) ...[
+                          const SizedBox(width: 12),
+                          Text(
+                            value,
+                            style: TextStyle(fontSize: 15, color: muted),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
             );
@@ -933,90 +961,125 @@ class _PlayerScreenState extends State<PlayerScreen> {
             alignment: Alignment.centerRight,
             child: Padding(
               padding: const EdgeInsets.all(32),
-              child: Material(
-                color: ZaplineColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
-                          child: Text(
-                            state.displayName(c),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x66000000),
+                      blurRadius: 60,
+                      offset: Offset(0, 20),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: ZaplineColors.surface.withValues(alpha: 0.97),
+                  borderRadius: BorderRadius.circular(24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 26, 18, 18),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // The channel, and what's on it.
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  state.displayName(c),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (p != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      '${p.title} · ${_hm(p.start)}–${_hm(p.stop)}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: ZaplineColors.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        ),
-                        action(
-                          Icons.subtitles_outlined,
-                          l.audioAndSubtitles,
-                          () => close(_tracks),
-                        ),
-                        action(
-                          Icons.aspect_ratio_rounded,
-                          l.pictureSizeIs(_fitName(state.settings.videoFit)),
-                          () {
-                            _cycleFit();
-                            setDialog(() {});
-                          },
-                        ),
-                        if (state.versionsOf(c).length > 1)
+                          const Divider(height: 1, color: Color(0x12FFFFFF)),
+                          const SizedBox(height: 12),
                           action(
-                            Icons.hd_outlined,
-                            l.channelVersion,
-                            () => close(_pickVersion),
+                            Icons.subtitles_outlined,
+                            l.audioAndSubtitles,
+                            () => close(_tracks),
                           ),
-                        if (_replay != null)
                           action(
-                            Icons.live_tv_rounded,
-                            l.backToLive,
-                            () => close(_goLive),
-                          )
-                        else if (_restartable != null)
-                          action(
-                            Icons.replay_rounded,
-                            l.watchFromStart,
-                            () => close(_restart),
+                            Icons.aspect_ratio_rounded,
+                            l.pictureSizeSetting,
+                            value: _fitName(state.settings.videoFit),
+                            () {
+                              _cycleFit();
+                              setDialog(() {});
+                            },
                           ),
-                        if (p != null)
+                          if (state.versionsOf(c).length > 1)
+                            action(
+                              Icons.hd_outlined,
+                              l.channelVersion,
+                              value: state.qualityOf(c),
+                              () => close(_pickVersion),
+                            ),
+                          if (_replay != null)
+                            action(
+                              Icons.live_tv_rounded,
+                              l.backToLive,
+                              () => close(_goLive),
+                            )
+                          else if (_restartable != null)
+                            action(
+                              Icons.replay_rounded,
+                              l.watchFromStart,
+                              () => close(_restart),
+                            ),
+                          if (p != null)
+                            action(
+                              Icons.info_outline_rounded,
+                              l.programmeInfo,
+                              () => close(() => _showInfo(c, p)),
+                            ),
                           action(
-                            Icons.info_outline_rounded,
-                            l.programmeInfo,
-                            () => close(() => _showInfo(c, p)),
+                            favourite
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            favourite
+                                ? l.removeFromFavourites
+                                : l.addToFavourites,
+                            () {
+                              state.toggleFavourite(c);
+                              setDialog(() {});
+                            },
                           ),
-                        action(
-                          favourite
-                              ? Icons.star_rounded
-                              : Icons.star_outline_rounded,
-                          favourite
-                              ? l.removeFromFavourites
-                              : l.addToFavourites,
-                          () {
-                            state.toggleFavourite(c);
-                            setDialog(() {});
-                          },
-                        ),
-                        if (back != null)
+                          if (back != null)
+                            action(
+                              Icons.history_rounded,
+                              l.backToChannel(state.displayName(back)),
+                              () => close(_recall),
+                            ),
                           action(
-                            Icons.history_rounded,
-                            l.backToChannel(state.displayName(back)),
-                            () => close(_recall),
+                            Icons.format_list_bulleted_rounded,
+                            l.channelList,
+                            () => close(_openList),
                           ),
-                        action(
-                          Icons.format_list_bulleted_rounded,
-                          l.channelList,
-                          () => close(_openList),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

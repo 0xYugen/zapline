@@ -452,7 +452,16 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 180),
                       opacity: _area == _Area.grid ? 0 : 1,
-                      child: const ColoredBox(color: Color(0xA6000000)),
+                      // Darkest next to the panels, the guide still showing
+                      // through further away.
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xF00B0C10), Color(0x990B0C10)],
+                            stops: [0.35, 1],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -473,7 +482,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                         items: [
                           _MenuEntry(
                             focusNode: _menuFirst,
-                            icon: Icons.live_tv_rounded,
+                            icon: Icons.live_tv_outlined,
                             label: l.liveTv,
                             selected: _group != _favourites,
                             onPressed: () {
@@ -511,7 +520,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                           // From live TV: channels and the guide; films and series have their own
                           // search.
                           _MenuEntry(
-                            icon: Icons.search,
+                            icon: Icons.search_rounded,
                             label: l.search,
                             onPressed: () => _open(SearchScreen(state: state)),
                           ),
@@ -530,7 +539,12 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       duration: const Duration(milliseconds: 180),
                       curve: Curves.easeOut,
                       width: showGroups ? 270 : 0,
-                      color: ZaplineColors.surface,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0C0D11),
+                        border: Border(
+                          left: BorderSide(color: Color(0x12FFFFFF)),
+                        ),
+                      ),
                       child: ClipRect(
                         child: OverflowBox(
                           alignment: Alignment.topLeft,
@@ -685,15 +699,27 @@ class _MenuEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Unfocused, the section shown is white, the others grey.
     final mark = Badge(
       isLabelVisible: dot,
       backgroundColor: ZaplineColors.accent,
       smallSize: 9,
-      child: Icon(icon, size: 24),
+      child: Builder(
+        builder: (context) => Icon(
+          icon,
+          size: 24,
+          color: Lit.of(context)
+              ? null
+              : selected
+              ? ZaplineColors.text
+              : ZaplineColors.textMuted,
+        ),
+      ),
     );
     final card = FocusCard(
       focusNode: focusNode,
-      selected: selected,
+      // Open, the section shown is a faint card; closed, a mark beside it.
+      selected: selected && wide,
       quiet: true,
       onPressed: onPressed,
       radius: 14,
@@ -720,7 +746,29 @@ class _MenuEntry extends StatelessWidget {
           : Center(child: mark),
     );
     // Narrow, the name shows when the mouse rests on the icon.
-    return wide ? card : Tooltip(message: label, child: card);
+    if (wide) return card;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Tooltip(message: label, child: card),
+        if (selected)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Container(
+                width: 3,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: ZaplineColors.accent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -871,9 +919,10 @@ class _GroupsState extends State<_Groups> {
               final lock = widget.locked(g);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 4),
+                // The group shown is in the accent colour, not boxed.
                 child: FocusCard(
                   focusNode: widget.nodeOf(g),
-                  selected: g == widget.selected,
+                  quiet: true,
                   radius: 12,
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   onFocused: () => widget.onFocused(g),
@@ -890,13 +939,19 @@ class _GroupsState extends State<_Groups> {
                         const SizedBox(width: 10),
                       ],
                       Expanded(
-                        child: Text(
-                          widget.nameOf(g),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                        // Inside the card, where Lit says if it's focused.
+                        child: Builder(
+                          builder: (context) => Text(
+                            widget.nameOf(g),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: g == widget.selected
+                                  ? Lit.accent(context)
+                                  : null,
+                            ),
                           ),
                         ),
                       ),

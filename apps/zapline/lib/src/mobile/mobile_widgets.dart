@@ -165,14 +165,19 @@ class _PillState extends State<Pill> {
     final selected = widget.selected;
     final icon = widget.icon;
     final label = widget.label;
-    final fg = selected ? ZaplineColors.onFocus : ZaplineColors.text;
+    // Selected: tinted with the accent; focused: lit up like any card.
+    final fg = _focused
+        ? ZaplineColors.onFocus
+        : selected
+        ? const Color(0xFFD2E3FC)
+        : const Color(0xFFBDC1C6);
     return Material(
-      color: selected ? ZaplineColors.accent : ZaplineColors.surfaceHigh,
-      shape: StadiumBorder(
-        side: _focused
-            ? const BorderSide(color: ZaplineColors.focusBorder, width: 2.5)
-            : BorderSide.none,
-      ),
+      color: _focused
+          ? ZaplineColors.focus
+          : selected
+          ? ZaplineColors.accent.withValues(alpha: 0.22)
+          : const Color(0x0DFFFFFF),
+      shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: widget.onTap,

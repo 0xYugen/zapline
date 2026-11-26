@@ -74,7 +74,7 @@ class GuideGridState extends State<GuideGrid> {
   static const _span = Duration(hours: 2);
   static const _step = Duration(minutes: 30);
   static const _labelWidth = 240.0;
-  static const _rowHeight = 64.0;
+  static const _rowHeight = 58.0;
 
   /// The programme in focus, large, above the grid.
   static const _headerHeight = 184.0;
@@ -550,6 +550,28 @@ class GuideGridState extends State<GuideGrid> {
                           left: _labelWidth,
                           pxPerMin: pxPerMin,
                         ),
+                        // The rows fade out at the bottom instead of being
+                        // cut.
+                        const Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 40,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [
+                                    ZaplineColors.ground,
+                                    Color(0x000F1115),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                         if (_digits.isNotEmpty)
                           Positioned(
                             top: 8,
@@ -633,32 +655,36 @@ class GuideGridState extends State<GuideGrid> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
           SizedBox(
             width: _labelWidth,
             child: Row(
               children: [
-                ChannelLogo(channel: c, width: 52, height: 36),
-                const SizedBox(width: 10),
                 SizedBox(
-                  width: 36,
+                  width: 28,
                   child: Text(
                     '${widget.state.channelNumber(c, i)}',
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
                     style: const TextStyle(
-                      color: ZaplineColors.textMuted,
+                      fontSize: 13,
+                      color: Color(0xFF6F757C),
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                 ),
+                const SizedBox(width: 12),
+                ChannelLogo(channel: c, width: 46, height: 31),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     widget.state.displayName(c),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -736,7 +762,7 @@ class GuideGridState extends State<GuideGrid> {
                         // Dim past programmes unless they can still be
                         // watched.
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: dim && !replayable
                               ? ZaplineColors.textMuted
@@ -751,7 +777,7 @@ class GuideGridState extends State<GuideGrid> {
                             time,
                             maxLines: 1,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontFeatures: [FontFeature.tabularFigures()],
                             ),
                           ),
@@ -1064,12 +1090,22 @@ class _Ruler extends StatelessWidget {
       marks.add(
         Positioned(
           left: t.difference(from).inMinutes * pxPerMin,
-          top: 8,
-          child: Text(
-            time(t),
-            style: const TextStyle(
-              color: ZaplineColors.textMuted,
-              fontFeatures: [FontFeature.tabularFigures()],
+          top: 4,
+          bottom: 6,
+          // A fine line marks each half hour.
+          child: Container(
+            padding: const EdgeInsets.only(left: 8),
+            alignment: Alignment.centerLeft,
+            decoration: const BoxDecoration(
+              border: Border(left: BorderSide(color: Color(0x1AFFFFFF))),
+            ),
+            child: Text(
+              time(t),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF80868B),
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ),
@@ -1085,12 +1121,14 @@ class _Ruler extends StatelessWidget {
               [
                 ?caption,
                 sameDay ? context.l10n.today : '${l.day}/${l.month}',
-              ].join(' · '),
+              ].join(' · ').toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: ZaplineColors.textMuted,
+                fontSize: 12,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF80868B),
               ),
             ),
           ),
@@ -1119,11 +1157,32 @@ class _NowLine extends StatelessWidget {
     final now = DateTime.now().toUtc();
     if (now.isBefore(from) || !now.isBefore(to)) return const SizedBox.shrink();
     return Positioned(
-      left: left + now.difference(from).inMinutes * pxPerMin,
+      left: left + now.difference(from).inMinutes * pxPerMin - 3,
       top: 0,
       bottom: 0,
       child: IgnorePointer(
-        child: Container(width: 2, color: ZaplineColors.accent),
+        // A line with a dot where it meets the hours.
+        child: SizedBox(
+          width: 8,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: [
+              Container(width: 2, color: ZaplineColors.accent),
+              Positioned(
+                top: -4,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: ZaplineColors.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

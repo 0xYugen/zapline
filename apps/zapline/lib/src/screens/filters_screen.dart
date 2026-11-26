@@ -902,7 +902,7 @@ class FilterPage extends StatelessWidget {
                       style: TextButton.styleFrom(
                         foregroundColor: ZaplineColors.accent,
                         textStyle: const TextStyle(
-                          fontFamily: 'Inter',
+                          fontFamily: 'Figtree',
                           fontWeight: FontWeight.w600,
                         ),
                       ),

@@ -235,7 +235,7 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
         side: outlined ? const BorderSide(color: ZaplineColors.line) : null,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'Figtree',
           fontWeight: FontWeight.w500,
           fontSize: 14,
         ),
@@ -437,7 +437,7 @@ class _ChannelCard extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: ZaplineColors.accent,
                   textStyle: const TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: 'Figtree',
                     fontWeight: FontWeight.w500,
                   ),
                 ),

@@ -361,7 +361,7 @@ class VodRow extends StatelessWidget {
                   style: TextButton.styleFrom(
                     foregroundColor: ZaplineColors.accent,
                     textStyle: const TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: 'Figtree',
                       fontWeight: FontWeight.w500,
                     ),
                   ),

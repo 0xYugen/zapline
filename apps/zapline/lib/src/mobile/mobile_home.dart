@@ -211,7 +211,7 @@ class _MobileHomeState extends State<MobileHome> {
         text: TextSpan(
           text: label,
           style: const TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: 'Figtree',
             fontSize: base,
             fontWeight: FontWeight.w500,
             letterSpacing: -0.1,

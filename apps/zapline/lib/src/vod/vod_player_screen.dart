@@ -387,7 +387,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                           backgroundColor: ZaplineColors.text,
                           foregroundColor: ZaplineColors.ground,
                           textStyle: const TextStyle(
-                            fontFamily: 'Inter',
+                            fontFamily: 'Figtree',
                             fontWeight: FontWeight.w600,
                           ),
                         ),

@@ -656,7 +656,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
               backgroundColor: ZaplineColors.accent,
               foregroundColor: ZaplineColors.onFocus,
               textStyle: const TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: 'Figtree',
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),

@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 abstract final class ZaplineColors {
   static const ground = Color(0xFF0F1115);
   static const rail = Color(0xFF0F1115);
-  static const surface = Color(0xFF1B1E25);
-  static const surfaceHigh = Color(0xFF262A33);
+  static const surface = Color(0xFF181B21);
+  static const surfaceHigh = Color(0xFF22262E);
   static const line = Color(0xFF33373F);
   static const text = Color(0xFFE8EAED);
   static const textMuted = Color(0xFF9AA0A6);
@@ -29,7 +29,8 @@ abstract final class ZaplineColors {
 ThemeData buildTheme() {
   final base = ThemeData(
     useMaterial3: true,
-    fontFamily: 'Inter',
+    fontFamily: 'Figtree',
+    fontFamilyFallback: const ['Inter'],
     brightness: Brightness.dark,
     scaffoldBackgroundColor: ZaplineColors.ground,
     colorScheme: const ColorScheme.dark(

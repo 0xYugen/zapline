@@ -316,7 +316,7 @@ class _DetailPage extends StatelessWidget {
       OutlinedButton.styleFrom(
         foregroundColor: ZaplineColors.text,
         textStyle: const TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'Figtree',
           fontWeight: FontWeight.w500,
         ),
       ).copyWith(
@@ -594,7 +594,7 @@ class _PlayButton extends StatelessWidget {
                   backgroundColor: ZaplineColors.accent,
                   foregroundColor: ZaplineColors.onFocus,
                   textStyle: const TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: 'Figtree',
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -728,7 +728,7 @@ class _SeasonPills extends StatelessWidget {
           side: BorderSide.none,
           shape: const StadiumBorder(),
           labelStyle: TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: 'Figtree',
             fontWeight: FontWeight.w500,
             color: on ? ZaplineColors.onFocus : ZaplineColors.text,
           ),
