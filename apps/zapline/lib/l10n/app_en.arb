@@ -639,5 +639,7 @@
   "muted": "Muted",
   "volumeKey": "Volume (M mutes)",
   "fullScreenKey": "Full screen (F)",
-  "exitFullScreen": "Exit full screen"
+  "exitFullScreen": "Exit full screen",
+  "ownPlayer": "Zapline player (beta)",
+  "ownPlayerHint": "Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly."
 }

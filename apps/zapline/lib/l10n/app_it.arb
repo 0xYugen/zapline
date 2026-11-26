@@ -532,5 +532,7 @@
   "muted": "Muto",
   "volumeKey": "Volume (M per il muto)",
   "fullScreenKey": "Schermo intero (F)",
-  "exitFullScreen": "Esci da schermo intero"
+  "exitFullScreen": "Esci da schermo intero",
+  "ownPlayer": "Player Zapline (beta)",
+  "ownPlayerHint": "Cambio canale più rapido e sottotitoli presenti nello stream. Disattivalo se un canale non si vede bene."
 }

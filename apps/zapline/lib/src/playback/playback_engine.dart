@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import 'media3_engine.dart';
 import 'mpv_engine.dart';
 import 'native_engine.dart';
 
@@ -8,7 +9,8 @@ import 'native_engine.dart';
 /// platform can use the engine that works best there:
 ///
 /// * Android, Android TV, Fire OS and web: [NativeEngine] (Media3/ExoPlayer
-///   on Android, the browser's video element on web).
+///   on Android, the browser's video element on web), or on Android
+///   [Media3Engine], Zapline's own player, when chosen in Settings.
 /// * Windows, macOS, Linux and iOS: [MpvEngine] (libmpv), which also plays
 ///   raw MPEG-TS that AVPlayer cannot.
 abstract class PlaybackEngine {
@@ -92,11 +94,17 @@ class MediaTrack {
 /// Tests and screenshots substitute a fake engine here.
 PlaybackEngine Function()? debugEngineFactory;
 
-PlaybackEngine createDefaultEngine() {
+/// The engine for this platform; on Android Zapline's own player when
+/// [ownPlayer] is set (Settings).
+PlaybackEngine createDefaultEngine({bool ownPlayer = false}) {
   if (debugEngineFactory case final make?) return make();
   if (kIsWeb) return NativeEngine();
   return switch (defaultTargetPlatform) {
-    TargetPlatform.android => NativeEngine(),
+    TargetPlatform.android => ownPlayer ? Media3Engine() : NativeEngine(),
     _ => MpvEngine(),
   };
 }
+
+/// Whether Settings offers Zapline's own player (Android only).
+bool get ownPlayerAvailable =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;

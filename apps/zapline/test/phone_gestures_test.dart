@@ -59,9 +59,7 @@ void main() {
       if (c.method == method) (c.arguments as Map)[key],
   ];
 
-  testWidgets('sides of the picture set brightness and volume', (
-    tester,
-  ) async {
+  testWidgets('sides of the picture set brightness and volume', (tester) async {
     await openPlayer(tester);
     // Up on the left: brighter.
     await tester.dragFrom(const Offset(80, 300), const Offset(0, -120));

@@ -1,0 +1,130 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:zapline/src/playback/media3_engine.dart';
+
+/// The Dart side of Zapline's own Android player, over fake native
+/// channels: what it asks the ExoPlayer to do, and which of its events
+/// count.
+void main() {
+  final calls = <MethodCall>[];
+  late MockStreamHandlerEventSink sink;
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    calls.clear();
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('zapline/media3'),
+      (call) async {
+        calls.add(call);
+        if (call.method == 'tracks') {
+          return [
+            {
+              'id': '0:0',
+              'label': 'Italiano',
+              'language': 'it',
+              'selected': true,
+            },
+            {'id': '0:1', 'label': null, 'language': 'en', 'selected': false},
+          ];
+        }
+        return null;
+      },
+    );
+    binding.defaultBinaryMessenger.setMockStreamHandler(
+      const EventChannel('zapline/media3/events'),
+      MockStreamHandler.inline(
+        onListen: (_, events) {
+          sink = events;
+        },
+      ),
+    );
+  });
+
+  tearDown(() {
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('zapline/media3'),
+      null,
+    );
+    binding.defaultBinaryMessenger.setMockStreamHandler(
+      const EventChannel('zapline/media3/events'),
+      null,
+    );
+  });
+
+  List<String> methods() => [for (final c in calls) c.method];
+
+  test('a zap keeps the player: pause now, stop only if idle', () async {
+    final e = Media3Engine();
+    await e.open(
+      Uri.parse('http://x.example/1.ts'),
+      headers: {'User-Agent': 'Zapline'},
+    );
+    expect(methods(), ['create', 'open']);
+    final open = calls.last.arguments as Map;
+    expect(open['url'], 'http://x.example/1.ts');
+    expect(open['headers'], {'User-Agent': 'Zapline'});
+
+    // Zap: paused at once, the next channel opens in the same player.
+    await e.stop();
+    await e.open(Uri.parse('http://x.example/2.ts'));
+    // No stop comes later for the channel left.
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    expect(methods(), ['create', 'open', 'pause', 'open']);
+
+    // Left alone, it lets the stream go after a second.
+    await e.stop();
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    expect(methods().last, 'stop');
+    await e.dispose();
+    expect(methods().last, 'dispose');
+  });
+
+  test('events of this player and this stream only', () async {
+    final e = Media3Engine();
+    final positions = <Duration>[], errors = <String>[], stalls = <bool>[];
+    e.position.listen(positions.add);
+    e.errors.listen(errors.add);
+    e.buffering.listen(stalls.add);
+    await Future<void>.delayed(Duration.zero);
+    final id = (calls.first.arguments as Map)['id'];
+
+    await e.open(Uri.parse('http://x.example/1.ts'));
+    sink.success({'id': id, 'event': 'buffering', 'value': true});
+    sink.success({'id': id, 'event': 'position', 'ms': 1});
+    sink.success({'id': id, 'event': 'duration', 'ms': 0});
+    sink.success({'id': id, 'event': 'playing', 'value': true});
+    // Another player's error.
+    sink.success({'id': id + 100, 'event': 'error', 'message': 'not mine'});
+    await Future<void>.delayed(Duration.zero);
+    expect(positions, [const Duration(milliseconds: 1)]);
+    expect(stalls, [true]);
+    expect(errors, isEmpty);
+    expect(e.isPlaying, isTrue);
+
+    // After a stop, the old stream's last events are dropped.
+    await e.stop();
+    sink.success({'id': id, 'event': 'error', 'message': 'old stream'});
+    await Future<void>.delayed(Duration.zero);
+    expect(errors, isEmpty);
+    await e.open(Uri.parse('http://x.example/2.ts'));
+    sink.success({'id': id, 'event': 'error', 'message': 'Source error'});
+    await Future<void>.delayed(Duration.zero);
+    expect(errors, ['Source error']);
+    await e.dispose();
+  });
+
+  test('audio and subtitle tracks', () async {
+    final e = Media3Engine();
+    final audio = await e.audioTracks();
+    expect(audio.map((t) => t.language), ['it', 'en']);
+    expect(audio.first.selected, isTrue);
+    await e.selectAudioTrack('0:1');
+    expect(calls.last.arguments, containsPair('track', '0:1'));
+    await e.selectSubtitleTrack(null);
+    expect(calls.last.arguments, containsPair('type', 'text'));
+    expect((calls.last.arguments as Map)['track'], isNull);
+    await e.setVolume(0.4);
+    expect(calls.last.arguments, containsPair('value', 0.4));
+    await e.dispose();
+  });
+}

@@ -25,6 +25,9 @@ class MainActivity : FlutterActivity() {
 
     private var channel: MethodChannel? = null
 
+    // Zapline's own players (Media3Host.kt).
+    private var media3: Media3Host? = null
+
     // Picture-in-picture while a player is open on a phone: the picture's
     // shape, or null when leaving the app should just leave it.
     private var pipAspect: Rational? = null
@@ -45,6 +48,11 @@ class MainActivity : FlutterActivity() {
             .apply {
                 setReferenceCounted(false)
                 acquire()
+            }
+        media3 = Media3Host(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+            .also {
+                flutterEngine.platformViewsController.registry
+                    .registerViewFactory("zapline/media3-view", Media3ViewFactory(it))
             }
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "zapline/device")
         channel!!.setMethodCallHandler { call, result ->
@@ -208,6 +216,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        media3?.releaseAll()
         multicastLock?.release()
         super.onDestroy()
     }

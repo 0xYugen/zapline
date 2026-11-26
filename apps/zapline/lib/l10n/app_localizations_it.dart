@@ -1979,4 +1979,11 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get exitFullScreen => 'Esci da schermo intero';
+
+  @override
+  String get ownPlayer => 'Player Zapline (beta)';
+
+  @override
+  String get ownPlayerHint =>
+      'Cambio canale più rapido e sottotitoli presenti nello stream. Disattivalo se un canale non si vede bene.';
 }

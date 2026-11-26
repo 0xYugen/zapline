@@ -3235,6 +3235,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit full screen'**
   String get exitFullScreen;
+
+  /// No description provided for @ownPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Zapline player (beta)'**
+  String get ownPlayer;
+
+  /// No description provided for @ownPlayerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.'**
+  String get ownPlayerHint;
 }
 
 class _AppLocalizationsDelegate

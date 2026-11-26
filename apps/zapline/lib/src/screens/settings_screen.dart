@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../keep_awake.dart';
 import '../errors.dart';
 import '../l10n.dart';
+import '../playback/playback_engine.dart';
 import '../layout.dart';
 import '../mobile/mobile_widgets.dart' show requirePinIfSet;
 import '../theme.dart';
@@ -210,6 +211,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keepScreenAwake(v);
                   }),
                 ),
+                if (ownPlayerAvailable)
+                  SettingsSwitchTile(
+                    title: l.ownPlayer,
+                    subtitle: l.ownPlayerHint,
+                    value: s.ownPlayer,
+                    onChanged: (v) => _set(() => s.ownPlayer = v),
+                  ),
                 SettingsSwitchTile(
                   title: l.mergeVersions,
                   subtitle: l.mergeVersionsHint,

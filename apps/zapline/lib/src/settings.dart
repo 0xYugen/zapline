@@ -49,6 +49,11 @@ class AppSettings {
   bool get muted => _bool('muted', false);
   set muted(bool v) => _db.setSetting('muted', '$v');
 
+  /// Android: play with Zapline's own player (Media3Engine) instead of the
+  /// system one through video_player. Off until it is proven on devices.
+  bool get ownPlayer => _bool('ownPlayer', false);
+  set ownPlayer(bool v) => _db.setSetting('ownPlayer', '$v');
+
   /// The screen stays on while Zapline is open.
   bool get keepScreenOn => _bool('keepScreenOn', true);
   set keepScreenOn(bool v) => _db.setSetting('keepScreenOn', '$v');

@@ -74,4 +74,10 @@ flutter {
 dependencies {
     // FileProvider, to hand a downloaded update to the installer.
     implementation("androidx.core:core:1.13.1")
+    // Zapline's own player (Media3Host.kt): one ExoPlayer per player screen,
+    // reused from channel to channel. Same Media3 version as video_player.
+    val media3 = "1.9.2"
+    implementation("androidx.media3:media3-exoplayer:$media3")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3")
+    implementation("androidx.media3:media3-ui:$media3")
 }

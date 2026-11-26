@@ -124,11 +124,17 @@ Xtream login.
       on desktop; Android shows audio tracks)
 - [x] Programme reminders: set from the guide, search or a programme's
       details; a notice with "Watch" when the programme starts
-- [ ] Picture-in-picture (Android, desktop mini-player)
+- [x] Picture-in-picture on Android phones (Home while watching); desktop
+      full screen and volume
+- [ ] Desktop mini-player; background audio on phones
 - [ ] Stalker portals
 - [ ] Logical channels with fallback across sources
 - [x] Movies/series with resume
-- [ ] Selectable video engine
+- [x] Selectable video engine: on Android, Settings › "Zapline player (beta)"
+      uses Media3Host.kt, one ExoPlayer per player screen reused from
+      channel to channel, a 1 s start buffer, MPEG-TS started on the first
+      showable picture, subtitles carried in the stream; video_player stays
+      the default until it is proven on Fire TV sticks
 - [x] Translations (Italian first), including the pages a phone opens
       from the TV's QR code
 - [x] Player recovery and remote polish: zapping opens only the channel

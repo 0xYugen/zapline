@@ -1975,4 +1975,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exitFullScreen => 'Exit full screen';
+
+  @override
+  String get ownPlayer => 'Zapline player (beta)';
+
+  @override
+  String get ownPlayerHint =>
+      'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.';
 }
