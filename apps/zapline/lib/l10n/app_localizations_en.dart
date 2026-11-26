@@ -372,7 +372,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noOtherTracks => 'This channel has a single audio track.';
 
   @override
-  String get swipeHint => 'Swipe up or down to change channel';
+  String get swipeHint =>
+      'Swipe in the middle to change channel; on the sides, brightness and volume';
 
   @override
   String get noArchive => 'No archive for this programme';
@@ -1868,4 +1869,153 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchShows => 'Search series';
+
+  @override
+  String get playerOptions => 'Options';
+
+  @override
+  String get holdOkForOptions => 'Hold OK for options';
+
+  @override
+  String reconnecting(int attempt, int total) {
+    return 'Reconnecting… ($attempt of $total)';
+  }
+
+  @override
+  String get streamTimeout => 'The channel took too long to start';
+
+  @override
+  String get pressOkToRetry =>
+      'Press OK to try again, or Up and Down for another channel';
+
+  @override
+  String backToChannel(String channel) {
+    return 'Back to $channel';
+  }
+
+  @override
+  String noChannelNumber(int number) {
+    return 'No channel $number';
+  }
+
+  @override
+  String pictureSizeIs(String fit) {
+    return 'Picture: $fit';
+  }
+
+  @override
+  String get loadingChannel => 'Loading channel';
+
+  @override
+  String lastUpdateFailed(String reason) {
+    return 'Last update failed: $reason';
+  }
+
+  @override
+  String get dismiss => 'Dismiss';
+
+  @override
+  String pairingDone(int count) {
+    return 'Done! $count channels added.';
+  }
+
+  @override
+  String pairingDoneWithGuide(int count) {
+    return 'Done! $count channels added with their TV guide.';
+  }
+
+  @override
+  String pairingFailed(String reason) {
+    return 'The TV could not connect: $reason';
+  }
+
+  @override
+  String get pairingBusy =>
+      'The TV is busy loading another source. Try again in a moment.';
+
+  @override
+  String channelHiddenNamed(String name) {
+    return '$name is hidden';
+  }
+
+  @override
+  String sourceUpdateFailedNamed(String name) {
+    return '$name couldn\'t be updated';
+  }
+
+  @override
+  String restoreSummary(int added, int updated) {
+    String _temp0 = intl.Intl.pluralLogic(
+      added,
+      locale: localeName,
+      other: '$added sources restored',
+      one: '1 source restored',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      updated,
+      locale: localeName,
+      other: ', $updated updated',
+      one: ', 1 updated',
+      zero: '',
+    );
+    return '$_temp0$_temp1';
+  }
+
+  @override
+  String get moreOptions => 'More';
+
+  @override
+  String get muted => 'Muted';
+
+  @override
+  String get volumeKey => 'Volume (M mutes)';
+
+  @override
+  String get fullScreenKey => 'Full screen (F)';
+
+  @override
+  String get exitFullScreen => 'Exit full screen';
+
+  @override
+  String get ownPlayer => 'Zapline player (beta)';
+
+  @override
+  String get ownPlayerHint =>
+      'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.';
+
+  @override
+  String get matchFrameRate => 'Match the frame rate';
+
+  @override
+  String get matchFrameRateHint =>
+      'The TV switches to the channel\'s refresh rate (50 Hz, 24 Hz for films) for smoother motion. Some TVs go dark for a moment when switching.';
+
+  @override
+  String get preloadNeighbours => 'Instant channel change';
+
+  @override
+  String get preloadNeighboursHint =>
+      'While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.';
+
+  @override
+  String get mergeSources => 'Same channel from several sources as one';
+
+  @override
+  String get mergeSourcesHint =>
+      'Channels with the same guide and name show once; if one source fails, the next one plays.';
+
+  @override
+  String versionFrom(String quality, String source) {
+    return '$quality · $source';
+  }
+
+  @override
+  String get miniPlayerKey => 'Mini player (P)';
+
+  @override
+  String get backgroundAudio => 'Keep the sound when leaving the app';
+
+  @override
+  String get backgroundAudioHint =>
+      'With the screen off or in another app the channel goes on as sound, with a notification to pause it.';
 }

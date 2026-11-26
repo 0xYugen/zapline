@@ -79,8 +79,9 @@ documented.
 - [x] Source passwords in the platform keystore (flutter_secure_storage),
       migrated automatically, loaded after the first frame; database
       fallback where no keystore exists
-- [ ] Xtream channel URLs still embed username/password in their path:
-      store URL templates and fill credentials at play time
+- [x] Stream addresses are stored without the account's username and
+      password (placeholders), filled in when a stream opens; Xtream films
+      and episodes are built at play time
 - [x] Logos: disk cache, in-flight dedup, decoded at display size, bounded
       image memory (48 MB), initials badge as fallback; in list, guide and
       player
@@ -119,14 +120,39 @@ Xtream login.
       or opens the channel
 - [x] Android TV: keyboard opens only on OK in text fields; Back no longer
       closes the app on Android 16 (it popped twice)
-- [ ] Audio and subtitle track selection
-- [ ] Programme reminders (notify / switch when a programme starts)
-- [ ] Picture-in-picture (Android, desktop mini-player)
+- [x] Audio and subtitle track selection (subtitles carried in the stream
+      on desktop; Android shows audio tracks)
+- [x] Programme reminders: set from the guide, search or a programme's
+      details; a notice with "Watch" when the programme starts
+- [x] Picture-in-picture on Android phones (Home while watching); desktop
+      full screen and volume
+- [x] Desktop mini-player (P, or the player's button): a small window in
+      a corner above other apps, moved by dragging the picture
+- [x] Background audio on phones, with Zapline's player (Settings): a media
+      session and notification (PlaybackService.kt)
 - [ ] Stalker portals
-- [ ] Logical channels with fallback across sources
-- [ ] Movies/series with resume
-- [ ] Selectable video engine
-- [ ] Translations (Italian first)
+- [x] Logical channels with fallback across sources: channels of several
+      sources with the same guide channel and name are one entry whose
+      versions span the sources; when one fails the next plays
+- [x] Movies/series with resume
+- [x] Selectable video engine: on Android, Settings › "Zapline player (beta)"
+      uses Media3Host.kt, one ExoPlayer per player screen reused from
+      channel to channel, a 1 s start buffer, MPEG-TS started on the first
+      showable picture, subtitles carried in the stream; video_player stays
+      the default until it is proven on Fire TV sticks
+- [x] Translations (Italian first), including the pages a phone opens
+      from the TV's QR code
+- [x] Player recovery and remote polish: zapping opens only the channel
+      stopped on, a spinner while a channel starts or stalls, three
+      automatic retries then OK to retry; options on hold OK / Menu (tracks,
+      picture, version, programme, favourite, last channel); digits with a
+      preview across all channels, 0 for the last channel
+- [x] Guide on a remote: Page Up/Down and Channel +/- by a screen, digits
+      jump to a channel, fast-forward/rewind by two hours, the full archive
+      window, Back to now, focus follows the channel zapped to
+- [ ] Move from `package:flutter/material.dart` (deprecated in Flutter 3.50)
+      to `package:material_ui` once media_kit_video and flutter_zxing have
+      moved too; until then CI and releases stay on Flutter 3.47.9
 - [ ] Google Play and Amazon Appstore (Fire OS); iOS after licence review
 
 ## Phase 3 — Differentiation (~18 weeks, month 16)

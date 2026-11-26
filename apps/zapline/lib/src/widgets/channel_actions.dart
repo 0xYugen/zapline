@@ -109,8 +109,8 @@ Future<void> showChannelActions(
                       Icons.visibility_off_outlined,
                       context.l10n.hideChannel,
                       () {
-                        _hideAll(state, channel);
                         done();
+                        _hideAll(context, state, channel);
                       },
                     ),
                     action(
@@ -212,8 +212,8 @@ Future<void> _showSheet(
             title: Text(context.l10n.hideChannel),
             subtitle: Text(context.l10n.hiddenHint),
             onTap: () {
-              _hideAll(state, channel);
               done();
+              _hideAll(context, state, channel);
             },
           ),
           ListTile(
@@ -231,10 +231,22 @@ Future<void> _showSheet(
   },
 );
 
-void _hideAll(AppState state, Channel channel) {
-  for (final v in state.versionsOf(channel)) {
-    state.setChannelHidden(v, true);
-  }
+/// Hides the channel with its versions, with a way to take it back.
+void _hideAll(BuildContext context, AppState state, Channel channel) {
+  final versions = [...state.versionsOf(channel)];
+  final name = state.displayName(channel);
+  final l = context.l10n;
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  state.setChannelsHidden(versions, true);
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(l.channelHiddenNamed(name)),
+      action: SnackBarAction(
+        label: l.undo,
+        onPressed: () => state.setChannelsHidden(versions, false),
+      ),
+    ),
+  );
 }
 
 String _versionLabel(BuildContext context, AppState state, Channel c) =>

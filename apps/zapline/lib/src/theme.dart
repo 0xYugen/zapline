@@ -32,6 +32,15 @@ ThemeData buildTheme() {
     ),
   );
   return base.copyWith(
+    // A short fade and rise everywhere: Android's default transition draws
+    // the old and new pages into extra layers, heavy for a TV stick's GPU,
+    // above all over a playing video.
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {
+        for (final p in TargetPlatform.values)
+          p: const FadeUpwardsPageTransitionsBuilder(),
+      },
+    ),
     textTheme: base.textTheme.apply(
       bodyColor: ZaplineColors.text,
       displayColor: ZaplineColors.text,

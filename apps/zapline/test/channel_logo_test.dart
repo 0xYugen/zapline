@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,5 +74,64 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(find.text('NC'), findsNWidgets(2));
+  });
+  test('at most a few downloads at once, the newest first', () async {
+    final started = <String>[];
+    final release = <String, Completer<void>>{};
+    LogoCache.debugLoader = (url) async {
+      started.add(url);
+      await (release[url] = Completer<void>()).future;
+      return _png;
+    };
+    final all = [
+      for (var i = 0; i < LogoCache.parallel + 3; i++)
+        LogoCache.load('http://l.example/$i.png'),
+    ];
+    await Future<void>.delayed(Duration.zero);
+    expect(started, hasLength(LogoCache.parallel));
+    release[started.first]!.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    // The last asked for (on screen now) goes before the older ones.
+    expect(started.last, 'http://l.example/${LogoCache.parallel + 2}.png');
+    for (var i = 0; i < 4; i++) {
+      for (final c in release.values) {
+        if (!c.isCompleted) c.complete();
+      }
+      await Future<void>.delayed(Duration.zero);
+    }
+    await Future.wait(all).timeout(const Duration(seconds: 2));
+    expect(started, hasLength(LogoCache.parallel + 3));
+  });
+
+  testWidgets('a large logo is kept scaled down', (tester) async {
+    await tester.runAsync(() async {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      // Noise, so the PNG is large.
+      var seed = 1;
+      for (var y = 0; y < 400; y += 2) {
+        for (var x = 0; x < 600; x += 2) {
+          seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+          canvas.drawRect(
+            Rect.fromLTWH(x.toDouble(), y.toDouble(), 2, 2),
+            Paint()..color = Color(0xFF000000 | (seed & 0xFFFFFF)),
+          );
+        }
+      }
+      final image = await recorder.endRecording().toImage(600, 400);
+      final big = (await image.toByteData(format: ui.ImageByteFormat.png))!
+          .buffer
+          .asUint8List();
+      expect(big.length, greaterThan(24 * 1024));
+      final small = await LogoCache.shrink(big);
+      expect(small.length, lessThan(big.length));
+      final codec = await ui.instantiateImageCodec(small);
+      final frame = await codec.getNextFrame();
+      expect(frame.image.width, LogoCache.thumbSize);
+      expect(frame.image.height, closeTo(LogoCache.thumbSize * 2 / 3, 1));
+      // Small ones are left alone.
+      expect(identical(await LogoCache.shrink(_png), _png), isTrue);
+    });
   });
 }

@@ -3,7 +3,9 @@ import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../keep_awake.dart';
+import '../errors.dart';
 import '../l10n.dart';
+import '../playback/playback_engine.dart';
 import '../layout.dart';
 import '../mobile/mobile_widgets.dart' show requirePinIfSet;
 import '../theme.dart';
@@ -16,6 +18,7 @@ import 'add_source_screen.dart';
 import 'backup_screen.dart';
 import 'transfer_screens.dart';
 import 'source_detail_screen.dart';
+import '../widgets/tab_visibility.dart';
 
 /// App-wide preferences as a grouped list: sources first, then watching,
 /// language, TV guide, privacy and about. Each row shows its current value
@@ -129,7 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    return ListenableBuilder(
+    return TabListenableBuilder(
       listenable: _state,
       builder: (context, _) {
         final s = _state.settings;
@@ -208,12 +211,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keepScreenAwake(v);
                   }),
                 ),
+                if (ownPlayerAvailable)
+                  SettingsSwitchTile(
+                    title: l.ownPlayer,
+                    subtitle: l.ownPlayerHint,
+                    value: s.ownPlayer,
+                    onChanged: (v) => _set(() => s.ownPlayer = v),
+                  ),
+                if (ownPlayerAvailable && s.ownPlayer && !FormFactor.isTv)
+                  SettingsSwitchTile(
+                    title: l.backgroundAudio,
+                    subtitle: l.backgroundAudioHint,
+                    value: s.backgroundAudio,
+                    onChanged: (v) => _set(() => s.backgroundAudio = v),
+                  ),
+                if (ownPlayerAvailable && s.ownPlayer && FormFactor.isTv)
+                  SettingsSwitchTile(
+                    title: l.matchFrameRate,
+                    subtitle: l.matchFrameRateHint,
+                    value: s.matchFrameRate,
+                    onChanged: (v) => _set(() => s.matchFrameRate = v),
+                  ),
+                if (ownPlayerAvailable && s.ownPlayer)
+                  SettingsSwitchTile(
+                    title: l.preloadNeighbours,
+                    subtitle: l.preloadNeighboursHint,
+                    value: s.preloadNeighbours,
+                    onChanged: (v) => _set(() => s.preloadNeighbours = v),
+                  ),
                 SettingsSwitchTile(
                   title: l.mergeVersions,
                   subtitle: l.mergeVersionsHint,
                   value: s.mergeVersions,
                   onChanged: (v) => _set(() => s.mergeVersions = v),
                 ),
+                if (s.mergeVersions && _state.sources.length > 1)
+                  SettingsSwitchTile(
+                    title: l.mergeSources,
+                    subtitle: l.mergeSourcesHint,
+                    value: s.mergeSources,
+                    onChanged: (v) => _set(() => s.mergeSources = v),
+                  ),
                 if (s.mergeVersions)
                   SettingsTile(
                     title: l.preferredQuality,
@@ -399,38 +437,54 @@ class SourceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // While it syncs only the progress line changes, several times a
+    // second: it alone redraws, without the coverage queries.
+    if (state.syncingSourceId == source.id) {
+      return ValueListenableBuilder(
+        valueListenable: state.syncProgress,
+        builder: (context, progress, _) => _tile(
+          context,
+          color: ZaplineColors.focus,
+          subtitle: context.l10n.syncingProgress('${progress ?? ''}'),
+        ),
+      );
+    }
     final l = context.l10n;
     final cov = state.coverage(source.id);
     final status = state.guideStatus(source.id);
-    final syncing = state.syncingSourceId == source.id;
+    final failed = state.syncFailure(source.id);
     final healthy =
+        failed == null &&
         cov.channels > 0 &&
         cov.ratio >= 0.8 &&
         (status == null || status.errors.isEmpty);
-    return SettingsTile(
-      autofocus: autofocus,
-      leading: Container(
-        width: 10,
-        height: 10,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: syncing
-              ? ZaplineColors.focus
-              : healthy
-              ? ZaplineColors.ok
-              : ZaplineColors.live,
-        ),
-      ),
-      title: source.name,
-      subtitle: syncing
-          ? l.syncingProgress('${state.progress ?? ''}')
+    return _tile(
+      context,
+      color: healthy ? ZaplineColors.ok : ZaplineColors.live,
+      subtitle: failed != null
+          ? l.lastUpdateFailed(friendlyError(l, failed))
           : '${l.channelCount(cov.channels)} · '
                 '${l.guidePercent((cov.ratio * 100).round())}',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => SourceDetailScreen(state: state, sourceId: source.id),
-        ),
-      ),
     );
   }
+
+  Widget _tile(
+    BuildContext context, {
+    required Color color,
+    required String subtitle,
+  }) => SettingsTile(
+    autofocus: autofocus,
+    leading: Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    ),
+    title: source.name,
+    subtitle: subtitle,
+    onTap: () => Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SourceDetailScreen(state: state, sourceId: source.id),
+      ),
+    ),
+  );
 }

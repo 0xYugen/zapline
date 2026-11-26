@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../countries.dart';
 import '../l10n.dart';
 import '../theme.dart';
 import '../vod/vod_browse.dart';
@@ -16,6 +19,7 @@ import 'guide_screen.dart';
 import 'player_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
+import '../layout.dart';
 
 /// The TV and desktop home: a side menu, the groups (shown when moving left)
 /// and the channels with their guide in one grid, as TV apps do.
@@ -57,12 +61,20 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   final _menuFirst = FocusNode(debugLabel: 'menu');
   final _groupNodes = <String?, FocusNode>{};
 
-  (String?, int)? _cacheKey;
-  List<Channel> _cache = const [];
+  (String?, int, int)? _cacheKey;
+  List<Channel>? _cache;
+
+  /// The grid was asked for while its channels were still loading: it
+  /// takes focus once they are here.
+  bool _wantGrid = false;
+
+  /// The channel to reopen at startup, once all channels have loaded.
+  Channel? _resume;
 
   @override
   void initState() {
     super.initState();
+    widget.state.lastPlayed.addListener(_backFromPlayer);
     // `autofocus` is ignored when the previous screen still held focus while
     // this one was built, so request it explicitly after the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -82,15 +94,39 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       if (widget.autoplayFirst && _visible.isNotEmpty) {
         _play(_visible, 0);
       } else if (widget.state.resumeChannel case final last?) {
-        final all = widget.state.channels();
-        final i = widget.state.indexOfChannel(all, last);
-        if (i >= 0) _play(all, i);
+        _resume = last;
+        _resumeWhenLoaded();
       }
+    });
+  }
+
+  /// Opens [_resume] in the list of all channels, as soon as it is loaded
+  /// (off screen, for a large playlist).
+  void _resumeWhenLoaded() {
+    final last = _resume;
+    if (last == null) return;
+    final all = widget.state.channelsReady(null);
+    if (all == null) return;
+    _resume = null;
+    final i = widget.state.indexOfChannel(all, last);
+    if (i >= 0) _play(all, i);
+  }
+
+  /// Back from the player: the grid shows the channel zapped to.
+  void _backFromPlayer() {
+    final c = widget.state.lastPlayed.value;
+    if (c == null || !mounted) return;
+    // Recent channels have changed; rebuild before focusing.
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _area == _Area.grid) _grid.currentState?.focusChannel(c);
     });
   }
 
   @override
   void dispose() {
+    widget.state.lastPlayed.removeListener(_backFromPlayer);
+    _previewTimer?.cancel();
     _menuFirst.dispose();
     for (final n in _groupNodes.values) {
       n.dispose();
@@ -101,15 +137,31 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   FocusNode _groupNode(String? g) =>
       _groupNodes.putIfAbsent(g, () => FocusNode(debugLabel: 'group $g'));
 
-  List<Channel> get _visible {
-    final key = (_group, widget.state.version);
+  /// The channels of the group on screen; while a large list loads, the
+  /// one shown before stays, and none at the very start.
+  List<Channel> get _visible => _loaded ?? const [];
+
+  List<Channel>? get _loaded {
+    final state = widget.state;
+    // Favourites and recents change without the channels changing.
+    final key = (
+      _group,
+      state.version,
+      switch (_group) {
+        _favourites => state.favouritesVersion,
+        _recent => state.recentsVersion,
+        _ => 0,
+      },
+    );
     if (key != _cacheKey) {
-      _cacheKey = key;
-      _cache = switch (_group) {
-        _favourites => widget.state.favourites(),
-        _recent => widget.state.recents(),
-        final g => widget.state.channels(group: g),
+      final list = switch (_group) {
+        _favourites => state.favourites(),
+        _recent => state.recents(),
+        final g => state.channelsReady(g),
       };
+      if (list == null) return _cache;
+      _cacheKey = key;
+      _cache = list;
     }
     return _cache;
   }
@@ -129,6 +181,14 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   }
 
   void _toGrid() {
+    if (!_locked && _loaded == null) {
+      // Still loading: the grid takes focus when its channels arrive.
+      setState(() {
+        _area = _Area.grid;
+        _wantGrid = true;
+      });
+      return;
+    }
     if (_locked || _visible.isEmpty) {
       _toGroups();
       return;
@@ -157,7 +217,20 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
 
   /// Select on a group: enter its channels, asking for the PIN first when
   /// it is locked.
+  /// Moving over a group previews it once focus rests there: holding a
+  /// key through the groups doesn't load each one's channels and guide.
+  void _preview(String? g) {
+    _previewTimer?.cancel();
+    _previewTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted && _group != g) setState(() => _group = g);
+    });
+  }
+
+  Timer? _previewTimer;
+
   Future<void> _enterGroup(String? g) async {
+    _previewTimer?.cancel();
+    if (_group != g) setState(() => _group = g);
     final state = widget.state;
     if (g != null && state.isLocked(g)) {
       if (!await unlockWithPin(context, state) || !mounted) return;
@@ -240,7 +313,17 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       ...state.groups,
     ];
     if (!groups.contains(_group)) _group = null;
-    final visible = _visible;
+    final loaded = _loaded;
+    final visible = loaded ?? const <Channel>[];
+    if (loaded != null && (_wantGrid || _resume != null)) {
+      final focusGrid = _wantGrid;
+      _wantGrid = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (focusGrid) _toGrid();
+        _resumeWhenLoaded();
+      });
+    }
     final wide = _area == _Area.menu;
     final showGroups = _area != _Area.grid;
 
@@ -251,6 +334,11 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
               icon: Icons.lock_outline_rounded,
               title: l.groupLocked,
               subtitle: l.pressOkForPin,
+            )
+          : loaded == null
+          // A large playlist's first load, off screen.
+          ? const Center(
+              child: CircularProgressIndicator(color: ZaplineColors.focus),
             )
           : visible.isEmpty && state.isSyncing
           // A playlist just added or received: say it is on its way.
@@ -277,7 +365,10 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    SyncSteps(state.progress),
+                    ValueListenableBuilder(
+                      valueListenable: state.syncProgress,
+                      builder: (context, progress, _) => SyncSteps(progress),
+                    ),
                     const LinearProgressIndicator(
                       color: ZaplineColors.focus,
                       backgroundColor: ZaplineColors.line,
@@ -302,180 +393,186 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     );
 
     // Back goes up a level, grid → groups → menu, before leaving the app.
-    return PopScope(
-      canPop: _area == _Area.menu,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        _area == _Area.grid ? _toGroups() : _toMenu();
+    // The remote's search key (or Ctrl+F) opens search from anywhere here.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.browserSearch): _search,
+        const SingleActivator(LogicalKeyboardKey.find): _search,
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true): _search,
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true): _search,
       },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            // The grid keeps its room; menu and groups open over it.
-            Positioned.fill(left: _SideMenu.narrowWidth, child: grid),
-            // Refreshing a playlist that already has channels.
-            if (state.isSyncing && visible.isNotEmpty)
-              Positioned(
-                top: 18,
-                right: 28,
+      child: PopScope(
+        canPop: _area == _Area.menu,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          // In the grid, Back first returns to what's on now.
+          final grid = _grid.currentState;
+          if (_area == _Area.grid && grid != null && !grid.atNow) {
+            grid.focusNow();
+          } else {
+            _area == _Area.grid ? _toGroups() : _toMenu();
+          }
+        },
+        child: Scaffold(
+          body: Stack(
+            children: [
+              // The grid keeps its room; menu and groups open over it.
+              Positioned.fill(left: _SideMenu.narrowWidth, child: grid),
+              // Refreshing a playlist that already has channels, or one that
+              // couldn't be refreshed (an expired subscription, a moved
+              // server): said here, details in Settings.
+              if (state.isSyncing && visible.isNotEmpty)
+                _Badge(
+                  leading: const SizedBox.square(
+                    dimension: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  text: l.updatingList,
+                )
+              else if (state.sources
+                      .where((s) => state.syncFailure(s.id) != null)
+                      .firstOrNull
+                  case final failed?)
+                _Badge(
+                  leading: const Icon(
+                    Icons.error_outline_rounded,
+                    size: 16,
+                    color: ZaplineColors.live,
+                  ),
+                  text: l.sourceUpdateFailedNamed(failed.name),
+                ),
+              // Dims the grid while the menu or the groups are open; a click on
+              // it goes back to the grid.
+              Positioned.fill(
+                left: _SideMenu.narrowWidth,
                 child: IgnorePointer(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: ZaplineColors.surfaceHigh,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox.square(
-                          dimension: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          l.updatingList,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                  ignoring: _area == _Area.grid,
+                  child: GestureDetector(
+                    onTap: _toGrid,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 180),
+                      opacity: _area == _Area.grid ? 0 : 1,
+                      child: const ColoredBox(color: Color(0xA6000000)),
                     ),
                   ),
                 ),
               ),
-            // Dims the grid while the menu or the groups are open; a click on
-            // it goes back to the grid.
-            Positioned.fill(
-              left: _SideMenu.narrowWidth,
-              child: IgnorePointer(
-                ignoring: _area == _Area.grid,
-                child: GestureDetector(
-                  onTap: _toGrid,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 180),
-                    opacity: _area == _Area.grid ? 0 : 1,
-                    child: const ColoredBox(color: Color(0xA6000000)),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _part(
-                    _Area.menu,
-                    right: _toGroups,
-                    _SideMenu(
-                      wide: wide,
-                      syncing: state.isSyncing,
-                      items: [
-                        _MenuEntry(
-                          focusNode: _menuFirst,
-                          icon: Icons.live_tv_rounded,
-                          label: l.liveTv,
-                          selected: _group != _favourites,
-                          onPressed: () {
-                            if (_group == _favourites) {
-                              setState(() => _group = null);
-                            }
-                            _toGrid();
-                          },
-                        ),
-                        _MenuEntry(
-                          icon: Icons.star_outline_rounded,
-                          label: l.favourites,
-                          selected: _group == _favourites,
-                          onPressed: () {
-                            setState(() => _group = _favourites);
-                            _toGrid();
-                          },
-                        ),
-                        if (state.hasMovies)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _part(
+                      _Area.menu,
+                      right: _toGroups,
+                      _SideMenu(
+                        wide: wide,
+                        syncing: state.isSyncing,
+                        items: [
                           _MenuEntry(
-                            icon: Icons.movie_outlined,
-                            label: l.movies,
-                            onPressed: () => _open(
-                              VodScreen(state: state, kind: VodKind.movies),
-                            ),
+                            focusNode: _menuFirst,
+                            icon: Icons.live_tv_rounded,
+                            label: l.liveTv,
+                            selected: _group != _favourites,
+                            onPressed: () {
+                              if (_group == _favourites) {
+                                setState(() => _group = null);
+                              }
+                              _toGrid();
+                            },
                           ),
-                        if (state.hasShows)
                           _MenuEntry(
-                            icon: Icons.video_library_outlined,
-                            label: l.series,
-                            onPressed: () => _open(
-                              VodScreen(state: state, kind: VodKind.shows),
-                            ),
+                            icon: Icons.star_outline_rounded,
+                            label: l.favourites,
+                            selected: _group == _favourites,
+                            onPressed: () {
+                              setState(() => _group = _favourites);
+                              _toGrid();
+                            },
                           ),
-                        // From live TV: channels and the guide; films and series have their own
-                        // search.
-                        _MenuEntry(
-                          icon: Icons.search,
-                          label: l.search,
-                          onPressed: () => _open(SearchScreen(state: state)),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.settings_outlined,
-                          label: l.settings,
-                          dot: state.update != null,
-                          onPressed: () => _open(SettingsScreen(state: state)),
-                        ),
-                      ],
+                          if (state.hasMovies)
+                            _MenuEntry(
+                              icon: Icons.movie_outlined,
+                              label: l.movies,
+                              onPressed: () => _open(
+                                VodScreen(state: state, kind: VodKind.movies),
+                              ),
+                            ),
+                          if (state.hasShows)
+                            _MenuEntry(
+                              icon: Icons.video_library_outlined,
+                              label: l.series,
+                              onPressed: () => _open(
+                                VodScreen(state: state, kind: VodKind.shows),
+                              ),
+                            ),
+                          // From live TV: channels and the guide; films and series have their own
+                          // search.
+                          _MenuEntry(
+                            icon: Icons.search,
+                            label: l.search,
+                            onPressed: () => _open(SearchScreen(state: state)),
+                          ),
+                          _MenuEntry(
+                            icon: Icons.settings_outlined,
+                            label: l.settings,
+                            dot: state.update != null,
+                            onPressed: () =>
+                                _open(SettingsScreen(state: state)),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  // The groups slide in when moving left from the grid.
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    width: showGroups ? 270 : 0,
-                    color: ZaplineColors.surface,
-                    child: ClipRect(
-                      child: OverflowBox(
-                        alignment: Alignment.topLeft,
-                        minWidth: 270,
-                        maxWidth: 270,
-                        child: ExcludeFocus(
-                          excluding: !showGroups,
-                          child: _part(
-                            _Area.groups,
-                            left: _toMenu,
-                            right: _toGrid,
-                            _Groups(
-                              title: l.groups,
-                              groups: groups,
-                              selected: _group,
-                              nameOf: _groupName,
-                              nodeOf: _groupNode,
-                              locked: (g) =>
-                                  g != null && state.lockedGroups.contains(g)
-                                  ? state.isLocked(g)
-                                  : null,
-                              // Moving over a group previews it, like most TV
-                              // apps; Select jumps into the grid.
-                              onFocused: (g) => setState(() => _group = g),
-                              onPressed: _enterGroup,
+                    // The groups slide in when moving left from the grid.
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      width: showGroups ? 270 : 0,
+                      color: ZaplineColors.surface,
+                      child: ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topLeft,
+                          minWidth: 270,
+                          maxWidth: 270,
+                          child: ExcludeFocus(
+                            excluding: !showGroups,
+                            child: _part(
+                              _Area.groups,
+                              left: _toMenu,
+                              right: _toGrid,
+                              _Groups(
+                                title: l.groups,
+                                groups: groups,
+                                selected: _group,
+                                nameOf: _groupName,
+                                nodeOf: _groupNode,
+                                locked: (g) =>
+                                    g != null && state.lockedGroups.contains(g)
+                                    ? state.isLocked(g)
+                                    : null,
+                                // Moving over a group previews it, like most TV
+                                // apps; Select jumps into the grid.
+                                onFocused: _preview,
+                                onPressed: _enterGroup,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  void _search() => _open(SearchScreen(state: widget.state));
 }
 
 /// The menu down the left: icons, opening to show their names while it
@@ -524,7 +621,14 @@ class _SideMenu extends StatelessWidget {
                   else
                     const ZaplineMark(size: 38),
                   const SizedBox(width: 14),
-                  const ZaplineWordmark(height: 22),
+                  // The name is a picture of text: it stays its size.
+                  const Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: ZaplineWordmark(height: 22),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -619,7 +723,10 @@ class _MenuEntry extends StatelessWidget {
   }
 }
 
-class _Groups extends StatelessWidget {
+/// The groups, opened beside the grid. Long lists are quick to cross:
+/// Page Up/Down, Channel +/- and fast-forward/rewind move a screen, and a
+/// keyboard's letters go to the next group starting with that letter.
+class _Groups extends StatefulWidget {
   const _Groups({
     required this.title,
     required this.groups,
@@ -643,13 +750,103 @@ class _Groups extends StatelessWidget {
   final ValueChanged<String?> onPressed;
 
   @override
+  State<_Groups> createState() => _GroupsState();
+}
+
+class _GroupsState extends State<_Groups> {
+  static const _rowHeight = 52.0;
+  static final _letter = RegExp('[A-Za-z0-9]');
+
+  /// A row, taller with large system text.
+  double get _row => scaledExtent(context, _rowHeight);
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  int get _focused {
+    final i = widget.groups.indexWhere((g) => widget.nodeOf(g).hasFocus);
+    return i < 0 ? widget.groups.indexOf(widget.selected) : i;
+  }
+
+  /// Focuses group [i], bringing it on screen first: rows off screen are
+  /// not built, so their cards can't take focus yet.
+  void _focus(int i) {
+    final g = widget.groups[i];
+    final node = widget.nodeOf(g);
+    if (node.context?.mounted ?? false) {
+      node.requestFocus();
+      return;
+    }
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    pos.jumpTo(
+      (i * _row - pos.viewportDimension / 3).clamp(0.0, pos.maxScrollExtent),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.nodeOf(g).requestFocus();
+    });
+  }
+
+  int get _page {
+    final h = _scroll.hasClients ? _scroll.position.viewportDimension : 0.0;
+    return h <= 0 ? 8 : (h / _row).floor().clamp(2, 40) - 1;
+  }
+
+  KeyEventResult _onKey(FocusNode _, KeyEvent e) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final n = widget.groups.length;
+    if (n == 0) return KeyEventResult.ignored;
+    final at = _focused.clamp(0, n - 1);
+    final k = e.logicalKey;
+    int? to;
+    if (k == LogicalKeyboardKey.pageDown ||
+        k == LogicalKeyboardKey.channelDown ||
+        k == LogicalKeyboardKey.mediaFastForward) {
+      to = (at + _page).clamp(0, n - 1);
+    } else if (k == LogicalKeyboardKey.pageUp ||
+        k == LogicalKeyboardKey.channelUp ||
+        k == LogicalKeyboardKey.mediaRewind) {
+      to = (at - _page).clamp(0, n - 1);
+    } else if (k == LogicalKeyboardKey.home) {
+      to = 0;
+    } else if (k == LogicalKeyboardKey.end) {
+      to = n - 1;
+    } else if (e is KeyDownEvent &&
+        k.keyLabel.length == 1 &&
+        _letter.hasMatch(k.keyLabel)) {
+      // The next group after this one that starts with the letter, past a
+      // country tag ("IT | Sport" counts as S).
+      final letter = k.keyLabel.toLowerCase();
+      for (var step = 1; step <= n; step++) {
+        final i = (at + step) % n;
+        final name = withoutCountryTag(widget.nameOf(widget.groups[i]));
+        if (name.toLowerCase().startsWith(letter)) {
+          to = i;
+          break;
+        }
+      }
+      if (to == null) return KeyEventResult.ignored;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    if (to != at) _focus(to);
+    return KeyEventResult.handled;
+  }
+
+  @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(28, 32, 20, 14),
         child: Text(
-          title.toUpperCase(),
+          widget.title.toUpperCase(),
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w800,
@@ -659,61 +856,99 @@ class _Groups extends StatelessWidget {
         ),
       ),
       Expanded(
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
-          itemCount: groups.length,
-          itemBuilder: (context, i) {
-            final g = groups[i];
-            final lock = locked(g);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: FocusCard(
-                focusNode: nodeOf(g),
-                selected: g == selected,
-                radius: 12,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 11,
-                ),
-                onFocused: () => onFocused(g),
-                onPressed: () => onPressed(g),
-                child: Row(
-                  children: [
-                    if (switch (g) {
-                          _favourites => Icons.star_rounded,
-                          _recent => Icons.history_rounded,
-                          _ => null,
-                        }
-                        case final icon?) ...[
-                      Icon(icon, size: 20),
-                      const SizedBox(width: 10),
-                    ],
-                    Expanded(
-                      child: Text(
-                        nameOf(g),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: _onKey,
+          child: ListView.builder(
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+            itemCount: widget.groups.length,
+            itemExtent: _row,
+            itemBuilder: (context, i) {
+              final g = widget.groups[i];
+              final lock = widget.locked(g);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: FocusCard(
+                  focusNode: widget.nodeOf(g),
+                  selected: g == widget.selected,
+                  radius: 12,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  onFocused: () => widget.onFocused(g),
+                  onPressed: () => widget.onPressed(g),
+                  child: Row(
+                    children: [
+                      if (switch (g) {
+                            _favourites => Icons.star_rounded,
+                            _recent => Icons.history_rounded,
+                            _ => null,
+                          }
+                          case final icon?) ...[
+                        Icon(icon, size: 20),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Text(
+                          widget.nameOf(g),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                    if (lock != null)
-                      Icon(
-                        lock
-                            ? Icons.lock_outline_rounded
-                            : Icons.lock_open_rounded,
-                        size: 18,
-                      ),
-                  ],
+                      if (lock != null)
+                        Icon(
+                          lock
+                              ? Icons.lock_outline_rounded
+                              : Icons.lock_open_rounded,
+                          size: 18,
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     ],
+  );
+}
+
+/// A small note at the top right of the home, out of the remote's way.
+class _Badge extends StatelessWidget {
+  const _Badge({required this.leading, required this.text});
+
+  final Widget leading;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Positioned(
+    top: 18,
+    right: 28,
+    child: IgnorePointer(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: ZaplineColors.surfaceHigh,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            leading,
+            const SizedBox(width: 10),
+            Text(
+              text,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 

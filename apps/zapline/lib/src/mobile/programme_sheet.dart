@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../input_mode.dart';
 import '../l10n.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
@@ -219,9 +220,11 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              for (final (icon, label, onTap, primary) in actions)
+              for (final (i, (icon, label, onTap, primary)) in actions.indexed)
                 primary
                     ? FilledButton.icon(
+                        // A remote needs a starting point; touch doesn't.
+                        autofocus: i == 0 && !InputMode.instance.touch,
                         onPressed: onTap,
                         icon: Icon(icon),
                         label: Text(label),
@@ -233,23 +236,31 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
-                        ),
+                        ).copyWith(side: focusRing),
                       )
                     : OutlinedButton.icon(
                         onPressed: onTap,
                         icon: Icon(icon),
                         label: Text(label),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 52),
-                          foregroundColor: ZaplineColors.text,
-                          side: const BorderSide(color: ZaplineColors.line),
-                          padding: const EdgeInsets.symmetric(horizontal: 18),
-                          textStyle: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        style:
+                            OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 52),
+                              foregroundColor: ZaplineColors.text,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                              ),
+                              textStyle: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ).copyWith(
+                              side: WidgetStateProperty.resolveWith(
+                                (states) =>
+                                    focusRing.resolve(states) ??
+                                    const BorderSide(color: ZaplineColors.line),
+                              ),
+                            ),
                       ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import 'media3_engine.dart';
 import 'mpv_engine.dart';
 import 'native_engine.dart';
 
@@ -8,7 +9,8 @@ import 'native_engine.dart';
 /// platform can use the engine that works best there:
 ///
 /// * Android, Android TV, Fire OS and web: [NativeEngine] (Media3/ExoPlayer
-///   on Android, the browser's video element on web).
+///   on Android, the browser's video element on web), or on Android
+///   [Media3Engine], Zapline's own player, when chosen in Settings.
 /// * Windows, macOS, Linux and iOS: [MpvEngine] (libmpv), which also plays
 ///   raw MPEG-TS that AVPlayer cannot.
 abstract class PlaybackEngine {
@@ -39,6 +41,20 @@ abstract class PlaybackEngine {
 
   bool get isPlaying;
 
+  /// Whether the stream playing shows a picture: false while only its
+  /// sound plays (a black screen: a video the device can't decode, or a
+  /// radio channel). Engines that can't tell say true.
+  bool get hasPicture;
+
+  /// Whether the stream plays neither sound nor picture the device can
+  /// decode: as good as failed. Engines that can't tell say false.
+  bool get playsNothing;
+
+  /// Whether the stream playing has sound the device plays: false when
+  /// its audio can't be decoded (a picture without voice); null when the
+  /// engine can't tell or doesn't know yet.
+  Future<bool?> hasSound();
+
   Future<void> play();
 
   Future<void> pause();
@@ -47,6 +63,10 @@ abstract class PlaybackEngine {
 
   /// Human-readable playback errors.
   Stream<String> get errors;
+
+  /// `true` while the stream stalls to fill its buffer, `false` once the
+  /// picture moves again.
+  Stream<bool> get buffering;
 
   /// The video surface, scaled to the screen as [fit] says. Rebuilds
   /// itself when the stream changes.
@@ -63,6 +83,15 @@ abstract class PlaybackEngine {
 
   /// `null` turns subtitles off.
   Future<void> selectSubtitleTrack(String? id);
+
+  /// Playback volume, 0 (silent) to 1 (full), kept across streams.
+  Future<void> setVolume(double volume);
+
+  /// Loads the first seconds of [next] (their place in the list being
+  /// zapped, their address) so a zap to one shows at once; [current] is
+  /// the place of what plays. An empty list lets them go. Engines that
+  /// can't preload ignore it.
+  Future<void> preload(int current, List<(int, Uri)> next) async {}
 }
 
 /// An audio or subtitle track as the player shows it.
@@ -85,11 +114,24 @@ class MediaTrack {
 /// Tests and screenshots substitute a fake engine here.
 PlaybackEngine Function()? debugEngineFactory;
 
-PlaybackEngine createDefaultEngine() {
+/// The engine for this platform; on Android Zapline's own player when
+/// [ownPlayer] is set (Settings).
+PlaybackEngine createDefaultEngine({
+  bool ownPlayer = false,
+  bool background = false,
+  bool matchFrameRate = false,
+}) {
   if (debugEngineFactory case final make?) return make();
   if (kIsWeb) return NativeEngine();
   return switch (defaultTargetPlatform) {
-    TargetPlatform.android => NativeEngine(),
+    TargetPlatform.android =>
+      ownPlayer
+          ? Media3Engine(background: background, matchFrameRate: matchFrameRate)
+          : NativeEngine(),
     _ => MpvEngine(),
   };
 }
+
+/// Whether Settings offers Zapline's own player (Android only).
+bool get ownPlayerAvailable =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;

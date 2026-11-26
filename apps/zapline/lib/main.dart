@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'src/app_state.dart';
 import 'src/cast/cast_link.dart';
+import 'src/desktop_window.dart';
 import 'src/vod/vod_detail_screens.dart';
 import 'src/keep_awake.dart';
 import 'src/input_mode.dart';
@@ -26,6 +27,7 @@ import 'src/screens/settings_screen.dart';
 import 'src/theme.dart';
 import 'src/updates.dart';
 import 'src/widgets/channel_logo.dart';
+import 'src/widgets/focus_card.dart';
 
 /// Development only: add this source at startup when none exists, e.g.
 /// `--dart-define=ZAPLINE_DEV_SOURCE=http://localhost:8099/live/demo/demo/1.ts`
@@ -47,6 +49,7 @@ Future<void> main() async {
   // libmpv is bundled only where MpvEngine is the default (desktop, iOS).
   if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
     MediaKit.ensureInitialized();
+    await DesktopWindow.init();
   }
   // Bounded image memory: logo-heavy lists on 1-2 GB TV sticks.
   PaintingBinding.instance.imageCache
@@ -55,7 +58,12 @@ Future<void> main() async {
   await LogoCache.init(await getApplicationCacheDirectory());
   final dir = await getApplicationSupportDirectory();
   final dbPath = '${dir.path}${Platform.pathSeparator}zapline.db';
-  final db = ZaplineDatabase.open(dbPath);
+  final db = ZaplineDatabase.open(
+    dbPath,
+    // The screen's connection waits little for a sync's write slice
+    // (about 200 ms); small writes retry later instead (writeSoon).
+    busyTimeoutMs: 300,
+  );
   late final AppState state;
   state = AppState(
     db,
@@ -67,6 +75,7 @@ Future<void> main() async {
     guideFetcher: ChannelGuideFetcher(db),
     vod: VodCatalog(db),
     updater: updatesSupported ? Updater() : null,
+    background: isolateDatabaseRunner(dbPath),
   );
   // Show the UI at once; the keystore can take seconds on first use and
   // passwords are only needed when syncing (which waits for them).
@@ -88,7 +97,8 @@ Future<void> main() async {
     // programmes left doubled by the daylight saving change go away.
     final cleanup = state.db.setting('guideReplaceFix5') == null;
     if (cleanup) state.db.setSetting('guideReplaceFix5', '1');
-    state.refreshStale(maxAge: cleanup ? Duration.zero : null);
+    // Not at once: the home and the last channel open first.
+    state.startAutoRefresh(all: cleanup);
   }
 }
 
@@ -149,20 +159,116 @@ class _ZaplineAppState extends State<ZaplineApp>
     if (state.settings.updateAnnounced >= update.build) return;
     state.settings.updateAnnounced = update.build;
     final l = AppLocalizations.of(context);
-    _messenger.currentState?.showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 10),
-        content: Text(l.updateAnnounce),
-        action: SnackBarAction(
-          label: l.updateNow,
-          onPressed: () => _navigator.currentState?.push(
-            MaterialPageRoute<void>(
-              builder: (_) => SettingsScreen(state: state),
-            ),
-          ),
-        ),
+    _notify(
+      message: l.updateAnnounce,
+      action: l.updateNow,
+      duration: const Duration(seconds: 10),
+      onAction: () => _navigator.currentState?.push(
+        MaterialPageRoute<void>(builder: (_) => SettingsScreen(state: state)),
       ),
     );
+  }
+
+  /// A message with one action. Touch and mouse get a snack bar; on a
+  /// remote a snack bar's button can't be reached, so a small dialog takes
+  /// focus instead: OK acts, Back dismisses, and it goes away by itself.
+  void _notify({
+    required String message,
+    required String action,
+    required Duration duration,
+    VoidCallback? onAction,
+  }) {
+    final context = _navigator.currentContext;
+    if (context == null) return;
+    if (onAction == null || InputMode.instance.touch || context.isPhone) {
+      _messenger.currentState?.showSnackBar(
+        SnackBar(
+          duration: duration,
+          content: Text(message),
+          action: onAction == null
+              ? null
+              : SnackBarAction(label: action, onPressed: onAction),
+        ),
+      );
+      return;
+    }
+    final l = AppLocalizations.of(context);
+    var open = true;
+    final navigator = _navigator.currentState!;
+    final timer = Timer(duration, () {
+      if (open) navigator.pop();
+    });
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black38,
+      builder: (dialog) {
+        Widget button(
+          String label,
+          IconData icon,
+          VoidCallback onPressed, {
+          bool autofocus = false,
+        }) => Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: FocusCard(
+            autofocus: autofocus,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            onPressed: onPressed,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        );
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Material(
+              color: ZaplineColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(18),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    button(action, Icons.play_arrow_rounded, () {
+                      Navigator.of(dialog).pop();
+                      onAction();
+                    }, autofocus: true),
+                    button(
+                      l.dismiss,
+                      Icons.close_rounded,
+                      () => Navigator.of(dialog).pop(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      open = false;
+      timer.cancel();
+    });
   }
 
   @override
@@ -330,6 +436,7 @@ class _ZaplineAppState extends State<ZaplineApp>
     if (state == AppLifecycleState.resumed) {
       keepScreenAwake(widget.state.settings.keepScreenOn);
       _checkForUpdate();
+      widget.state.maybeRefresh();
     }
   }
 
@@ -342,29 +449,32 @@ class _ZaplineAppState extends State<ZaplineApp>
       DateTime.now().toUtc(),
     )) {
       final l = AppLocalizations.of(context);
-      _messenger.currentState?.showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 20),
-          content: Text(l.reminderNow(reminder.title, channel?.name ?? '')),
-          action: channel == null
-              ? null
-              : SnackBarAction(
-                  label: l.watch,
-                  onPressed: () {
-                    final all = widget.state.channels();
-                    final i = widget.state.indexOfChannel(all, channel);
-                    _navigator.currentState?.push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PlayerScreen(
-                          state: widget.state,
-                          channels: i < 0 ? [channel] : all,
-                          initialIndex: i < 0 ? 0 : i,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+      _notify(
+        duration: const Duration(seconds: 20),
+        message: l.reminderNow(
+          reminder.title,
+          channel == null ? '' : widget.state.displayName(channel),
         ),
+        action: l.watch,
+        onAction: channel == null
+            ? null
+            : () {
+                final all = widget.state.channels();
+                final i = widget.state.indexOfChannel(all, channel);
+                // In place of any player open: two would hold two decoders
+                // and two connections.
+                _navigator.currentState
+                  ?..popUntil((r) => r.isFirst)
+                  ..push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PlayerScreen(
+                        state: widget.state,
+                        channels: i < 0 ? [channel] : all,
+                        initialIndex: i < 0 ? 0 : i,
+                      ),
+                    ),
+                  );
+              },
       );
     }
   }
@@ -466,22 +576,55 @@ class _ZaplineAppState extends State<ZaplineApp>
           ),
         ),
       ),
-      home: ListenableBuilder(
-        listenable: state,
-        builder: (context, _) {
-          if (state.isEmpty) {
-            return context.isPhone
-                ? WelcomeScreen(state: state)
-                : AddSourceScreen(state: state);
-          }
-          if (context.isPhone) return MobileHome(state: state);
-          return ChannelsScreen(
-            state: state,
-            autoplayFirst: widget.autoplayFirst,
-          );
-        },
-      ),
+      home: _Home(state: state, autoplayFirst: widget.autoplayFirst),
     );
+  }
+}
+
+/// The first screen: adding a source until there is one, then the home.
+/// Follows only whether there are sources, not every change of the state;
+/// the screens below listen for what they show themselves.
+class _Home extends StatefulWidget {
+  const _Home({required this.state, required this.autoplayFirst});
+
+  final AppState state;
+  final bool autoplayFirst;
+
+  @override
+  State<_Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<_Home> {
+  late bool _empty = widget.state.isEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.state.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (widget.state.isEmpty != _empty) {
+      setState(() => _empty = widget.state.isEmpty);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    if (_empty) {
+      return context.isPhone
+          ? WelcomeScreen(state: state)
+          : AddSourceScreen(state: state);
+    }
+    if (context.isPhone) return MobileHome(state: state);
+    return ChannelsScreen(state: state, autoplayFirst: widget.autoplayFirst);
   }
 }
 
@@ -514,9 +657,14 @@ class _PointerBackButton extends StatelessWidget {
                 iconSize: 28,
                 color: ZaplineColors.text,
                 onPressed: onPressed,
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_rounded,
-                  semanticLabel: 'Back',
+                  semanticLabel:
+                      Localizations.of<AppLocalizations>(
+                        context,
+                        AppLocalizations,
+                      )?.back ??
+                      'Back',
                 ),
               ),
             ),

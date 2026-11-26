@@ -3,6 +3,7 @@ import 'dart:io';
 import 'pin_server.dart';
 import 'setup_receiver.dart';
 import 'transfer_crypto.dart';
+import 'web_text.dart';
 
 /// Serves backup download and restore to a phone or PC browser over the
 /// LAN while the backup screen is open.
@@ -70,7 +71,7 @@ class BackupServer extends PinServer {
     switch ((req.method, req.uri.path)) {
       case ('GET', '/'):
         res.headers.contentType = ContentType.html;
-        res.write(_page(pin ?? ''));
+        res.write(_page(pin ?? '', WebText.of(req)));
       case ('GET', '/backup.json') when export != null:
         if (!checkPin(req, res)) return;
         final now = DateTime.now();
@@ -88,15 +89,15 @@ class BackupServer extends PinServer {
     }
   }
 
-  static String _page(String pin) {
+  static String _page(String pin, WebText t) {
     final safePin = pin.replaceAll(RegExp(r'[^0-9]'), '');
     return '''<!doctype html>
-<html lang="en">
+<html lang="${t.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Zapline · Backup and restore</title>
+<title>Zapline · ${t.backupTitle}</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -124,22 +125,21 @@ class BackupServer extends PinServer {
 <body>
 <main>
   <div class="brand">Zapline</div>
-  <h1>Backup and restore</h1>
-  <label id="pinrow" ${safePin.isEmpty ? '' : 'hidden'}>Code shown on the TV
+  <h1>${t.backupTitle}</h1>
+  <label id="pinrow" ${safePin.isEmpty ? '' : 'hidden'}>${t.codeOnTv}
     <input id="pin" inputmode="numeric" maxlength="4" value="$safePin">
   </label>
   <section>
-    <h2>Download a backup</h2>
-    <p>Your sources, favourites and guide fixes in one file.</p>
-    <p class="warn">The file contains your source passwords. Keep it
-    private.</p>
-    <a class="btn" id="dl" href="#">Download backup</a>
+    <h2>${t.downloadHeading}</h2>
+    <p>${t.downloadLead}</p>
+    <p class="warn">${t.downloadWarn}</p>
+    <a class="btn" id="dl" href="#">${t.downloadButton}</a>
   </section>
   <section>
-    <h2>Restore</h2>
-    <p>Pick a Zapline backup file. Sources already on the TV are kept.</p>
+    <h2>${t.restoreHeading}</h2>
+    <p>${t.restoreLead}</p>
     <input id="file" type="file" accept=".json,application/json">
-    <button class="btn" id="restore" type="button">Restore to TV</button>
+    <button class="btn" id="restore" type="button">${t.restoreButton}</button>
     <div id="status" role="status" aria-live="polite"></div>
   </section>
 </main>
@@ -152,8 +152,8 @@ class BackupServer extends PinServer {
   const s = document.getElementById('status');
   document.getElementById('restore').addEventListener('click', async () => {
     const f = document.getElementById('file').files[0];
-    if (!f) { s.className = 'err'; s.textContent = 'Choose a file first.'; return; }
-    s.className = ''; s.textContent = 'Restoring… the TV is downloading your sources.';
+    if (!f) { s.className = 'err'; s.textContent = ${WebText.js(t.chooseFile)}; return; }
+    s.className = ''; s.textContent = ${WebText.js(t.restoring)};
     try {
       const r = await fetch('/restore?pin=' + pin(), { method: 'POST', body: await f.text() });
       const j = await r.json();
@@ -161,7 +161,7 @@ class BackupServer extends PinServer {
       s.textContent = j.message;
     } catch (_) {
       s.className = 'err';
-      s.textContent = 'The TV did not answer. Is the backup screen still open?';
+      s.textContent = ${WebText.js(t.backupTvGone)};
     }
   });
 </script>

@@ -46,6 +46,18 @@ class MpvEngine implements PlaybackEngine {
   @override
   bool get isPlaying => _player.state.playing;
 
+  // libmpv decodes in software what the hardware can't: always a picture
+  // when there is video.
+  @override
+  bool get hasPicture => true;
+
+  @override
+  bool get playsNothing => false;
+
+  // libmpv decodes any sound in software.
+  @override
+  Future<bool?> hasSound() async => null;
+
   @override
   Future<void> play() => _player.play();
 
@@ -65,7 +77,27 @@ class MpvEngine implements PlaybackEngine {
   Stream<Duration> get position => _player.stream.position;
 
   @override
-  Stream<String> get errors => _player.stream.error;
+  Stream<String> get errors => _errors.stream;
+
+  /// mpv's errors, and a live stream (no length) reaching its end: the
+  /// server closed it, and the player should try again.
+  late final _errors = () {
+    final c = StreamController<String>.broadcast();
+    _player.stream.error.listen(c.add);
+    _player.stream.completed.listen((done) {
+      if (done && _player.state.duration == Duration.zero) {
+        c.add('Stream ended');
+      }
+    });
+    return c;
+  }();
+
+  /// Opens one stream at a time: nothing to preload.
+  @override
+  Future<void> preload(int current, List<(int, Uri)> next) async {}
+
+  @override
+  Stream<bool> get buffering => _player.stream.buffering;
 
   @override
   Widget buildView({BoxFit fit = BoxFit.contain}) =>
@@ -103,6 +135,10 @@ class MpvEngine implements PlaybackEngine {
           selected: _player.state.track.subtitle.id == t.id,
         ),
   ];
+
+  @override
+  Future<void> setVolume(double volume) =>
+      _player.setVolume((volume.clamp(0.0, 1.0)) * 100);
 
   @override
   Future<void> selectSubtitleTrack(String? id) async {

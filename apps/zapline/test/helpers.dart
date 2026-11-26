@@ -15,7 +15,9 @@ AppState fakeState({
   ChannelGuideFetcher? guideFetcher,
   bool vod = false,
   List<String>? names,
+  List<String?>? epgIds,
   List<String>? groups,
+  DatabaseRunner? background,
 }) {
   final db = database ?? ZaplineDatabase.inMemory();
   // An established user: the one-time TV hint has been seen.
@@ -24,6 +26,7 @@ AppState fakeState({
     db,
     secrets: secrets,
     guideFetcher: guideFetcher,
+    background: background,
     syncRunner: (source, onProgress) async {
       final channels = [
         for (var i = 1; i <= count; i++)
@@ -41,7 +44,11 @@ AppState fakeState({
                 : i.isEven
                 ? 'Even'
                 : 'Odd',
-            epgChannelId: unmatched.contains(i) ? null : 'g$i',
+            epgChannelId: epgIds != null && i <= epgIds.length
+                ? epgIds[i - 1]
+                : unmatched.contains(i)
+                ? null
+                : 'g$i',
             streamUrl: Uri.parse('http://x.example/live/u/p/$i.ts'),
             catchup: const CatchupInfo(mode: CatchupMode.xtream, days: 2),
           ),

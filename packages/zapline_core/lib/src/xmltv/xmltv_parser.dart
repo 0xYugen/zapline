@@ -43,7 +43,14 @@ final class XmltvProgramme extends XmltvItem {
 /// programmes outside the optional [from]/[to] window are dropped early.
 /// Decompress `.gz` files before handing the stream over.
 class XmltvParser {
-  const XmltvParser({this.from, this.to});
+  const XmltvParser({
+    this.from,
+    this.to,
+    this.onComplete,
+    this.wanted,
+    this.around,
+    this.aroundSpan = const Duration(hours: 12),
+  });
 
   /// Programmes ending before this instant are skipped.
   final DateTime? from;
@@ -51,31 +58,59 @@ class XmltvParser {
   /// Programmes starting after this instant are skipped.
   final DateTime? to;
 
+  /// Called when the document's closing `</tv>` has been read: the guide
+  /// arrived whole, not cut short somewhere.
+  final void Function()? onComplete;
+
+  /// Asked once per `<channel>`: whether its programmes are wanted. Free
+  /// guides list thousands of channels a user has a few hundred of; the
+  /// programmes of the others are skipped at their start tag, unless they
+  /// air within [aroundSpan] of [around] (what is on around now still
+  /// tells a guide's channels apart and lines guides up). Programmes of
+  /// channels the guide never announced are kept. `null` keeps everything.
+  final bool Function(XmltvChannel channel)? wanted;
+  final DateTime? around;
+  final Duration aroundSpan;
+
   Stream<XmltvItem> parseBytes(Stream<List<int>> bytes) =>
       // A stray byte that isn't UTF-8 (some free guides have a few) must
       // not lose the whole guide.
       parse(const Utf8Decoder(allowMalformed: true).bind(bytes));
 
   Stream<XmltvItem> parse(Stream<String> chunks) async* {
-    final b = _Builder();
+    final b = _Builder(from, to)
+      ..wanted = wanted
+      ..bandFrom = around?.subtract(aroundSpan)
+      ..bandTo = around?.add(aroundSpan);
+    var whole = false;
     await for (final events in chunks.toXmlEvents()) {
       for (final e in events) {
+        if (e is XmlEndElementEvent && e.name == 'tv') whole = true;
         final item = b.handle(e);
-        if (item != null && _inWindow(item)) yield item;
+        if (item != null) yield item;
       }
     }
-  }
-
-  bool _inWindow(XmltvItem item) {
-    if (item is! XmltvProgramme) return true;
-    final p = item.programme;
-    if (from != null && !p.stop.isAfter(from!)) return false;
-    if (to != null && p.start.isAfter(to!)) return false;
-    return true;
+    if (whole) onComplete?.call();
   }
 }
 
 class _Builder {
+  _Builder(this.from, this.to);
+
+  /// The window: a programme outside it is told apart by its times, at its
+  /// start tag, and nothing else of it is read.
+  final DateTime? from;
+  final DateTime? to;
+
+  /// Inside a programme outside the window.
+  bool skipping = false;
+
+  /// See [XmltvParser.wanted]: the ids (lower case) of channels announced
+  /// and not wanted, and the band around now kept for them.
+  bool Function(XmltvChannel)? wanted;
+  DateTime? bandFrom, bandTo;
+  final unwanted = <String>{};
+
   // Channel state
   String? channelId;
   final displayNames = <String>[];
@@ -114,11 +149,26 @@ class _Builder {
             displayNames.clear();
             channelIcon = null;
           case 'programme':
-            progChannel = attr('channel');
-            progStart = parseXmltvTime(attr('start'), channelId: progChannel);
-            progStop = parseXmltvTime(attr('stop'), channelId: progChannel);
+            final ch = progChannel = attr('channel');
+            final start = progStart =
+                parseXmltvTime(attr('start'), channelId: progChannel);
+            final stop =
+                progStop = parseXmltvTime(attr('stop'), channelId: progChannel);
             title = desc = category = episode = null;
             progIcon = null;
+            // A missing stop counts as an hour (see the end tag).
+            final end = stop ?? start?.add(const Duration(hours: 1));
+            skipping = ch == null ||
+                start == null ||
+                (from != null && !end!.isAfter(from!)) ||
+                (to != null && start.isAfter(to!)) ||
+                (unwanted.isNotEmpty &&
+                    unwanted.contains(ch.toLowerCase()) &&
+                    (bandFrom == null ||
+                        !end!.isAfter(bandFrom!) ||
+                        !start.isBefore(bandTo!)));
+          case _ when skipping:
+            break;
           case 'icon':
             final src = Uri.tryParse(attr('src') ?? '');
             if (progChannel != null) {
@@ -164,11 +214,17 @@ class _Builder {
             iconUrl: channelIcon,
           );
           channelId = null;
+          final w = wanted;
+          if (w != null && !w(item)) unwanted.add(item.id.toLowerCase());
           return item;
         }
         if (name == 'programme') {
           final ch = progChannel, start = progStart, stop = progStop;
           progChannel = null;
+          if (skipping) {
+            skipping = false;
+            return null;
+          }
           if (ch == null || start == null) return null;
           return XmltvProgramme(Programme(
             channelId: ch,
@@ -201,25 +257,53 @@ class _Builder {
 /// which puts every programme an hour off. See [fixEuropeanOffset].
 DateTime? parseXmltvTime(String? raw, {String? channelId}) {
   if (raw == null) return null;
-  final m = RegExp(
-          r'^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?\s*([+-]\d{2}:?\d{2})?')
-      .firstMatch(raw.trim());
-  if (m == null) return null;
-  int g(int i) => int.parse(m.group(i)!);
-  final base =
-      DateTime.utc(g(1), g(2), g(3), g(4), g(5), m.group(6) == null ? 0 : g(6));
-  final off = m.group(7);
-  if (off == null) return base;
-  final digits = off.replaceAll(':', '');
-  final sign = digits.startsWith('-') ? -1 : 1;
-  var minutes = sign *
-      (int.parse(digits.substring(1, 3)) * 60 +
-          int.parse(digits.substring(3, 5)));
+  // Read by hand: two per programme, a million programmes in a big guide.
+  final s = raw.trim();
+  // The number in s[at, at + n), or -1 when it isn't all ASCII digits.
+  int digits(int at, int n) {
+    if (at + n > s.length) return -1;
+    var v = 0;
+    for (var i = at; i < at + n; i++) {
+      final d = s.codeUnitAt(i) - 0x30;
+      if (d < 0 || d > 9) return -1;
+      v = v * 10 + d;
+    }
+    return v;
+  }
+
+  final year = digits(0, 4), month = digits(4, 2), day = digits(6, 2);
+  final hour = digits(8, 2), minute = digits(10, 2);
+  if (year < 0 || month < 0 || day < 0 || hour < 0 || minute < 0) return null;
+  var i = 12;
+  var second = digits(12, 2);
+  if (second < 0) {
+    second = 0;
+  } else {
+    i = 14;
+  }
+  final base = DateTime.utc(year, month, day, hour, minute, second);
+  while (i < s.length && _isSpace(s.codeUnitAt(i))) {
+    i++;
+  }
+  // `+hhmm`, `-hhmm` or `+hh:mm`; anything else means UTC.
+  if (i >= s.length) return base;
+  final signChar = s.codeUnitAt(i);
+  if (signChar != 0x2b && signChar != 0x2d) return base;
+  final hours = digits(i + 1, 2);
+  if (hours < 0) return base;
+  var j = i + 3;
+  if (j < s.length && s.codeUnitAt(j) == 0x3a) j++;
+  final mins = digits(j, 2);
+  if (mins < 0) return base;
+  var minutes = (signChar == 0x2d ? -1 : 1) * (hours * 60 + mins);
   if (channelId != null) {
     minutes = fixEuropeanOffset(base, minutes, channelId);
   }
   return base.subtract(Duration(minutes: minutes));
 }
+
+bool _isSpace(int c) =>
+    c == 0x20 || (c >= 0x09 && c <= 0x0d) || c == 0xa0 || c == 0xfeff;
 
 /// Standard offsets, in minutes, of the countries on the EU summer time
 /// rule, by the country suffix guides put on channel ids (`Rai1.it`).

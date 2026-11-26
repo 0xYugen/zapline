@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'pin_server.dart';
 import 'transfer_crypto.dart';
+import 'web_text.dart';
 
 /// The two requests another Zapline makes to send its whole setup here
 /// (Settings → Send to another device): `GET /hello` to check it found the
@@ -31,7 +32,7 @@ Future<bool> serveSetup(
           res,
           HttpStatus.requestEntityTooLarge,
           false,
-          'The file is too large to be a Zapline backup.',
+          WebText.of(req).tooLarge,
         );
         return true;
       }
@@ -41,7 +42,12 @@ Future<bool> serveSetup(
           body = await TransferCipher.open(body, key);
         }
         final summary = await restore(body);
-        PinServer.writeJson(res, HttpStatus.ok, true, 'Done: $summary.');
+        PinServer.writeJson(
+          res,
+          HttpStatus.ok,
+          true,
+          WebText.of(req).done(summary),
+        );
       } catch (e) {
         PinServer.writeJson(
           res,

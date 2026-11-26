@@ -6,6 +6,7 @@ import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../free_epg.dart';
+import '../errors.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../theme.dart';
@@ -245,15 +246,28 @@ class _Summary extends StatelessWidget {
   final GuideStatus? status;
   final bool syncing;
 
+  // While syncing only the progress line changes, several times a second.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => syncing
+      ? ValueListenableBuilder(
+          valueListenable: state.syncProgress,
+          builder: (context, _, _) => _build(context),
+        )
+      : _build(context);
+
+  Widget _build(BuildContext context) {
     final l = context.l10n;
     final synced = source.syncedAt?.toLocal();
     final g = status;
+    final failed = state.syncFailure(source.id);
     final (statusText, statusColor) = switch (g) {
       _ when syncing => (
         l.syncingProgress('${state.progress ?? ''}'),
         ZaplineColors.focus,
+      ),
+      _ when failed != null => (
+        l.lastUpdateFailed(friendlyError(l, failed)),
+        ZaplineColors.live,
       ),
       final g? when g.errors.isNotEmpty => (
         l.epgFailed(g.errors.join('; ')),

@@ -749,7 +749,7 @@ abstract class AppLocalizations {
   /// No description provided for @swipeHint.
   ///
   /// In en, this message translates to:
-  /// **'Swipe up or down to change channel'**
+  /// **'Swipe in the middle to change channel; on the sides, brightness and volume'**
   String get swipeHint;
 
   /// No description provided for @noArchive.
@@ -3097,6 +3097,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search series'**
   String get searchShows;
+
+  /// No description provided for @playerOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get playerOptions;
+
+  /// No description provided for @holdOkForOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold OK for options'**
+  String get holdOkForOptions;
+
+  /// No description provided for @reconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting… ({attempt} of {total})'**
+  String reconnecting(int attempt, int total);
+
+  /// No description provided for @streamTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The channel took too long to start'**
+  String get streamTimeout;
+
+  /// No description provided for @pressOkToRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Press OK to try again, or Up and Down for another channel'**
+  String get pressOkToRetry;
+
+  /// No description provided for @backToChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to {channel}'**
+  String backToChannel(String channel);
+
+  /// No description provided for @noChannelNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'No channel {number}'**
+  String noChannelNumber(int number);
+
+  /// No description provided for @pictureSizeIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture: {fit}'**
+  String pictureSizeIs(String fit);
+
+  /// No description provided for @loadingChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading channel'**
+  String get loadingChannel;
+
+  /// No description provided for @lastUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last update failed: {reason}'**
+  String lastUpdateFailed(String reason);
+
+  /// No description provided for @dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismiss;
+
+  /// No description provided for @pairingDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done! {count} channels added.'**
+  String pairingDone(int count);
+
+  /// No description provided for @pairingDoneWithGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Done! {count} channels added with their TV guide.'**
+  String pairingDoneWithGuide(int count);
+
+  /// No description provided for @pairingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV could not connect: {reason}'**
+  String pairingFailed(String reason);
+
+  /// No description provided for @pairingBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV is busy loading another source. Try again in a moment.'**
+  String get pairingBusy;
+
+  /// No description provided for @channelHiddenNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is hidden'**
+  String channelHiddenNamed(String name);
+
+  /// No description provided for @sourceUpdateFailedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} couldn\'t be updated'**
+  String sourceUpdateFailedNamed(String name);
+
+  /// No description provided for @restoreSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{added, plural, =1{1 source restored} other{{added} sources restored}}{updated, plural, =0{} =1{, 1 updated} other{, {updated} updated}}'**
+  String restoreSummary(int added, int updated);
+
+  /// No description provided for @moreOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreOptions;
+
+  /// No description provided for @muted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get muted;
+
+  /// No description provided for @volumeKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume (M mutes)'**
+  String get volumeKey;
+
+  /// No description provided for @fullScreenKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen (F)'**
+  String get fullScreenKey;
+
+  /// No description provided for @exitFullScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit full screen'**
+  String get exitFullScreen;
+
+  /// No description provided for @ownPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Zapline player (beta)'**
+  String get ownPlayer;
+
+  /// No description provided for @ownPlayerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.'**
+  String get ownPlayerHint;
+
+  /// No description provided for @matchFrameRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Match the frame rate'**
+  String get matchFrameRate;
+
+  /// No description provided for @matchFrameRateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV switches to the channel\'s refresh rate (50 Hz, 24 Hz for films) for smoother motion. Some TVs go dark for a moment when switching.'**
+  String get matchFrameRateHint;
+
+  /// No description provided for @preloadNeighbours.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant channel change'**
+  String get preloadNeighbours;
+
+  /// No description provided for @preloadNeighboursHint.
+  ///
+  /// In en, this message translates to:
+  /// **'While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.'**
+  String get preloadNeighboursHint;
+
+  /// No description provided for @mergeSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Same channel from several sources as one'**
+  String get mergeSources;
+
+  /// No description provided for @mergeSourcesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels with the same guide and name show once; if one source fails, the next one plays.'**
+  String get mergeSourcesHint;
+
+  /// No description provided for @versionFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'{quality} · {source}'**
+  String versionFrom(String quality, String source);
+
+  /// No description provided for @miniPlayerKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Mini player (P)'**
+  String get miniPlayerKey;
+
+  /// No description provided for @backgroundAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the sound when leaving the app'**
+  String get backgroundAudio;
+
+  /// No description provided for @backgroundAudioHint.
+  ///
+  /// In en, this message translates to:
+  /// **'With the screen off or in another app the channel goes on as sound, with a notification to pause it.'**
+  String get backgroundAudioHint;
 }
 
 class _AppLocalizationsDelegate

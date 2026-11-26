@@ -10,6 +10,8 @@ import '../widgets/channel_logo.dart';
 import 'mobile_home.dart';
 import 'programme_sheet.dart';
 import 'mobile_widgets.dart';
+import '../widgets/tab_visibility.dart';
+import '../layout.dart';
 
 /// The guide on a phone: what's on at a chosen time on every channel of a
 /// group, one row each. A grid needs a TV-sized screen; here a tap opens the
@@ -54,13 +56,14 @@ class _MobileGuideState extends State<MobileGuide> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: widget.state,
+    return TabListenableBuilder(
+      listenable: Listenable.merge([widget.state, widget.state.guideVersion]),
       builder: (context, _) {
         final state = widget.state;
         if (!groupsOf(state).contains(_group)) _group = null;
         final locked = _group != null && state.isLocked(_group!);
-        final list = locked ? const <Channel>[] : _cache.get(state, _group);
+        final loaded = locked ? const <Channel>[] : _cache.get(state, _group);
+        final list = loaded ?? const <Channel>[];
         final at = _at;
         final tonight = _tonight;
         return Column(
@@ -106,11 +109,13 @@ class _MobileGuideState extends State<MobileGuide> {
             Expanded(
               child: locked
                   ? LockedGroupView(state: state)
+                  : loaded == null
+                  ? const LoadingView()
                   : list.isEmpty
                   ? EmptyView(context.l10n.noChannelsInGroup)
                   : ListView.builder(
                       itemCount: list.length,
-                      itemExtent: 92,
+                      itemExtent: scaledExtent(context, 92),
                       itemBuilder: (context, i) => _WhatsOnRow(
                         state: state,
                         channel: list[i],
@@ -350,7 +355,10 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
     final i = list.indexWhere((p) => p.stop.isAfter(now));
     if (i <= 0) return;
     _scroll.jumpTo(
-      ((i - 1) * _rowHeight).clamp(0, _scroll.position.maxScrollExtent),
+      ((i - 1) * scaledExtent(context, _rowHeight)).clamp(
+        0,
+        _scroll.position.maxScrollExtent,
+      ),
     );
   }
 
@@ -442,7 +450,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
                 : ListView.builder(
                     controller: _scroll,
                     itemCount: list.length,
-                    itemExtent: _rowHeight,
+                    itemExtent: scaledExtent(context, _rowHeight),
                     itemBuilder: (context, i) {
                       final p = list[i];
                       final onAir =

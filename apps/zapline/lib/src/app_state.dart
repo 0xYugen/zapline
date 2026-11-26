@@ -9,6 +9,7 @@ import 'package:zapline_data/zapline_data.dart';
 
 import 'secret_store.dart';
 import 'countries.dart';
+import 'db_write.dart';
 import 'format.dart';
 import 'free_epg.dart';
 import 'settings.dart';
@@ -119,6 +120,74 @@ Future<SyncResult> _syncInIsolate(
   }
 });
 
+/// Runs a job on another isolate with its own connection to the database,
+/// for work that would hold up the screen (matching every channel to the
+/// guides, searching the whole guide).
+typedef DatabaseRunner = Future<R> Function<R>(R Function(ZaplineDatabase) job);
+
+/// A [DatabaseRunner] over the database file at [dbPath].
+DatabaseRunner isolateDatabaseRunner(String dbPath) =>
+    <R>(job) => _runOnIsolate(dbPath, job);
+
+// Top level, so the closure sent to the isolate holds only these two.
+Future<R> _runOnIsolate<R>(String dbPath, R Function(ZaplineDatabase) job) =>
+    Isolate.run(() {
+      final db = ZaplineDatabase.open(dbPath);
+      try {
+        return job(db);
+      } finally {
+        db.close();
+      }
+    });
+
+GuideCoverage _rebuildLinks(ZaplineDatabase db) => db.rebuildGuideLinks();
+
+List<(Channel, Programme)> Function(ZaplineDatabase) _programmeSearch(
+  String query,
+  DateTime from,
+  ChannelVisibility visibility,
+) =>
+    (db) => db.searchProgrammes(query, from: from, visibility: visibility);
+
+/// How channel versions merge: see [AppState._mergeVersionsOf].
+typedef _MergeOptions = ({
+  bool merge,
+  bool saveData,
+  Map<String, String> choices,
+  bool acrossSources,
+});
+
+/// [group]'s channels, merged, for [AppState.channelsReady] on another
+/// isolate.
+(List<Channel>, Map<String, List<Channel>>) Function(ZaplineDatabase)
+_channelJob(
+  String? group,
+  ChannelVisibility visibility,
+  _MergeOptions options,
+) =>
+    (db) => AppState._mergeVersionsOf(
+      db.channels(group: group, visibility: visibility),
+      options,
+      options.acrossSources ? db.guideLinks() : null,
+    );
+
+/// [AppState._needingGuideOf] on another isolate.
+List<Channel> Function(ZaplineDatabase) _needingGuideJob(
+  String sourceId,
+  ChannelVisibility visibility,
+  _MergeOptions options,
+  Set<String> noGuide,
+  bool acrossSources,
+) =>
+    (db) => AppState._needingGuideOf(
+      db,
+      sourceId,
+      visibility,
+      options,
+      noGuide,
+      acrossSources ? db.guideLinks() : null,
+    );
+
 /// App-wide state backed by the local database.
 class AppState extends ChangeNotifier {
   AppState(
@@ -128,6 +197,7 @@ class AppState extends ChangeNotifier {
     this.guideFetcher,
     this.vod,
     this.updater,
+    this.background,
   }) : secrets = secrets ?? MemorySecretStore() {
     _upgradeFreeEpgs();
     _reload();
@@ -152,6 +222,16 @@ class AppState extends ChangeNotifier {
 
   final ZaplineDatabase db;
   final SyncRunner syncRunner;
+
+  /// Runs heavy database work off screen; `null` runs it here (tests).
+  final DatabaseRunner? background;
+
+  /// [job] on another isolate when there is one, here otherwise (tests).
+  Future<R> _offScreen<R>(R Function(ZaplineDatabase) job) async {
+    final run = background;
+    return run == null ? job(db) : run(job);
+  }
+
   final SecretStore secrets;
 
   /// Passwords loaded from [secrets], by source id.
@@ -202,8 +282,15 @@ class AppState extends ChangeNotifier {
   List<String> groups = const [];
   int channelCount = 0;
 
-  /// Progress of the sync in flight, if any.
-  SyncProgress? progress;
+  /// Progress of the sync in flight, if any. Changes several times a
+  /// second while a guide downloads, so only [syncProgress] tells: the
+  /// screens showing it listen to that, not to the whole state.
+  SyncProgress? get progress => syncProgress.value;
+  final syncProgress = ValueNotifier<SyncProgress?>(null);
+
+  /// This state and [syncProgress] together, for screens showing both.
+  late final Listenable withProgress = Listenable.merge([this, syncProgress]);
+
   String? syncingSourceId;
 
   bool get isEmpty => channelCount == 0 && movieCount == 0 && showCount == 0;
@@ -218,6 +305,34 @@ class AppState extends ChangeNotifier {
   /// Incremented whenever stored channels change; screens use it to cache
   /// query results.
   int version = 0;
+
+  /// Incremented when favourites change: only the favourites list goes
+  /// stale, not every channel list.
+  int favouritesVersion = 0;
+
+  /// Incremented when a channel is watched (the recent channels).
+  int recentsVersion = 0;
+
+  /// Bumped when programmes arrive or guide links change without the
+  /// channels changing; what shows programmes listens to it alone, so a
+  /// burst of guides fetched channel by channel doesn't rebuild every
+  /// screen.
+  final guideVersion = ValueNotifier<int>(0);
+
+  /// The channel the player was on when it closed, so the list it was
+  /// opened from can follow.
+  final lastPlayed = ValueNotifier<Channel?>(null);
+
+  @override
+  void dispose() {
+    _autoRefresh?.cancel();
+    _firstRefresh?.cancel();
+    _guideArrived?.cancel();
+    guideVersion.dispose();
+    lastPlayed.dispose();
+    syncProgress.dispose();
+    super.dispose();
+  }
 
   void _reload() {
     version++;
@@ -317,6 +432,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Redraws screens after a preference that changes no list (the picture
+  /// size), without reloading the channels.
+  void displayChanged() => notifyListeners();
+
   /// Clock time in the user's 12/24-hour format.
   String time(DateTime t) => formatTime(t, h24: settings.clock24h);
 
@@ -326,18 +445,76 @@ class AppState extends ChangeNotifier {
 
   // --------------------------------------------------------- channels
 
-  List<Channel> channels({String? group}) =>
-      _mergeVersions(db.channels(group: group, visibility: _visibility));
+  /// [group]'s channels (`null`: all of them), versions merged. Kept until
+  /// the stored channels or the preferences change; a list loaded off
+  /// screen by [channelsReady] is used here too.
+  List<Channel> channels({String? group}) {
+    _dropStaleLists();
+    final cached = _lists[group];
+    if (cached != null) return cached;
+    final o = _mergeOptions;
+    final (list, versions) = _mergeVersionsOf(
+      db.channels(group: group, visibility: _visibility),
+      o,
+      o.acrossSources ? db.guideLinks() : null,
+    );
+    _versions.addAll(versions);
+    return _lists[group] = list;
+  }
+
+  /// [group]'s channels when already loaded; otherwise `null`, and they
+  /// load on another isolate (50,000 rows take a TV stick a second or
+  /// two) and listeners are told when they are here.
+  List<Channel>? channelsReady(String? group) {
+    _dropStaleLists();
+    final cached = _lists[group];
+    if (cached != null) return cached;
+    // A small playlist loads here at once: cheaper than another isolate.
+    if (background == null || channelCount < 2000) {
+      return channels(group: group);
+    }
+    if (!_loadingLists.contains(group)) {
+      _loadingLists.add(group);
+      final at = version;
+      _offScreen(_channelJob(group, _visibility, _mergeOptions)).then(
+        (r) {
+          _loadingLists.remove(group);
+          // Stale by now: the next ask loads again.
+          if (at != version) return;
+          final (list, versions) = r;
+          _versions.addAll(versions);
+          _lists[group] = list;
+          notifyListeners();
+        },
+        onError: (Object e) {
+          _loadingLists.remove(group);
+          debugPrint('Channels not loaded: $e');
+        },
+      );
+    }
+    return null;
+  }
+
+  final _lists = <String?, List<Channel>>{};
+  final _loadingLists = <String?>{};
+  int _listsAt = -1;
+
+  void _dropStaleLists() {
+    if (_listsAt == version) return;
+    _listsAt = version;
+    _lists.clear();
+    _loadingLists.clear();
+    _versions.clear();
+  }
 
   List<Channel> search(String query) =>
       _mergeVersions(db.search(query, visibility: _visibility));
 
   // ------------------------------------------------ versions of a channel
 
-  /// Every version of a merged channel by each version's key; rebuilt as
+  /// Every version of a merged channel by each version's key; filled as
   /// lists are merged, dropped when the stored channels change.
   final _versions = <String, List<Channel>>{};
-  int _versionsAt = -1;
 
   static final _parsed = <String, ChannelVariant>{};
 
@@ -347,50 +524,127 @@ class AppState extends ChangeNotifier {
   static String _versionKey(Channel c) =>
       '${c.sourceId}\u0000${_variant(c.name).key}';
 
-  /// Order of preference: best picture first, or HD first to save data.
-  int _rank(VideoQuality q) => settings.saveData
-      ? switch (q) {
-          VideoQuality.hd || VideoQuality.unknown => 0,
-          VideoQuality.sd => 1,
-          VideoQuality.fhd => 2,
-          VideoQuality.uhd => 3,
-        }
-      : -(q == VideoQuality.unknown ? VideoQuality.hd.index : q.index);
+  _MergeOptions get _mergeOptions => (
+    merge: settings.mergeVersions,
+    saveData: settings.saveData,
+    choices: settings.versionChoices,
+    // Across sources only when there are several.
+    acrossSources: settings.mergeSources && sources.length > 1,
+  );
 
   /// One entry per channel: its versions ("HD", "FHD", "4K", backups) fold
   /// into the preferred one, at the place of the first.
   List<Channel> _mergeVersions(List<Channel> list) {
-    if (!settings.mergeVersions || list.length < 2) return list;
-    if (_versionsAt != version) {
-      _versions.clear();
-      _versionsAt = version;
+    _dropStaleLists();
+    final (out, versions) = _mergeVersionsOf(
+      list,
+      _mergeOptions,
+      _mergeOptions.acrossSources ? db.guideLinks() : null,
+    );
+    _versions.addAll(versions);
+    return out;
+  }
+
+  /// [list] merged, with every merged channel's versions by channel key.
+  /// Versions are the same channel: in one source, names equal but for
+  /// quality words ("Rai 1 HD", "Rai 1 FHD"); across sources (with
+  /// [guides], each channel's guide channel), the same guide channel and
+  /// the same plain name ("IT | Rai 1" and "RAI 1", but not "Rai 3" and
+  /// "Rai 3 TGR Lazio", which share a guide). Static and plain, so it
+  /// runs on another isolate as well.
+  static (List<Channel>, Map<String, List<Channel>>) _mergeVersionsOf(
+    List<Channel> list,
+    _MergeOptions o, [
+    Map<String, String>? guides,
+  ]) {
+    final versions = <String, List<Channel>>{};
+    if (!o.merge || list.length < 2) return (list, versions);
+    // Order of preference: best picture first, or HD first to save data.
+    int rank(VideoQuality q) => o.saveData
+        ? switch (q) {
+            VideoQuality.hd || VideoQuality.unknown => 0,
+            VideoQuality.sd => 1,
+            VideoQuality.fhd => 2,
+            VideoQuality.uhd => 3,
+          }
+        : -(q == VideoQuality.unknown ? VideoQuality.hd.index : q.index);
+
+    // Union-find over the list's places: each rule joins a channel to the
+    // first one sharing its key.
+    final parent = List<int>.generate(list.length, (i) => i);
+    int find(int i) {
+      while (parent[i] != i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
     }
-    final byKey = <String, List<Channel>>{};
-    for (final c in list) {
-      (byKey[_versionKey(c)] ??= []).add(c);
+
+    void join(Map<String, int> firstOf, String key, int i) {
+      final first = firstOf.putIfAbsent(key, () => i);
+      if (first == i) return;
+      final a = find(first), b = find(i);
+      // The earlier place stays the group's, so it keeps its place.
+      if (a != b) a < b ? parent[b] = a : parent[a] = b;
     }
-    if (byKey.length == list.length) return list;
-    final choices = settings.versionChoices;
+
+    final bySource = <String, int>{};
+    final byGuide = <String, int>{};
+    final byEpg = <String, int>{};
+    final byName = <String, int>{};
+    for (final (i, c) in list.indexed) {
+      join(bySource, _versionKey(c), i);
+      // The same guide id and name in one source: the same channel even
+      // when the names differ by a country tag or punctuation ("IT: Rai 1
+      // HD", "Rai 1 HD", "RAI 1 | HD").
+      final epg = c.epgChannelId?.trim().toLowerCase();
+      if (epg != null && epg.isNotEmpty) {
+        final plain = normalizeChannelName(_variant(c.name).baseName);
+        if (plain.isNotEmpty) {
+          // Across sources too when merging them: guide ids are shared
+          // between providers (the common XMLTV ones).
+          final scope = o.acrossSources ? '' : c.sourceId;
+          join(byEpg, '$scope\u0000$epg\u0000$plain', i);
+        }
+      }
+      // Across sources, the same name, country tag included: "IT: Rai 2"
+      // of one provider and "IT: Rai 2 HD" of another.
+      if (o.acrossSources) join(byName, _variant(c.name).key, i);
+      final guide = guides?[ZaplineDatabase.channelKey(c)];
+      if (guide != null) {
+        final plain = normalizeChannelName(_variant(c.name).baseName);
+        if (plain.isNotEmpty) join(byGuide, '$guide\u0000$plain', i);
+      }
+    }
+    final groups = <int, List<Channel>>{};
+    for (var i = 0; i < list.length; i++) {
+      (groups[find(i)] ??= []).add(list[i]);
+    }
+    if (groups.length == list.length) return (list, versions);
     final out = <Channel>[];
-    for (final c in list) {
-      final key = _versionKey(c);
-      final group = byKey[key];
+    for (var i = 0; i < list.length; i++) {
+      final group = groups.remove(i);
       if (group == null) continue;
-      byKey.remove(key);
       if (group.length == 1) {
-        out.add(c);
+        out.add(group.single);
         continue;
       }
-      final sorted = [...group]
-        ..sort(
-          (a, b) =>
-              _rank(_variant(a.name).quality)
-                  .compareTo(_rank(_variant(b.name).quality)),
-        );
+      // Best first; equal ones keep the list's order (source order).
+      final sorted = [...group];
+      mergeSort(
+        sorted,
+        compare: (a, b) =>
+            rank(_variant(a.name).quality)
+                .compareTo(rank(_variant(b.name).quality)),
+      );
       for (final v in sorted) {
-        _versions[ZaplineDatabase.channelKey(v)] = sorted;
+        versions[ZaplineDatabase.channelKey(v)] = sorted;
       }
-      final chosen = choices[key];
+      // A version picked by hand, kept under the key of the version picked.
+      final keys = {for (final v in sorted) ZaplineDatabase.channelKey(v)};
+      final chosen = [for (final v in sorted) ?o.choices[_versionKey(v)]]
+          .where(keys.contains)
+          .firstOrNull;
       out.add(
         sorted.firstWhere(
           (v) => ZaplineDatabase.channelKey(v) == chosen,
@@ -398,7 +652,7 @@ class AppState extends ChangeNotifier {
         ),
       );
     }
-    return out;
+    return (out, versions);
   }
 
   /// The versions of [c] in order of preference; just [c] when it has none.
@@ -414,13 +668,51 @@ class AppState extends ChangeNotifier {
   /// "4K", "FHD", "HD" or "SD" as [c]'s name says, if it says.
   String? qualityOf(Channel c) => _variant(c.name).quality.label;
 
+  /// The version of [c]'s channel picked to play (by hand, or the one
+  /// that worked when another didn't); [c] when none was.
+  Channel preferredVersion(Channel c) {
+    final versions = versionsOf(c);
+    if (versions.length < 2) return c;
+    final choices = settings.versionChoices;
+    for (final v in versions) {
+      final key = choices[_versionKey(v)];
+      if (key == null) continue;
+      for (final w in versions) {
+        if (ZaplineDatabase.channelKey(w) == key) return w;
+      }
+    }
+    return c;
+  }
+
   /// Plays [c] from now on when its channel is opened.
   void preferVersion(Channel c) {
-    settings.versionChoices = {
-      ...settings.versionChoices,
-      _versionKey(c): ZaplineDatabase.channelKey(c),
-    };
-    _reload();
+    final key = ZaplineDatabase.channelKey(c);
+    final versions = versionsOf(c);
+    final choices = settings.versionChoices;
+    // Choices are kept under each version's own key: the one picked
+    // before, under another version's, would win over this one.
+    for (final v in versions) {
+      choices.remove(_versionKey(v));
+    }
+    settings.versionChoices = {...choices, _versionKey(c): key};
+    // The lists already loaded show it in the channel's place at once.
+    // Not reloaded: that would drop every channel's versions (a player
+    // open would have none to fall back on) and cost a TV stick a reload
+    // of the whole list.
+    final keys = {for (final v in versions) ZaplineDatabase.channelKey(v)};
+    for (final list in _lists.values) {
+      for (var i = 0; i < list.length; i++) {
+        final k = ZaplineDatabase.channelKey(list[i]);
+        if (k != key && keys.contains(k)) {
+          try {
+            list[i] = c;
+          } on UnsupportedError {
+            _lists.clear();
+            break;
+          }
+        }
+      }
+    }
     notifyListeners();
   }
 
@@ -430,15 +722,25 @@ class AppState extends ChangeNotifier {
       (e) => e.sourceId == c.sourceId && e.id == c.id,
     );
     if (exact >= 0) return exact;
+    // Another version of it, from this source or (merged) another one.
+    final keys = {for (final v in versionsOf(c)) ZaplineDatabase.channelKey(v)};
+    final merged = list.indexWhere(
+      (e) => keys.contains(ZaplineDatabase.channelKey(e)),
+    );
+    if (merged >= 0) return merged;
     final key = _versionKey(c);
     return list.indexWhere((e) => _versionKey(e) == key);
   }
 
-  List<(Channel, Programme)> searchProgrammes(String query) =>
-      db.searchProgrammes(
-        query,
-        from: DateTime.now().toUtc().subtract(const Duration(days: 1)),
-        visibility: _visibility,
+  /// Programmes whose title has [query], from a day back; searched on
+  /// another isolate, the whole guide can take a moment on a TV stick.
+  Future<List<(Channel, Programme)>> searchProgrammes(String query) =>
+      _offScreen(
+        _programmeSearch(
+          query,
+          DateTime.now().toUtc().subtract(const Duration(days: 1)),
+          _visibility,
+        ),
       );
 
   List<Channel> favourites() => db.favourites(
@@ -451,16 +753,25 @@ class AppState extends ChangeNotifier {
   bool get hasRecents => _hasRecents;
 
   void markWatched(Channel c) {
-    db.markWatched(c);
+    // Never holds up a zap, even while a sync writes.
+    writeSoon(() => db.markWatched(c));
     _hasRecents = true;
+    recentsVersion++;
   }
 
   /// The channel to reopen at startup, if the user wants that.
   Channel? get resumeChannel =>
       settings.resumeLastChannel ? recents().firstOrNull : null;
 
-  void setChannelHidden(Channel c, bool hidden) {
-    db.setChannelHidden(c, hidden);
+  void setChannelHidden(Channel c, bool hidden) =>
+      setChannelsHidden([c], hidden);
+
+  /// Hides or shows several channels (a channel's versions) with one
+  /// reload.
+  void setChannelsHidden(Iterable<Channel> channels, bool hidden) {
+    for (final c in channels) {
+      db.setChannelHidden(c, hidden);
+    }
     _reload();
     notifyListeners();
   }
@@ -656,8 +967,13 @@ class AppState extends ChangeNotifier {
       _favouriteKeys.contains(ZaplineDatabase.channelKey(c));
 
   void toggleFavourite(Channel c) {
-    db.setFavourite(c, !isFavourite(c));
-    _reload();
+    final key = ZaplineDatabase.channelKey(c), add = !isFavourite(c);
+    writeSoon(() => db.setFavourite(c, add));
+    // Shown at once, whenever the database takes it. Channel lists stay as
+    // they are: only the favourites change.
+    _favouriteKeys = {..._favouriteKeys}..remove(key);
+    if (add) _favouriteKeys.add(key);
+    favouritesVersion++;
     notifyListeners();
   }
 
@@ -718,18 +1034,36 @@ class AppState extends ChangeNotifier {
     ];
   }
 
+  (List<XmltvChannel>, List<(XmltvChannel, List<String>)>)? _guideNames;
+
+  /// [guideChannels] with their id and names normalised once, not on
+  /// every key typed in the guide search.
+  List<(XmltvChannel, List<String>)> get _normalisedGuides {
+    final channels = guideChannels;
+    final cached = _guideNames;
+    if (cached != null && identical(cached.$1, channels)) return cached.$2;
+    final list = [
+      for (final g in channels)
+        (
+          g,
+          [
+            normalizeChannelName(g.id),
+            for (final n in g.displayNames) normalizeChannelName(n),
+          ],
+        ),
+    ];
+    _guideNames = (channels, list);
+    return list;
+  }
+
   /// Guide channels whose name or id contains [query].
   List<XmltvChannel> searchGuide(String query, {int limit = 30}) {
     final q = normalizeChannelName(query);
     if (q.isEmpty) return const [];
-    return guideChannels
-        .where(
-          (g) =>
-              normalizeChannelName(g.id).contains(q) ||
-              g.displayNames.any((n) => normalizeChannelName(n).contains(q)),
-        )
-        .take(limit)
-        .toList();
+    return [
+      for (final (g, names) in _normalisedGuides)
+        if (names.any((n) => n.contains(q))) g,
+    ].take(limit).toList();
   }
 
   /// Links [c] to [guideId] for good; survives re-syncs.
@@ -738,6 +1072,10 @@ class AppState extends ChangeNotifier {
     for (final v in versionsOf(c)) {
       db.linkGuide(ZaplineDatabase.channelKey(v), guideId);
     }
+    _askAfterLink([c]);
+    // Channels of several sources merge by their guide channel.
+    if (_mergeOptions.acrossSources) _reload();
+    guideVersion.value++;
     notifyListeners();
   }
 
@@ -748,25 +1086,77 @@ class AppState extends ChangeNotifier {
         db.linkGuide(ZaplineDatabase.channelKey(v), id);
       }
     }
+    _askAfterLink([for (final (c, _) in links) c]);
+    if (_mergeOptions.acrossSources) _reload();
+    guideVersion.value++;
     notifyListeners();
+  }
+
+  /// A guide channel linked by hand may have been imported only around the
+  /// last sync (the import keeps the full days for channels it knew were
+  /// wanted; the next sync brings them all). Meanwhile the source's own
+  /// short guide fills in what's on now.
+  void _askAfterLink(Iterable<Channel> channels) {
+    for (final c in channels) {
+      _guideAsked.remove(ZaplineDatabase.channelKey(c));
+      _wantGuide(c);
+    }
   }
 
   /// Channels of [sourceId] worth matching to a guide: shown, without a
   /// guide in any of their versions, and not marked as having none.
   List<Channel> channelsNeedingGuide(String sourceId) {
+    // Screens ask on every redraw; a large source's channels load once per
+    // change of the channels, guide links or "no guide" marks.
+    final key = (version, guideVersion.value, settings.noGuideChannels.length);
+    final cached = _needingGuide[sourceId];
+    if (cached != null && cached.$1 == key) return cached.$2;
+    final list = _channelsNeedingGuide(sourceId);
+    _needingGuide[sourceId] = (key, list);
+    return list;
+  }
+
+  final _needingGuide = <String, ((int, int, int), List<Channel>)>{};
+
+  List<Channel> _channelsNeedingGuide(String sourceId) {
+    final o = _mergeOptions;
+    return _needingGuideOf(
+      db,
+      sourceId,
+      _visibility,
+      o,
+      settings.noGuideChannels,
+      o.acrossSources ? db.guideLinks() : null,
+    );
+  }
+
+  /// Channels of [sourceId] worth a guide: shown, with no guide in any of
+  /// their versions and not marked as having none. Static and plain, so
+  /// it also runs on another isolate (it reads every channel of a source).
+  static List<Channel> _needingGuideOf(
+    ZaplineDatabase db,
+    String sourceId,
+    ChannelVisibility visibility,
+    _MergeOptions options,
+    Set<String> noGuide,
+    Map<String, String>? guides,
+  ) {
     final missing = {
       for (final c in db.unmatchedChannels(sourceId: sourceId))
         ZaplineDatabase.channelKey(c),
     };
     if (missing.isEmpty) return const [];
-    final none = settings.noGuideChannels;
+    final (merged, versions) = _mergeVersionsOf(
+      db.channels(sourceId: sourceId, visibility: visibility),
+      options,
+      guides,
+    );
     return [
-      for (final c in _mergeVersions(
-        db.channels(sourceId: sourceId, visibility: _visibility),
-      ))
-        if (!none.contains(ZaplineDatabase.channelKey(c)) &&
-            versionsOf(c)
-                .every((v) => missing.contains(ZaplineDatabase.channelKey(v))))
+      for (final c in merged)
+        if (!noGuide.contains(ZaplineDatabase.channelKey(c)) &&
+            (versions[ZaplineDatabase.channelKey(c)] ?? [c]).every(
+              (v) => missing.contains(ZaplineDatabase.channelKey(v)),
+            ))
           c,
     ];
   }
@@ -895,11 +1285,26 @@ class AppState extends ChangeNotifier {
   }
 
   /// Queues [s]'s channels that have no guide at all.
-  void _askGuidesWithout(SourceRecord s) {
+  /// After a sync: when the XMLTV guide covers less than half of [s]'s
+  /// channels, the rest are asked of the panel one by one. Worked out off
+  /// screen (it reads every channel); with a good guide nothing is asked,
+  /// sparing the panel hundreds of requests (some ban for that).
+  Future<void> _askGuidesWithout(SourceRecord s) async {
     if (guideFetcher == null || !ChannelGuideFetcher.supports(s)) return;
+    if (coverage(s.id).ratio >= 0.5) return;
+    final o = _mergeOptions;
+    final needing = await _offScreen(
+      _needingGuideJob(
+        s.id,
+        _visibility,
+        o,
+        settings.noGuideChannels,
+        o.acrossSources,
+      ),
+    );
     final now = DateTime.now();
     final wanted = [
-      for (final c in channelsNeedingGuide(s.id).take(400))
+      for (final c in needing.take(400))
         // Marked as asked, so the screen doesn't queue them a second time.
         if (_guideAsked.putIfAbsent(ZaplineDatabase.channelKey(c), () => now) ==
             now)
@@ -915,8 +1320,11 @@ class AppState extends ChangeNotifier {
     final fetcher = guideFetcher!;
     while (_guideRunning < 4 &&
         (_guideQueue.isNotEmpty ||
-            // Background work keeps a slot free for the screen.
-            (_guideRunning < 2 && _guideBackground.isNotEmpty))) {
+            // Background work keeps a slot free for the screen, and waits
+            // while a channel plays: the panel serves that stream too.
+            (_guideRunning < 2 &&
+                nowPlaying == null &&
+                _guideBackground.isNotEmpty))) {
       final (source, c) = _guideQueue.isNotEmpty
           ? _guideQueue.removeLast()
           : _guideBackground.removeAt(0);
@@ -933,12 +1341,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Redraws once for a burst of fetched channels.
+  /// Redraws what shows programmes once for a burst of fetched channels.
   void _guideFetched() {
-    _guideArrived ??= Timer(const Duration(milliseconds: 300), () {
+    _guideArrived ??= Timer(const Duration(milliseconds: 500), () {
       _guideArrived = null;
-      // Programmes only: channel lists stay cached.
-      notifyListeners();
+      // Programmes only: channel lists and other screens stay as they are.
+      guideVersion.value++;
     });
   }
 
@@ -1019,37 +1427,49 @@ class AppState extends ChangeNotifier {
   // ------------------------------------------------------------ reminders
 
   /// Programmes the user asked to be reminded of, by channel key and start.
-  List<Reminder> get reminders {
+  /// Read once and kept: the guide asks for every programme it draws.
+  List<Reminder> get reminders => _reminders ??= _readReminders();
+  List<Reminder>? _reminders;
+
+  List<Reminder> _readReminders() {
     final raw = db.setting('reminders');
     if (raw == null) return const [];
-    return [
-      for (final r in jsonDecode(raw) as List)
-        Reminder(
-          channelKey: r['k'] as String,
-          start: DateTime.fromMillisecondsSinceEpoch(
-            (r['s'] as int) * 1000,
-            isUtc: true,
+    try {
+      return [
+        for (final r in jsonDecode(raw) as List)
+          Reminder(
+            channelKey: r['k'] as String,
+            start: DateTime.fromMillisecondsSinceEpoch(
+              (r['s'] as int) * 1000,
+              isUtc: true,
+            ),
+            title: r['t'] as String,
           ),
-          title: r['t'] as String,
-        ),
-    ];
+      ];
+    } on Object {
+      return const [];
+    }
   }
 
-  void _saveReminders(List<Reminder> list) => db.setSetting(
-    'reminders',
-    jsonEncode([
+  void _saveReminders(List<Reminder> list) {
+    _reminders = List.unmodifiable(list);
+    final json = jsonEncode([
       for (final r in list)
         {
           'k': r.channelKey,
           's': r.start.millisecondsSinceEpoch ~/ 1000,
           't': r.title,
         },
-    ]),
-  );
+    ]);
+    writeSoon(() => db.setSetting('reminders', json));
+  }
 
-  bool hasReminder(Channel c, Programme p) => reminders.any(
-    (r) => r.channelKey == ZaplineDatabase.channelKey(c) && r.start == p.start,
-  );
+  bool hasReminder(Channel c, Programme p) {
+    final list = reminders;
+    if (list.isEmpty) return false;
+    final key = ZaplineDatabase.channelKey(c);
+    return list.any((r) => r.channelKey == key && r.start == p.start);
+  }
 
   void toggleReminder(Channel c, Programme p) {
     final key = ZaplineDatabase.channelKey(c);
@@ -1060,6 +1480,7 @@ class AppState extends ChangeNotifier {
         if (j != i) r,
       if (i < 0) Reminder(channelKey: key, start: p.start, title: p.title),
     ]);
+    guideVersion.value++;
     notifyListeners();
   }
 
@@ -1244,6 +1665,27 @@ class AppState extends ChangeNotifier {
   SourceRecord? _source(String id) =>
       sources.where((s) => s.id == id).firstOrNull;
 
+  final _connections = <String, Future<int?>>{};
+
+  /// How many streams [sourceId]'s account may open at once, as an Xtream
+  /// panel says (asked once per session); `null` when unknown. Preloading
+  /// channels needs spare ones: on a one-connection account a second
+  /// connection can cut the channel playing.
+  Future<int?> connectionsAllowed(String sourceId) =>
+      _connections.putIfAbsent(sourceId, () async {
+        final s = _source(sourceId);
+        if (s == null || s.kind != SourceKind.xtream) return null;
+        try {
+          final account = await XtreamClient(
+            SourceSync.credentialsOf(s),
+            timeout: const Duration(seconds: 10),
+          ).authenticate();
+          return account.maxConnections;
+        } catch (_) {
+          return null;
+        }
+      });
+
   Future<MovieDetails?> movieDetails(Movie m) async {
     final source = _source(m.sourceId);
     if (source == null || vod == null) return null;
@@ -1279,12 +1721,18 @@ class AppState extends ChangeNotifier {
   /// Saves where playback stopped; screens redraw when the player closes.
   void savePosition(String key, Duration position, Duration duration) {
     if (duration <= Duration.zero) return;
-    db.savePosition(key, position, duration);
+    writeSoon(() => db.savePosition(key, position, duration));
   }
 
   /// What this device plays now, for a phone controlling it ("Send to
-  /// TV"); set by the players.
-  ({String title, String? subtitle})? nowPlaying;
+  /// TV"); set by the players. While set, background work waits.
+  ({String title, String? subtitle})? get nowPlaying => _nowPlaying;
+  ({String title, String? subtitle})? _nowPlaying;
+  set nowPlaying(({String title, String? subtitle})? value) {
+    _nowPlaying = value;
+    // The player closed: the guides asked of the panel can go on.
+    if (value == null && guideFetcher != null) _pumpGuides();
+  }
 
   /// Port this device receives "Send to TV" on, to leave itself out of the
   /// devices it finds.
@@ -1382,6 +1830,40 @@ class AppState extends ChangeNotifier {
     DateTime from,
     DateTime to,
   ) => db.guide(channels, from, to);
+
+  /// The description of one programme from [guideRows], which leaves
+  /// them out.
+  String? programmeDescription(Programme p) {
+    if (p.description != null) return p.description;
+    try {
+      return db.programmeDescription(p.channelId, p.start);
+    } catch (e) {
+      if (isBusy(e)) return null;
+      rethrow;
+    }
+  }
+
+  /// [guide] for rows on screen: channels with nothing on now are asked of
+  /// their source, as the channel lists do.
+  Map<String, List<Programme>> guideRows(
+    List<Channel> channels,
+    DateTime from,
+    DateTime to,
+  ) {
+    // Descriptions are read only for the programme the panel shows.
+    final found = db.guide(channels, from, to, withDescriptions: false);
+    final now = DateTime.now().toUtc();
+    // A source's own short guide covers around now: worth asking only
+    // when that is on screen.
+    if (guideFetcher != null && !now.isBefore(from) && now.isBefore(to)) {
+      for (final c in channels) {
+        if (found[ZaplineDatabase.channelKey(c)]?.isNotEmpty != true) {
+          _wantGuide(c);
+        }
+      }
+    }
+    return found;
+  }
 
   GuideCoverage coverage(String sourceId) =>
       db.guideCoverage(sourceId: sourceId);
@@ -1608,15 +2090,21 @@ class AppState extends ChangeNotifier {
           db.setSetting(key, value);
       }
     }
-    db.rebuildGuideLinks();
+    // Written past the settings' own copy: read them again.
+    settings.reload();
+    await _offScreen(_rebuildLinks);
     _reload();
     notifyListeners();
     restoreDownloads = _syncRestored(toSync);
+    lastRestore = (added: added, updated: updated);
     return [
       '$added sources restored',
       if (updated > 0) '$updated updated',
     ].join(', ');
   }
+
+  /// Sources the last restore added and updated, for a translated summary.
+  ({int added, int updated})? lastRestore;
 
   /// The downloads started by the last restore: the receiving screen
   /// follows them.
@@ -1642,13 +2130,19 @@ class AppState extends ChangeNotifier {
 
   /// Re-syncs sources not refreshed within [maxAge]; errors are ignored so a
   /// temporarily unreachable server never blocks startup.
-  Future<void> refreshStale({Duration? maxAge}) async {
+  Future<void> refreshStale({
+    Duration? maxAge,
+    bool whilePlaying = true,
+  }) async {
     final hours = settings.refreshHours;
     if (maxAge == null && hours == 0) return; // automatic refresh is off
     maxAge ??= Duration(hours: hours);
     final cutoff = DateTime.now().toUtc().subtract(maxAge);
     for (final s in List.of(sources)) {
       if (s.syncedAt != null && s.syncedAt!.isAfter(cutoff)) continue;
+      // Someone started watching: the rest waits, unless a source has no
+      // data at all yet.
+      if (!whilePlaying && nowPlaying != null && s.syncedAt != null) return;
       try {
         await _sync(s);
       } catch (e) {
@@ -1657,31 +2151,84 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Timer? _autoRefresh, _firstRefresh;
+  bool _refreshAll = false;
+
+  /// Refreshes stale sources when nobody is watching: a guide download of
+  /// a hundred megabytes and its import take a TV stick's bandwidth and
+  /// CPU from the channel playing. First 20 s after start, then every 15
+  /// minutes while the app stays open (TVs are left on for days). A source
+  /// with no data at all is refreshed even while a channel plays.
+  /// [all] refreshes every source once, however recent.
+  void startAutoRefresh({bool all = false}) {
+    _refreshAll = all;
+    _autoRefresh?.cancel();
+    _firstRefresh?.cancel();
+    _firstRefresh = Timer(const Duration(seconds: 20), maybeRefresh);
+    _autoRefresh = Timer.periodic(
+      const Duration(minutes: 15),
+      (_) => maybeRefresh(),
+    );
+  }
+
+  /// Refreshes now if it's a good time (see [startAutoRefresh]); also
+  /// when the app comes back to the front.
+  Future<void> maybeRefresh() async {
+    if (isSyncing) return;
+    final playing = nowPlaying != null;
+    if (playing && sources.every((s) => s.syncedAt != null)) return;
+    final all = _refreshAll;
+    _refreshAll = false;
+    try {
+      await refreshStale(
+        maxAge: all ? Duration.zero : null,
+        whilePlaying: false,
+      );
+    } catch (e) {
+      debugPrint('Refresh: $e');
+    }
+  }
+
   void deleteSource(String id) {
     _passwords.remove(id);
     secrets.delete(_secretKey(id)).catchError((Object _) {});
     db.deleteSource(id);
-    db.rebuildGuideLinks();
+    db.setSetting('syncFailure:$id', null);
     _reload();
     notifyListeners();
+    // The other sources' channels may take its guides' place: matched off
+    // screen, shown once done.
+    unawaited(
+      _offScreen(_rebuildLinks).then((_) {
+        _reload();
+        guideVersion.value++;
+        notifyListeners();
+      }, onError: (Object e) => debugPrint('Guide links not rebuilt: $e')),
+    );
   }
+
+  /// Why the last update of [sourceId] failed, as the error said it;
+  /// `null` once one succeeds. Kept across restarts so an expired
+  /// subscription or a moved server shows on the sources, not just as
+  /// channels that no longer play.
+  String? syncFailure(String sourceId) => db.setting('syncFailure:$sourceId');
 
   Future<SyncResult> _sync(SourceRecord s) async {
     await _secretsLoading;
     // Re-read: the password may have arrived from the keystore meanwhile.
     s = sources.where((e) => e.id == s.id).firstOrNull ?? s;
     syncingSourceId = s.id;
-    progress = const SyncProgress(SyncStage.channels);
+    syncProgress.value = const SyncProgress(SyncStage.channels);
     notifyListeners();
     try {
       var shown = DateTime(0);
       final result = await syncRunner(s, (p) {
-        progress = p;
-        // Every redraw rebuilds the open screens: a few a second at most.
+        // Only the progress readouts redraw, a few times a second at most.
         final now = DateTime.now();
-        if (now.difference(shown) > const Duration(milliseconds: 1500)) {
+        if (p.stage != progress?.stage ||
+            now.difference(shown) > const Duration(milliseconds: 400)) {
           shown = now;
-          notifyListeners();
+          syncProgress.value = p;
         }
       });
       db.setSetting(
@@ -1691,15 +2238,20 @@ class AppState extends ChangeNotifier {
           'errors': result.guideErrors,
         }),
       );
+      db.setSetting('syncFailure:${s.id}', null);
       // A new sync may have brought a guide: ask again where it didn't.
       _guideAsked.clear();
-      _askGuidesWithout(s);
+      unawaited(_askGuidesWithout(s));
       return result;
+    } catch (e) {
+      db.setSetting('syncFailure:${s.id}', redactSecrets('$e'));
+      rethrow;
     } finally {
       syncingSourceId = null;
-      progress = null;
+      syncProgress.value = null;
       // Once: every reload redraws the open screens.
       _reload();
+      guideVersion.value++;
       notifyListeners();
     }
   }

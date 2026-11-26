@@ -101,6 +101,39 @@ void main() {
     expect(db.search('"weird'), isEmpty);
   });
 
+  test(
+    'a guide channel with only fillers loses to one with programmes',
+    () async {
+      db.replaceChannels('a', [_ch('a', '1', 'IT: DAZN 1 HD')]);
+      final base = DateTime.now().toUtc();
+      Stream<XmltvItem> guide() async* {
+        // Listed (and sorted) first, as free guides' event feeds are.
+        yield const XmltvChannel(id: 'a.dazn1', displayNames: ['DAZN 1']);
+        yield const XmltvChannel(id: 'z.dazn1', displayNames: ['DAZN 1']);
+        for (var i = 0; i < 4; i++) {
+          final start = base.add(Duration(hours: i));
+          for (final (id, title) in [
+            ('a.dazn1', 'No Game Today'),
+            ('z.dazn1', 'Sassuolo - Genoa $i'),
+          ]) {
+            yield XmltvProgramme(
+              Programme(
+                channelId: id,
+                start: start,
+                stop: start.add(const Duration(hours: 1)),
+                title: title,
+              ),
+            );
+          }
+        }
+      }
+
+      await db.importGuide(guide());
+      db.rebuildGuideLinks();
+      expect(db.guideLinks().values.single, 'z.dazn1');
+    },
+  );
+
   test('guide import, linking, range query and now/next', () async {
     db.replaceChannels('a', [
       _ch('a', '1', 'IT: News 24 FHD'), // matched by name
@@ -136,6 +169,35 @@ void main() {
     expect(db.unmatchedChannels(sourceId: 'a').single.id, '3');
     db.setGuideOverride(chans[2], 'news.example');
     expect(db.rebuildGuideLinks().matched, 3);
+  });
+
+  test('the guide grid can leave descriptions out', () async {
+    db.replaceChannels('a', [_ch('a', '1', 'News 24', epg: 'news.example')]);
+    Stream<XmltvItem> guide() async* {
+      yield const XmltvChannel(id: 'news.example', displayNames: ['News']);
+      yield XmltvProgramme(
+        Programme(
+          channelId: 'news.example',
+          start: now,
+          stop: now.add(const Duration(hours: 1)),
+          title: 'Evening news',
+          description: 'Headlines',
+        ),
+      );
+    }
+
+    await db.importGuide(guide(), now: now);
+    db.rebuildGuideLinks();
+    final chans = db.channels();
+    final to = now.add(const Duration(hours: 2));
+    expect(db.guide(chans, now, to)['a/1']!.single.description, 'Headlines');
+    final bare = db
+        .guide(chans, now, to, withDescriptions: false)['a/1']!
+        .single;
+    expect(bare.title, 'Evening news');
+    expect(bare.description, isNull);
+    expect(db.programmeDescription(bare.channelId, bare.start), 'Headlines');
+    expect(db.programmeDescription(bare.channelId, to), isNull);
   });
 
   test('favourites keep order, survive re-sync, go with their source', () {

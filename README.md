@@ -84,7 +84,10 @@ docs/                 Architecture, roadmap, releasing
 
 ## Development
 
-Requires the Flutter SDK (stable channel).
+Requires the Flutter SDK 3.47.9 (stable channel), the version CI and
+releases are built with. Flutter 3.50 deprecates
+`package:flutter/material.dart`; the move to `package:material_ui` is in
+the [roadmap](docs/ROADMAP.md).
 
 ```sh
 dart pub get                      # resolves the whole workspace

@@ -54,13 +54,20 @@ class XtreamClient {
           statusCode: res.statusCode);
     }
     // Decoded as it arrives: big lists never sit in memory as bytes and
-    // as text on top of the parsed result.
+    // as text on top of the parsed result. The timeout is between chunks of
+    // bytes, not for the whole answer: a list of 100,000 films from a slow
+    // panel can take minutes and still be fine, as long as it keeps coming.
+    var stalled = false;
     final values = await res.stream
+        .timeout(timeout, onTimeout: (sink) {
+          stalled = true;
+          sink.close();
+        })
         .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const JsonDecoder())
-        .timeout(timeout)
         .toList()
         .catchError((Object _) => <Object?>[_badJson]);
+    if (stalled) throw XtreamException('The server stopped sending');
     if (values.isEmpty) return null;
     if (identical(values.first, _badJson)) {
       throw XtreamException('Server did not return JSON');

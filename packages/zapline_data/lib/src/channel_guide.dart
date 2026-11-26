@@ -44,7 +44,11 @@ class ChannelGuideFetcher {
           description: e.description,
         ).shifted(shift),
     ];
-    db.storeChannelGuide(channel, programmes);
+    // A sync's write slice holds the database a moment: try again shortly.
+    for (var i = 1; !db.storeChannelGuide(channel, programmes); i++) {
+      if (i > 5) return 0;
+      await Future<void>.delayed(Duration(milliseconds: 300 * i));
+    }
     return programmes.length;
   }
 

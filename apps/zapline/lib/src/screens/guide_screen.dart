@@ -1,16 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
+import 'package:intl/intl.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../l10n.dart';
 import '../input_mode.dart';
+import '../mobile/programme_sheet.dart';
 import '../theme.dart';
 import '../widgets/channel_logo.dart';
 import '../widgets/focus_card.dart';
 import 'player_screen.dart';
+import '../layout.dart';
 
 /// The TV guide on a screen of its own.
 class GuideScreen extends StatelessWidget {
@@ -71,6 +76,9 @@ class GuideGridState extends State<GuideGrid> {
   static const _labelWidth = 240.0;
   static const _rowHeight = 64.0;
 
+  /// A row, taller with large system text.
+  double get _rowExtent => scaledExtent(context, _rowHeight);
+
   late DateTime _from = _floorToStep(DateTime.now().toUtc());
   DateTime get _to => _from.add(_span);
 
@@ -82,63 +90,142 @@ class GuideGridState extends State<GuideGrid> {
   final _nodes = <String, FocusNode>{};
   final _usedNodes = <String>{};
 
-  ({Channel channel, Programme? programme})? _selected;
+  /// The focused cell: only the details above the grid follow it, so moving
+  /// around doesn't rebuild every row.
+  final _selected = ValueNotifier<({Channel channel, Programme? programme})?>(
+    null,
+  );
+
+  final _scroll = ScrollController();
 
   /// After paging, the cell in this row covering this time takes focus.
   (int, DateTime)? _pendingFocus;
   int _focusedRow = 0;
 
+  /// Digits typed to jump to a channel number.
+  String _digits = '';
+  Timer? _digitTimer;
+
   static DateTime _floorToStep(DateTime t) =>
       DateTime.utc(t.year, t.month, t.day, t.hour, t.minute < 30 ? 0 : 30);
 
   @override
+  void initState() {
+    super.initState();
+    widget.state.guideVersion.addListener(_guideChanged);
+    if (!widget.autofocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusCellAt(0, DateTime.now().toUtc());
+    });
+  }
+
+  @override
   void dispose() {
+    widget.state.guideVersion.removeListener(_guideChanged);
+    _digitTimer?.cancel();
     for (final n in _nodes.values) {
       n.dispose();
     }
+    _selected.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  /// Programmes arrived or guide links changed: the visible rows load
+  /// again, a few queries.
+  void _guideChanged() {
+    if (mounted) setState(_rows.clear);
   }
 
   @override
   void didUpdateWidget(GuideGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The guide may have changed (a sync, a channel's programmes asked of
-    // its source): the visible rows load again, a few queries.
-    _rows.clear();
-    // Another group starts from the top.
     if (!identical(oldWidget.channels, widget.channels)) {
-      _focusedRow = 0;
-      _selected = null;
+      // Other channels (another group, or the list changed): their rows
+      // load as they show. Another group starts from the top.
+      _rows.clear();
+      _earliest = null;
+      if (oldWidget.caption != widget.caption) {
+        _focusedRow = 0;
+        _selected.value = null;
+        if (_scroll.hasClients) _scroll.jumpTo(0);
+      }
     }
   }
 
-  /// Moves focus into the grid: [row]'s programme on now, back at the
-  /// current time.
-  void focusNow([int row = 0]) {
+  /// Whether the grid shows what's on now.
+  bool get atNow => _from == _floorToStep(DateTime.now().toUtc());
+
+  /// Moves focus into the grid: what's on now on [row], by default the row
+  /// focus was last on.
+  void focusNow([int? row]) {
+    row ??= _focusedRow;
     final now = _floorToStep(DateTime.now().toUtc());
     if (_from != now) {
       setState(() {
         _from = now;
         _rows.clear();
-        _pendingFocus = (row, DateTime.now().toUtc());
+        _pendingFocus = (row!, DateTime.now().toUtc());
       });
       return;
     }
     _focusCellAt(row, DateTime.now().toUtc());
   }
 
-  List<Programme> _row(Channel c) {
-    final key = ZaplineDatabase.channelKey(c);
-    return _rows[key] ??=
-        widget.state.guide([c], _from, _to)[key] ?? const <Programme>[];
+  /// Focuses [c]'s row, if it is in the grid (back from the player, on
+  /// the channel zapped to).
+  void focusChannel(Channel c) {
+    final i = widget.state.indexOfChannel(widget.channels, c);
+    if (i >= 0) focusNow(i);
+  }
+
+  /// Row [i]'s programmes in the window. Rows not loaded yet around it
+  /// load in one query: a page of new rows costs one, not one each.
+  List<Programme> _row(int i) {
+    final list = widget.channels;
+    final key = ZaplineDatabase.channelKey(list[i]);
+    final cached = _rows[key];
+    if (cached != null) return cached;
+    final batch = [
+      for (
+        var j = (i - 8).clamp(0, list.length);
+        j < list.length && j < i + 24;
+        j++
+      )
+        if (!_rows.containsKey(ZaplineDatabase.channelKey(list[j]))) list[j],
+    ];
+    final found = widget.state.guideRows(batch, _from, _to);
+    for (final c in batch) {
+      final k = ZaplineDatabase.channelKey(c);
+      _rows[k] = found[k] ?? const <Programme>[];
+    }
+    return _rows[key]!;
+  }
+
+  DateTime? _earliest;
+
+  /// How far back the grid goes: as far as the channels keep an archive
+  /// (a week at most), and at least a day.
+  DateTime get _earliestFrom {
+    final cached = _earliest;
+    if (cached != null) return cached;
+    var days = 1;
+    for (final c in widget.channels) {
+      final d = c.catchup?.days ?? 0;
+      if (d > days) days = d > 7 ? 7 : d;
+      if (days == 7) break;
+    }
+    return _earliest = _floorToStep(
+      DateTime.now().toUtc().subtract(Duration(days: days)),
+    );
   }
 
   void _page(int steps, {required int row, required DateTime focusAt}) {
-    final earliest = _floorToStep(
-      DateTime.now().toUtc().subtract(const Duration(days: 1)),
-    );
-    final next = _from.add(_step * steps);
-    if (next.isBefore(earliest)) return;
+    var next = _from.add(_step * steps);
+    if (next.isBefore(_earliestFrom)) {
+      if (!_from.isAfter(_earliestFrom)) return;
+      next = _earliestFrom;
+    }
     setState(() {
       _from = next;
       _rows.clear();
@@ -165,21 +252,99 @@ class GuideGridState extends State<GuideGrid> {
     _usedNodes.clear();
   }
 
+  /// Rows that fit on screen, for Page Up/Down.
+  int get _pageRows {
+    final h = _scroll.hasClients ? _scroll.position.viewportDimension : 0.0;
+    return h <= 0 ? 8 : (h / _rowExtent).floor().clamp(1, 50);
+  }
+
+  /// Moves focus [rows] rows up or down, at the time focus is on.
+  void _moveRows(int rows) {
+    final n = widget.channels.length;
+    if (n == 0) return;
+    final target = (_focusedRow + rows).clamp(0, n - 1);
+    if (target == _focusedRow) return;
+    final p = _selected.value?.programme;
+    final at = p == null
+        ? (atNow ? DateTime.now().toUtc() : _from)
+        : (p.start.isBefore(_from) ? _from : p.start);
+    _focusCellAt(target, at);
+  }
+
+  static final _digitKeys = {
+    for (var i = 0; i <= 9; i++) ...{
+      LogicalKeyboardKey(LogicalKeyboardKey.digit0.keyId + i): '$i',
+      LogicalKeyboardKey(LogicalKeyboardKey.numpad0.keyId + i): '$i',
+    },
+  };
+
+  void _typeDigit(String d) {
+    _digitTimer?.cancel();
+    if (_digits.length < 4) setState(() => _digits += d);
+    _digitTimer = Timer(const Duration(milliseconds: 1200), _applyDigits);
+  }
+
+  void _applyDigits() {
+    _digitTimer?.cancel();
+    final n = int.tryParse(_digits);
+    setState(() => _digits = '');
+    if (n == null) return;
+    final list = widget.channels;
+    for (var i = 0; i < list.length; i++) {
+      if (widget.state.channelNumber(list[i], i) == n) {
+        return _focusCellAt(i, atNow ? DateTime.now().toUtc() : _from);
+      }
+    }
+  }
+
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
     final primary = FocusManager.instance.primaryFocus;
     if (primary == null) return KeyEventResult.ignored;
-    final sel = _selected;
-    if (e.logicalKey == LogicalKeyboardKey.arrowRight) {
+    final sel = _selected.value;
+    final k = e.logicalKey;
+    if (_digitKeys[k] case final d? when e is KeyDownEvent) {
+      _typeDigit(d);
+      return KeyEventResult.handled;
+    }
+    if (_digits.isNotEmpty &&
+        (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter)) {
+      _applyDigits();
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.pageDown ||
+        k == LogicalKeyboardKey.channelDown) {
+      _moveRows(_pageRows - 1);
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.pageUp || k == LogicalKeyboardKey.channelUp) {
+      _moveRows(-(_pageRows - 1));
+      return KeyEventResult.handled;
+    }
+    // Fast-forward and rewind move a whole window: tonight is a few
+    // presses away, not twenty.
+    if (k == LogicalKeyboardKey.mediaFastForward) {
+      _page(_span.inMinutes ~/ _step.inMinutes, row: _focusedRow, focusAt: _to);
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.mediaRewind) {
+      _page(
+        -(_span.inMinutes ~/ _step.inMinutes),
+        row: _focusedRow,
+        focusAt: _from.subtract(_span),
+      );
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.arrowRight) {
       if (primary.focusInDirection(TraversalDirection.right)) {
         return KeyEventResult.handled;
       }
       _page(1, row: _focusedRow, focusAt: _to);
       return KeyEventResult.handled;
     }
-    if (e.logicalKey == LogicalKeyboardKey.arrowLeft) {
+    if (k == LogicalKeyboardKey.arrowLeft) {
       if (primary.focusInDirection(TraversalDirection.left)) {
         return KeyEventResult.handled;
       }
@@ -187,11 +352,8 @@ class GuideGridState extends State<GuideGrid> {
       // an archive to go back into; at the archive's start it leaves too.
       final exit = widget.onExitLeft;
       final archived = (sel?.channel.catchup?.days ?? 0) > 0;
-      final earliest = _floorToStep(
-        DateTime.now().toUtc().subtract(const Duration(days: 1)),
-      );
       final atNow = !_from.isAfter(_floorToStep(DateTime.now().toUtc()));
-      final atStart = _from.subtract(_step).isBefore(earliest);
+      final atStart = !_from.isAfter(_earliestFrom);
       if (exit != null && ((atNow && !archived) || atStart)) {
         exit();
         return KeyEventResult.handled;
@@ -208,13 +370,25 @@ class GuideGridState extends State<GuideGrid> {
   }
 
   /// Plays the channel live, or replays [programme] from the archive when it
-  /// has already aired and the provider keeps it.
+  /// has already aired and the provider keeps it. A programme still to
+  /// come opens its details, where it can be set as a reminder.
   void _play(int index, [Programme? programme]) {
     final c = widget.channels[index];
+    final now = DateTime.now().toUtc();
+    if (programme != null && programme.start.isAfter(now)) {
+      showProgrammeSheet(
+        context,
+        state: widget.state,
+        channels: widget.channels,
+        index: index,
+        programme: programme,
+      );
+      return;
+    }
     final replay =
         programme != null &&
-            programme.start.isBefore(DateTime.now().toUtc()) &&
-            !programme.isAiringAt(DateTime.now().toUtc()) &&
+            programme.start.isBefore(now) &&
+            !programme.isAiringAt(now) &&
             widget.state.catchupUrl(c, programme) != null
         ? programme
         : null;
@@ -248,7 +422,11 @@ class GuideGridState extends State<GuideGrid> {
       children: [
         SizedBox(
           height: 128,
-          child: _Details(selected: _selected, time: widget.state.time),
+          child: ValueListenableBuilder(
+            valueListenable: _selected,
+            builder: (context, selected, _) =>
+                _Details(selected: selected, state: widget.state),
+          ),
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -288,6 +466,11 @@ class GuideGridState extends State<GuideGrid> {
                                           semanticLabel: context.l10n.earlier,
                                         ),
                                       ),
+                                      if (!atNow)
+                                        TextButton(
+                                          onPressed: focusNow,
+                                          child: Text(context.l10n.now),
+                                        ),
                                       IconButton(
                                         iconSize: 22,
                                         onPressed: () => _pagePointer(1),
@@ -323,8 +506,9 @@ class GuideGridState extends State<GuideGrid> {
                             skipTraversal: true,
                             onKeyEvent: _onKey,
                             child: ListView.builder(
+                              controller: _scroll,
                               itemCount: widget.channels.length,
-                              itemExtent: _rowHeight,
+                              itemExtent: _rowExtent,
                               itemBuilder: (context, i) =>
                                   _buildRow(i, pxPerMin),
                             ),
@@ -336,6 +520,15 @@ class GuideGridState extends State<GuideGrid> {
                           left: _labelWidth,
                           pxPerMin: pxPerMin,
                         ),
+                        if (_digits.isNotEmpty)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: _DigitBadge(
+                              digits: _digits,
+                              name: _numbered(int.tryParse(_digits)),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -348,11 +541,24 @@ class GuideGridState extends State<GuideGrid> {
     );
   }
 
+  /// The name of the channel numbered [n] in the grid, if any.
+  String? _numbered(int? n) {
+    if (n == null) return null;
+    final list = widget.channels;
+    for (var i = 0; i < list.length; i++) {
+      if (widget.state.channelNumber(list[i], i) == n) {
+        return widget.state.displayName(list[i]);
+      }
+    }
+    return null;
+  }
+
   Widget _buildRow(int i, double pxPerMin) {
     final c = widget.channels[i];
     final key = ZaplineDatabase.channelKey(c);
-    final programmes = _row(c);
+    final programmes = _row(i);
     final cells = <Widget>[];
+    final now = DateTime.now().toUtc();
 
     if (programmes.isEmpty) {
       cells.add(
@@ -374,15 +580,16 @@ class GuideGridState extends State<GuideGrid> {
       final left = s.difference(_from).inMinutes * pxPerMin;
       final width = e.difference(s).inMinutes * pxPerMin;
       if (width < 4) continue;
+      final past = p.stop.isBefore(now);
       cells.add(
         _cell(
           nodeKey: '$key|${p.start.millisecondsSinceEpoch}',
           left: left,
           width: width,
           label: p.title,
-          dim: p.stop.isBefore(DateTime.now().toUtc()),
-          replayable:
-              p.stop.isBefore(DateTime.now().toUtc()) && canReplay(c, p),
+          dim: past,
+          replayable: past && canReplay(c, p),
+          reminder: p.start.isAfter(now) && widget.state.hasReminder(c, p),
           onFocus: () => _select(i, c, p),
           onPressed: () => _play(i, p),
           onLongPress: _longPress(c),
@@ -421,6 +628,15 @@ class GuideGridState extends State<GuideGrid> {
                     ),
                   ),
                 ),
+                if (widget.state.isFavourite(c))
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Icon(
+                      Icons.star_rounded,
+                      size: 16,
+                      color: ZaplineColors.focus,
+                    ),
+                  ),
                 const SizedBox(width: 12),
               ],
             ),
@@ -438,10 +654,16 @@ class GuideGridState extends State<GuideGrid> {
     required String label,
     required bool dim,
     bool replayable = false,
+    bool reminder = false,
     required VoidCallback onFocus,
     required VoidCallback onPressed,
     VoidCallback? onLongPress,
   }) {
+    final icon = replayable
+        ? Icons.history
+        : reminder
+        ? Icons.notifications_active_rounded
+        : null;
     return Positioned(
       left: left,
       top: 0,
@@ -456,8 +678,8 @@ class GuideGridState extends State<GuideGrid> {
         onLongPress: onLongPress,
         child: Row(
           children: [
-            if (replayable) ...[
-              const Icon(Icons.history, size: 18),
+            if (icon != null) ...[
+              Icon(icon, size: 18),
               const SizedBox(width: 6),
             ],
             Expanded(
@@ -486,14 +708,16 @@ class GuideGridState extends State<GuideGrid> {
 
   void _select(int row, Channel c, Programme? p) {
     _focusedRow = row;
-    setState(() => _selected = (channel: c, programme: p));
+    _selected.value = (channel: c, programme: p);
   }
 
-  void _focusCellAt(int row, DateTime at) {
+  /// Focuses [row]'s cell covering [at]; a row scrolled away is brought
+  /// into view first, its cells exist only once it is built.
+  void _focusCellAt(int row, DateTime at, {bool retried = false}) {
     if (row >= widget.channels.length) return;
     final c = widget.channels[row];
     final key = ZaplineDatabase.channelKey(c);
-    final programmes = _row(c);
+    final programmes = _row(row);
     final p = programmes
         .where((p) => !at.isBefore(p.start) && at.isBefore(p.stop))
         .firstOrNull;
@@ -502,37 +726,92 @@ class GuideGridState extends State<GuideGrid> {
               ? '$key|none'
               : '$key|${(at.isBefore(_from) || !at.isBefore(_to) ? programmes.last : programmes.first).start.millisecondsSinceEpoch}')
         : '$key|${p.start.millisecondsSinceEpoch}';
-    _nodes[nodeKey]?.requestFocus();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    if (!widget.autofocus) return;
+    final node = _nodes[nodeKey];
+    // A node outlives its row: scrolled away, the row is gone.
+    if (node != null && (node.context?.mounted ?? false)) {
+      node.requestFocus();
+      return;
+    }
+    if (retried || !_scroll.hasClients) return;
+    final pos = _scroll.position;
+    // A third of the way down, so the rows around it show too.
+    pos.jumpTo(
+      (row * _rowExtent - pos.viewportDimension / 3).clamp(
+        0.0,
+        pos.maxScrollExtent,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusCellAt(0, DateTime.now().toUtc());
+      if (mounted) _focusCellAt(row, at, retried: true);
     });
   }
 }
 
+/// The number typed on the remote and the channel it jumps to.
+class _DigitBadge extends StatelessWidget {
+  const _DigitBadge({required this.digits, required this.name});
+
+  final String digits;
+  final String? name;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+    decoration: BoxDecoration(
+      color: ZaplineColors.surfaceHigh,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: ZaplineColors.focus, width: 2),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          digits,
+          style: const TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.w800,
+            color: ZaplineColors.focus,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+        if (name != null)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: Text(
+              name!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
 class _Details extends StatelessWidget {
-  const _Details({required this.selected, required this.time});
+  const _Details({required this.selected, required this.state});
 
   final ({Channel channel, Programme? programme})? selected;
-  final String Function(DateTime) time;
+  final AppState state;
+
+  String time(DateTime t) => state.time(t);
 
   @override
   Widget build(BuildContext context) {
     final s = selected;
     if (s == null) return const SizedBox.shrink();
     final p = s.programme;
+    final description = p == null ? null : state.programmeDescription(p);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           p == null
-              ? s.channel.name
-              : '${s.channel.name} · ${time(p.start)}–${time(p.stop)}',
+              ? state.displayName(s.channel)
+              : '${state.displayName(s.channel)} · ${_day(context, p.start)}'
+                    '${time(p.start)}–${time(p.stop)}',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -542,14 +821,16 @@ class _Details extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           p?.title ?? context.l10n.noGuideInfo,
+          // The full title for screen readers too.
+          semanticsLabel: p?.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
         ),
-        if (p?.description != null) ...[
+        if (description != null) ...[
           const SizedBox(height: 6),
           Text(
-            p!.description!,
+            description,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -562,6 +843,23 @@ class _Details extends StatelessWidget {
       ],
     );
   }
+}
+
+/// "Tomorrow " or "Fri 28 " before a programme's time when it isn't today.
+String _day(BuildContext context, DateTime t) {
+  final l = t.toLocal(), now = DateTime.now();
+  final days = DateTime(
+    l.year,
+    l.month,
+    l.day,
+  ).difference(DateTime(now.year, now.month, now.day)).inDays;
+  return switch (days) {
+    0 => '',
+    1 => '${context.l10n.tomorrow} ',
+    -1 => '${context.l10n.yesterday} ',
+    _ =>
+      '${DateFormat.MMMEd(Localizations.localeOf(context).toString()).format(l)} ',
+  };
 }
 
 class _Ruler extends StatelessWidget {

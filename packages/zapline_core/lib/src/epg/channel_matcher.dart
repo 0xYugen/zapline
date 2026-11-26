@@ -19,35 +19,84 @@ class EpgMatch {
 /// ([looseChannelKey]: "Rai Uno" = "Rai 1") when only one guide channel has
 /// it. Fuzzier strategies are left out: a wrong guide is worse than no
 /// guide, and unmatched channels are offered for manual mapping instead.
+///
+/// With [programmes] (real programmes ahead per guide channel), of guide
+/// channels sharing a name the one with the most wins, and those with
+/// none (only fillers such as "No Game Today", see [isFillerTitle]) come
+/// last. Free guides list DAZN's event feeds as "DAZN1.it" next to the
+/// real DAZN 1 schedule under another id.
 class ChannelMatcher {
   ChannelMatcher(Iterable<XmltvChannel> guideChannels,
-      {Map<String, String> manualOverrides = const {}})
-      : _manual = manualOverrides {
-    for (final gc in guideChannels) {
+      {Map<String, String> manualOverrides = const {},
+      Map<String, int>? programmes})
+      : _manual = manualOverrides,
+        _empty = programmes == null
+            ? const {}
+            : {
+                for (final gc in guideChannels)
+                  if ((programmes[gc.id] ?? 0) == 0) gc.id,
+              } {
+    // The fullest first: the first of a name is kept. Stable, so equal
+    // ones keep the guides' order.
+    final ordered = [...guideChannels];
+    if (programmes != null) {
+      final place = {for (final (i, gc) in ordered.indexed) gc: i};
+      ordered.sort((a, b) {
+        final byCount =
+            (programmes[b.id] ?? 0).compareTo(programmes[a.id] ?? 0);
+        return byCount != 0 ? byCount : place[a]!.compareTo(place[b]!);
+      });
+    }
+    final empty = _empty;
+    for (final gc in ordered) {
       _byId.putIfAbsent(gc.id.toLowerCase(), () => gc.id);
       for (final n in gc.displayNames) {
         final key = normalizeChannelName(n);
         if (key.isNotEmpty) _byName.putIfAbsent(key, () => gc.id);
       }
       // Ids like "Canale5.it" double as names.
-      final idName = normalizeChannelName(gc.id.split('.').first);
+      final idName = normalizeChannelName(guideIdName(gc.id));
       if (idName.isNotEmpty) _byName.putIfAbsent(idName, () => gc.id);
+      final names = {
+        for (final n in [
+          ...gc.displayNames.map(withoutCountrySuffix),
+          guideIdName(gc.id),
+        ])
+          normalizeChannelName(n),
+      }..remove('');
       for (final key in {
-        for (final n in [...gc.displayNames, gc.id.split('.').first])
+        for (final n in [
+          ...gc.displayNames.map(withoutCountrySuffix),
+          guideIdName(gc.id)
+        ])
           looseChannelKey(n),
       }) {
         if (key.isEmpty) continue;
-        // Two guide channels with the same loose name: ambiguous, unused.
-        _byLoose[key] =
-            _byLoose.containsKey(key) && _byLoose[key] != gc.id ? null : gc.id;
+        // An empty channel never makes a loose name with data ambiguous.
+        final known = _byLoose[key];
+        if (empty.contains(gc.id) && known != null && !empty.contains(known)) {
+          continue;
+        }
+        // Two guide channels with the same loose name: ambiguous, unused;
+        // unless they have the same name too (one channel in two guides):
+        // the first, the fuller, is kept.
+        if (!_byLoose.containsKey(key)) {
+          _byLoose[key] = gc.id;
+          _looseNames[key] = names;
+        } else if (known != gc.id &&
+            !(_looseNames[key] ?? const {}).any(names.contains)) {
+          _byLoose[key] = null;
+        }
       }
     }
   }
 
   final Map<String, String> _manual;
+  final Set<String> _empty;
   final _byId = <String, String>{};
   final _byName = <String, String>{};
   final _byLoose = <String, String?>{};
+  final _looseNames = <String, Set<String>>{};
 
   /// [channelKey] identifies the channel for manual overrides
   /// (e.g. `"$sourceId/$id"`).
@@ -58,14 +107,143 @@ class ChannelMatcher {
     final epgId = channel.epgChannelId;
     if (epgId != null && epgId.isNotEmpty) {
       final hit = _byId[epgId.toLowerCase()];
-      if (hit != null) return EpgMatch(hit, MatchKind.epgId);
+      if (hit != null) {
+        // The id given has nothing to show: the name may find a guide
+        // that does.
+        if (_empty.contains(hit)) {
+          final other = _byNames(channel.name);
+          if (other != null && !_empty.contains(other.guideChannelId)) {
+            return other;
+          }
+        }
+        return EpgMatch(hit, MatchKind.epgId);
+      }
     }
+    return _byNames(channel.name);
+  }
 
-    final byName = _byName[normalizeChannelName(channel.name)];
+  EpgMatch? _byNames(String name) {
+    final byName = _byName[normalizeChannelName(name)];
     if (byName != null) return EpgMatch(byName, MatchKind.name);
-    final loose = _byLoose[looseChannelKey(channel.name)];
+    final loose = _byLoose[looseChannelKey(name)];
     if (loose != null) return EpgMatch(loose, MatchKind.name);
     return null;
+  }
+}
+
+/// The channel name an XMLTV id stands for: "Canale5.it" → "Canale5",
+/// "DAZN.1.it.it" → "DAZN 1", "Rai.1.HD..101.it" → "Rai 1 HD" (a channel
+/// number after an empty part is the guide's own). Only the first part
+/// was taken before: "Rai" for every Rai channel of such guides.
+String guideIdName(String id) {
+  final parts = id.split('.');
+  while (parts.length > 1 &&
+      (parts.last.isEmpty || _countryCode.hasMatch(parts.last))) {
+    parts.removeLast();
+  }
+  if (parts.length > 2 &&
+      _digits.hasMatch(parts.last) &&
+      parts[parts.length - 2].isEmpty) {
+    parts.removeLast();
+  }
+  return parts.where((p) => p.isNotEmpty).join(' ');
+}
+
+/// [name] without an id-like country suffix: guides that repeat the id
+/// as the name write "Virgin Radio.it".
+String withoutCountrySuffix(String name) {
+  final dot = name.lastIndexOf('.');
+  if (dot <= 0 || !_countryCode.hasMatch(name.substring(dot + 1))) {
+    return name;
+  }
+  return name.substring(0, dot);
+}
+
+final _countryCode = RegExp(r'^[a-zA-Z]{2,3}$');
+final _digits = RegExp(r'^\d+$');
+
+/// Titles free guides put in place of a schedule they don't have.
+bool isFillerTitle(String title) =>
+    fillerTitles.contains(title.trim().toLowerCase());
+
+const fillerTitles = {
+  'no game today',
+  'no data',
+  'no event',
+  'no events',
+  'no events today',
+  'no information',
+  'no programme information',
+  'no program information',
+  'nessun evento',
+  'nessun evento in onda',
+  'programma non disponibile',
+  'informazioni non disponibili',
+};
+
+/// Which guide channels a set of channels could use: every key the
+/// [ChannelMatcher] might link them by. Big free guides list thousands of
+/// channels; the programmes of the ones no channel can use need not be
+/// stored (see `XmltvParser.wanted`).
+///
+/// It errs on the side of keeping: a guide channel is wanted when any of
+/// its keys is one a channel has, even where the matcher would find the
+/// key ambiguous and link nothing.
+class GuideWants {
+  /// [channels] are (epg id, name) pairs; [guideIds] the guide channels
+  /// linked by hand or by an earlier match, which stay wanted whatever
+  /// their names.
+  GuideWants(
+    Iterable<(String? epgId, String name)> channels, {
+    Iterable<String> guideIds = const [],
+  }) {
+    for (final (epgId, name) in channels) {
+      if (epgId != null && epgId.isNotEmpty) _ids.add(epgId.toLowerCase());
+      final n = normalizeChannelName(name);
+      if (n.isNotEmpty) _names.add(n);
+      final l = looseChannelKey(name);
+      if (l.isNotEmpty) _loose.add(l);
+    }
+    for (final id in guideIds) {
+      _ids.add(id.toLowerCase());
+    }
+  }
+
+  final _ids = <String>{};
+  final _names = <String>{};
+  final _loose = <String>{};
+
+  bool get isEmpty => _ids.isEmpty && _names.isEmpty && _loose.isEmpty;
+
+  /// Whether a channel could be linked to [gc].
+  bool call(XmltvChannel gc) {
+    if (_ids.contains(gc.id.toLowerCase())) return true;
+    final idName = guideIdName(gc.id);
+    for (final n in [...gc.displayNames, idName]) {
+      if (_names.contains(normalizeChannelName(n)) ||
+          _loose.contains(looseChannelKey(n))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Changes when the set of keys changes, in any order: a guide imported
+  /// for other channels is downloaded again rather than kept as it was.
+  String get fingerprint {
+    // FNV-1a over the sorted keys, kept to 32 bits.
+    var h = 0x811c9dc5;
+    for (final set in [_ids, _names, _loose]) {
+      for (final k in set.toList()..sort()) {
+        for (final c in k.codeUnits) {
+          h = ((h ^ c) * 0x01000193) & 0xffffffff;
+        }
+        h = ((h ^ 0x0a) * 0x01000193) & 0xffffffff;
+      }
+      h = ((h ^ 0x1e) * 0x01000193) & 0xffffffff;
+    }
+    final n = _ids.length + _names.length + _loose.length;
+    return '${h.toRadixString(16).padLeft(8, '0')}-$n';
   }
 }
 
@@ -109,13 +287,35 @@ const _diacritics = {
   'ß': 'ss',
 };
 
+/// [s] with the accented letters of [_diacritics] replaced; [s] itself
+/// (no copy) when it has none, as most channel names.
+String _stripAccents(String s) {
+  var i = 0;
+  // All the accented letters are at U+00DF and above.
+  while (i < s.length && s.codeUnitAt(i) < 0xdf) {
+    i++;
+  }
+  if (i == s.length) return s;
+  final b = StringBuffer(s.substring(0, i));
+  for (; i < s.length; i++) {
+    final c = s.codeUnitAt(i);
+    if (c < 0xdf) {
+      b.writeCharCode(c);
+    } else {
+      final ch = String.fromCharCode(c);
+      b.write(_diacritics[ch] ?? ch);
+    }
+  }
+  return b.toString();
+}
+
 /// Reduces a channel name to a comparison key: lower case, no accents, no
 /// country prefix (`IT:`, `[UK]`), no quality tags (`HD`, `4K`, `HEVC`), no
 /// punctuation. `+1` style timeshift suffixes are kept because they are
 /// different channels.
 String normalizeChannelName(String name) {
   var s = name.toLowerCase();
-  s = s.split('').map((c) => _diacritics[c] ?? c).join();
+  s = _stripAccents(s);
   s = s.replaceFirst(_prefix, '');
   s = s.replaceAll(_quality, ' ');
   s = s.replaceAll(_nonAlnum, '');
@@ -150,7 +350,7 @@ final _wordSplit = RegExp(r'[^a-z0-9+]+');
 /// goes. Matched only when a single guide channel has the key.
 String looseChannelKey(String name) {
   var s = name.toLowerCase();
-  s = s.split('').map((c) => _diacritics[c] ?? c).join();
+  s = _stripAccents(s);
   s = s.replaceFirst(_prefix, '');
   s = s.replaceAll(_quality, ' ');
   final words = [
@@ -183,7 +383,10 @@ class GuideIndex {
             (
               gc,
               [
-                for (final name in [...gc.displayNames, gc.id.split('.').first])
+                for (final name in [
+                  ...gc.displayNames.map(withoutCountrySuffix),
+                  guideIdName(gc.id)
+                ])
                   (normalizeChannelName(name), _words(name)),
               ],
             ),
@@ -213,17 +416,24 @@ class GuideIndex {
                       : target.length / n.length) +
               0.1;
         } else {
-          final shared = words.intersection(targetWords).length;
-          // Prefix matches catch abbreviations ("Cinema 1" vs "Cinema One").
-          final prefix = words.any((w) => targetWords.any((t) =>
-                  w.length >= 3 &&
-                  t.length >= 3 &&
-                  (w.startsWith(t) || t.startsWith(w))))
-              ? 0.5
-              : 0.0;
-          final union = words.union(targetWords).length;
-          s = union == 0 ? 0 : 0.6 * shared / union;
-          if (shared == 0) s = prefix * 0.6;
+          // Counted without building sets: this runs for every guide name
+          // against every channel being matched.
+          var shared = 0;
+          for (final w in words) {
+            if (targetWords.contains(w)) shared++;
+          }
+          if (shared > 0) {
+            final union = words.length + targetWords.length - shared;
+            s = 0.6 * shared / union;
+          } else {
+            // Prefix matches catch abbreviations ("Cinema 1" vs "Cinema
+            // One").
+            final prefix = words.any((w) => targetWords.any((t) =>
+                w.length >= 3 &&
+                t.length >= 3 &&
+                (w.startsWith(t) || t.startsWith(w))));
+            s = prefix ? 0.3 : 0;
+          }
         }
         if (s > best) best = s;
       }
@@ -238,7 +448,7 @@ final _wordSplitter = RegExp(r'[^a-z0-9+]+');
 
 Set<String> _words(String s) {
   var t = s.toLowerCase();
-  t = t.split('').map((c) => _diacritics[c] ?? c).join();
+  t = _stripAccents(t);
   t = t.replaceFirst(_prefix, '').replaceAll(_quality, ' ');
   return t.split(_wordSplitter).where((w) => w.isNotEmpty).toSet();
 }

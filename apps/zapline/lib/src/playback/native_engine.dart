@@ -13,10 +13,21 @@ class NativeEngine implements PlaybackEngine {
   final _controller = ValueNotifier<VideoPlayerController?>(null);
   final _position = StreamController<Duration>.broadcast();
   final _errors = StreamController<String>.broadcast();
+  final _buffering = StreamController<bool>.broadcast();
+
+  /// Applied to every stream opened.
+  double _volume = 1;
 
   /// Bumped on every open so a slow, superseded initialisation is discarded.
   int _generation = 0;
   String? _lastError;
+  bool _wasBuffering = false;
+
+  /// The controller still initialising, and what ends the wait for it when
+  /// another channel is opened first: disposing a controller mid-way leaves
+  /// its `initialize()` pending for ever.
+  VideoPlayerController? _pending;
+  Completer<void>? _superseded;
 
   @override
   String get name => kIsWeb ? 'html5' : 'media3';
@@ -30,6 +41,7 @@ class NativeEngine implements PlaybackEngine {
     final gen = ++_generation;
     _lastError = null;
     await _release();
+    if (gen != _generation) return;
     final c = VideoPlayerController.networkUrl(
       url,
       httpHeaders: headers,
@@ -41,37 +53,72 @@ class NativeEngine implements PlaybackEngine {
       viewType: VideoViewType.platformView,
       videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: false),
     );
+    final superseded = _superseded = Completer<void>();
+    _pending = c;
+    _setBuffering(true);
     try {
-      await c.initialize();
+      await Future.any([c.initialize(), superseded.future]);
     } catch (e) {
-      await c.dispose();
-      if (gen == _generation) _errors.add(_describe(e));
+      _pending = null;
+      _superseded = null;
+      unawaited(c.dispose());
+      if (gen == _generation) {
+        _setBuffering(false);
+        _errors.add(_describe(e));
+      }
       return;
     }
-    if (gen != _generation) {
-      await c.dispose();
-      return;
-    }
+    // Another channel was asked for meanwhile: _release disposed this one.
+    if (superseded.isCompleted) return;
+    _pending = null;
+    _superseded = null;
     c.addListener(() => _onValue(c));
     if (start > Duration.zero) await c.seekTo(start);
+    if (gen != _generation) {
+      unawaited(c.dispose());
+      return;
+    }
     _controller.value = c;
+    if (_volume < 1) await c.setVolume(_volume);
     await c.play();
   }
 
   void _onValue(VideoPlayerController c) {
+    if (!identical(_controller.value, c)) return;
     final v = c.value;
     if (v.hasError) {
       final msg = _clean(v.errorDescription ?? 'Playback error');
       if (msg != _lastError) _errors.add(_lastError = msg);
-    } else if (v.isPlaying) {
-      _position.add(v.position);
+      _setBuffering(false);
+      return;
+    }
+    _setBuffering(v.isBuffering);
+    if (v.isPlaying) _position.add(v.position);
+    // A live stream (no length) doesn't end: the server closed it. As an
+    // error, the player tries again.
+    final live = v.duration <= Duration.zero || v.duration.inHours > 24;
+    if (v.isCompleted && live && _lastError != 'Stream ended') {
+      _errors.add(_lastError = 'Stream ended');
     }
   }
 
+  void _setBuffering(bool b) {
+    if (b == _wasBuffering || _buffering.isClosed) return;
+    _wasBuffering = b;
+    _buffering.add(b);
+  }
+
   Future<void> _release() async {
+    // A controller still initialising is dropped at once: its native player
+    // would otherwise keep downloading and hold a hardware decoder.
+    final pending = _pending;
+    _pending = null;
+    _superseded?.complete();
+    _superseded = null;
     final old = _controller.value;
     _controller.value = null;
-    await old?.dispose();
+    _setBuffering(false);
+    await Future.wait([?pending?.dispose(), ?old?.dispose()]);
   }
 
   @override
@@ -85,6 +132,7 @@ class NativeEngine implements PlaybackEngine {
     await stop();
     await _position.close();
     await _errors.close();
+    await _buffering.close();
     _controller.dispose();
   }
 
@@ -101,6 +149,30 @@ class NativeEngine implements PlaybackEngine {
 
   @override
   bool get isPlaying => _value?.isPlaying ?? false;
+
+  @override
+  Future<bool?> hasSound() async {
+    final c = _controller.value;
+    if (c == null || !c.value.isInitialized) return null;
+    if (!c.isAudioTrackSupportAvailable()) return null;
+    try {
+      final tracks = await c.getAudioTracks();
+      // A track the device can't decode is listed but never selected.
+      return tracks.isEmpty ? null : tracks.any((t) => t.isSelected);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // video_player doesn't say which tracks the device can play.
+  @override
+  bool get playsNothing => false;
+
+  @override
+  bool get hasPicture {
+    final size = _value?.size ?? Size.zero;
+    return size.width > 0 && size.height > 0;
+  }
 
   @override
   Future<void> play() async => _controller.value?.play();
@@ -128,6 +200,12 @@ class NativeEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setVolume(double volume) async {
+    _volume = volume.clamp(0.0, 1.0);
+    await _controller.value?.setVolume(_volume);
+  }
+
+  @override
   Future<void> selectAudioTrack(String id) async =>
       _controller.value?.selectAudioTrack(id);
 
@@ -144,6 +222,13 @@ class NativeEngine implements PlaybackEngine {
 
   @override
   Stream<String> get errors => _errors.stream;
+
+  /// Opens one stream at a time: nothing to preload.
+  @override
+  Future<void> preload(int current, List<(int, Uri)> next) async {}
+
+  @override
+  Stream<bool> get buffering => _buffering.stream;
 
   @override
   Widget buildView({BoxFit fit = BoxFit.contain}) =>

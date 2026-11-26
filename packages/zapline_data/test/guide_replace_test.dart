@@ -69,6 +69,26 @@ void main() {
     ]);
   });
 
+  test('a re-import updates changed programmes and drops gone ones', () async {
+    await db.importGuide(guide(0), now: now);
+    Stream<XmltvItem> edited() async* {
+      yield const XmltvChannel(id: 'Rai1.it', displayNames: ['Rai 1']);
+      // Tg1 is gone, Film has a new title and runs longer.
+      final start = now.add(const Duration(hours: 1));
+      yield XmltvProgramme(
+        Programme(
+          channelId: 'Rai1.it',
+          start: start,
+          stop: start.add(const Duration(hours: 2)),
+          title: 'Film (2)',
+        ),
+      );
+    }
+
+    await db.importGuide(edited(), now: now);
+    expect(titles(), ['16 Earlier', '19 Film (2)']);
+  });
+
   test('in one sync a channel takes the first guide that has it', () async {
     final claimed = <String>{};
     await db.importGuide(guide(0), now: now, claimed: claimed);

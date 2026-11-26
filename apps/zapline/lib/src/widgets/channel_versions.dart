@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zapline_core/zapline_core.dart';
+import 'package:zapline_data/zapline_data.dart';
 
 import '../app_state.dart';
 import '../l10n.dart';
@@ -57,6 +58,21 @@ class _VersionSheetState extends State<_VersionSheet> {
     final l = context.l10n;
     final state = widget.state;
     final versions = state.versionsOf(widget.current);
+    // Versions from several sources say which source each is.
+    final sources = {for (final v in versions) v.sourceId};
+    String title(Channel v) {
+      final t = _describe(l, v).$1;
+      if (sources.length < 2) return t;
+      final name = state.sources
+          .where((s) => s.id == v.sourceId)
+          .firstOrNull
+          ?.name;
+      return name == null ? t : l.versionFrom(t, name);
+    }
+
+    bool current(Channel v) =>
+        ZaplineDatabase.channelKey(v) ==
+        ZaplineDatabase.channelKey(widget.current);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
@@ -103,7 +119,7 @@ class _VersionSheetState extends State<_VersionSheet> {
                   if (i > 0)
                     const Divider(height: 1, color: ZaplineColors.line),
                   ListTile(
-                    autofocus: v.id == widget.current.id,
+                    autofocus: current(v),
                     onTap: () =>
                         Navigator.of(context)
                             .pop((channel: v, remember: _remember)),
@@ -114,7 +130,7 @@ class _VersionSheetState extends State<_VersionSheet> {
                       ),
                     ),
                     title: Text(
-                      _describe(l, v).$1,
+                      title(v),
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
@@ -122,7 +138,7 @@ class _VersionSheetState extends State<_VersionSheet> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: v.id == widget.current.id
+                    trailing: current(v)
                         ? const Icon(
                             Icons.check_rounded,
                             color: ZaplineColors.focus,

@@ -6,7 +6,10 @@ import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../l10n.dart';
 import '../layout.dart';
+import '../desktop_window.dart';
+import '../device_controls.dart';
 import '../playback/playback_engine.dart';
+import '../playback/player_sound.dart';
 import '../theme.dart';
 import '../cast/cast_ui.dart';
 import '../widgets/tracks_sheet.dart';
@@ -50,7 +53,14 @@ class VodPlayerScreen extends StatefulWidget {
 }
 
 class _VodPlayerScreenState extends State<VodPlayerScreen> {
-  final PlaybackEngine _engine = createDefaultEngine();
+  late final PlaybackEngine _engine = createDefaultEngine(
+    ownPlayer: widget.state.settings.ownPlayer,
+    background: widget.state.settings.backgroundAudio && !FormFactor.isTv,
+    matchFrameRate: widget.state.settings.matchFrameRate && FormFactor.isTv,
+  );
+
+  /// Volume, mute and full screen keys and buttons.
+  late final _sound = PlayerSound(_engine, widget.state.settings);
   late int _index = widget.initialIndex;
   final _focus = FocusNode(debugLabel: 'vod player');
 
@@ -77,6 +87,10 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _sound; // the saved volume, before the first stream
+    DesktopWindow.fullScreen.addListener(_fullScreenChanged);
+    DesktopWindow.mini.addListener(_fullScreenChanged);
+    DeviceControls.inPip.addListener(_fullScreenChanged);
     _errors = _engine.errors.listen((e) {
       if (mounted) setState(() => _error = e);
     });
@@ -99,6 +113,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
+      // Home while watching: the film goes on in a small window.
+      DeviceControls.enablePip();
     }
   }
 
@@ -111,6 +127,13 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations(const []);
     }
+    DesktopWindow.fullScreen.removeListener(_fullScreenChanged);
+    DesktopWindow.mini.removeListener(_fullScreenChanged);
+    DesktopWindow.exitMini();
+    DeviceControls.inPip.removeListener(_fullScreenChanged);
+    DeviceControls.disablePip();
+    DesktopWindow.exitFullScreen();
+    _sound.dispose();
     _tick?.cancel();
     _hideTimer?.cancel();
     _errors?.cancel();
@@ -159,7 +182,17 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
         dur > Duration.zero &&
         !playing &&
         pos >= dur - const Duration(milliseconds: 1500);
-    if (pos != _position || dur != _duration || playing != _playing) {
+    // With the controls hidden nothing on screen shows the position, until
+    // the "next episode" button near the end: no need to redraw the whole
+    // player twice a second.
+    final quiet =
+        !_overlay &&
+        playing == _playing &&
+        dur == _duration &&
+        (dur <= Duration.zero || dur - pos > const Duration(seconds: 31));
+    if (quiet) {
+      _position = pos;
+    } else if (pos != _position || dur != _duration || playing != _playing) {
       setState(() {
         _position = pos;
         _duration = dur;
@@ -218,10 +251,15 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     _showOverlay();
   }
 
+  void _fullScreenChanged() {
+    if (mounted) setState(() {});
+  }
+
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    if (_sound.handleKey(e)) return KeyEventResult.handled;
     final k = e.logicalKey;
     if (k == LogicalKeyboardKey.arrowLeft ||
         k == LogicalKeyboardKey.mediaRewind) {
@@ -263,9 +301,22 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
         remaining < const Duration(seconds: 30);
     // Saved as the page starts closing, so the page below already shows
     // where to resume from.
+    final fullScreen = DesktopWindow.fullScreen.value;
+    final mini = DesktopWindow.mini.value;
+    // A phone's picture-in-picture or the desktop mini player: the
+    // picture alone.
+    final pip = DeviceControls.inPip.value || mini;
     return PopScope(
+      // Esc leaves full screen before the player.
+      canPop: !fullScreen && !mini,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) _save();
+        if (didPop) {
+          _save();
+        } else if (mini) {
+          DesktopWindow.exitMini();
+        } else if (fullScreen) {
+          DesktopWindow.exitFullScreen();
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -277,7 +328,15 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
             behavior: HitTestBehavior.opaque,
             onTap: () =>
                 _overlay ? setState(() => _overlay = false) : _showOverlay(),
+            // Phones: a double tap skips 10 s back or ahead, by side.
+            // Computers: a double click is full screen.
             onDoubleTapDown: (d) {
+              // The mini player's own double click brings the window back.
+              if (DesktopWindow.mini.value) return;
+              if (DesktopWindow.supported) {
+                DesktopWindow.toggleFullScreen();
+                return;
+              }
               final w = MediaQuery.sizeOf(context).width;
               _seekBy(Duration(seconds: d.localPosition.dx < w / 2 ? -10 : 10));
             },
@@ -287,39 +346,56 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
               children: [
                 // The native video view would swallow taps otherwise.
                 IgnorePointer(child: _engine.buildView(fit: _fit)),
-                if (_error != null) _errorView(_error!),
-                if (_duration == Duration.zero && _error == null)
-                  const Center(
-                    child: CircularProgressIndicator(
-                      color: ZaplineColors.focus,
+                if (mini)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanStart: (_) => DesktopWindow.startDragging(),
+                      onDoubleTap: DesktopWindow.exitMini,
                     ),
                   ),
-                AnimatedOpacity(
-                  opacity: _overlay ? 1 : 0,
-                  duration: const Duration(milliseconds: 180),
-                  child: IgnorePointer(
-                    ignoring: !_overlay,
-                    child: _controls(l),
-                  ),
-                ),
-                if (offerNext)
+                // In picture-in-picture only the picture shows.
+                if (!pip) ...[
                   Positioned(
-                    right: 24,
-                    bottom: _overlay ? 104 : 32,
-                    child: FilledButton.icon(
-                      onPressed: _next,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: ZaplineColors.text,
-                        foregroundColor: ZaplineColors.ground,
-                        textStyle: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w800,
-                        ),
+                    top: 64,
+                    left: 0,
+                    right: 0,
+                    child: Center(child: VolumeBadge(sound: _sound)),
+                  ),
+                  if (_error != null) _errorView(_error!),
+                  if (_duration == Duration.zero && _error == null)
+                    const Center(
+                      child: CircularProgressIndicator(
+                        color: ZaplineColors.focus,
                       ),
-                      icon: const Icon(Icons.skip_next_rounded),
-                      label: Text(l.nextEpisodeIn(remaining.inSeconds)),
+                    ),
+                  AnimatedOpacity(
+                    opacity: _overlay ? 1 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: IgnorePointer(
+                      ignoring: !_overlay,
+                      child: _controls(l),
                     ),
                   ),
+                  if (offerNext)
+                    Positioned(
+                      right: 24,
+                      bottom: _overlay ? 104 : 32,
+                      child: FilledButton.icon(
+                        onPressed: _next,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: ZaplineColors.text,
+                          foregroundColor: ZaplineColors.ground,
+                          textStyle: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        icon: const Icon(Icons.skip_next_rounded),
+                        label: Text(l.nextEpisodeIn(remaining.inSeconds)),
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
@@ -421,6 +497,28 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                     ),
                   ),
                   round(Icons.cast_rounded, l.castButton, _sendToTv, 24),
+                  round(_sound.icon, l.volumeKey, () {
+                    setState(_sound.toggleMute);
+                    _showOverlay();
+                  }, 24),
+                  if (DesktopWindow.supported)
+                    round(
+                      Icons.picture_in_picture_alt_rounded,
+                      l.miniPlayerKey,
+                      DesktopWindow.toggleMini,
+                      24,
+                    ),
+                  if (DesktopWindow.supported)
+                    round(
+                      DesktopWindow.fullScreen.value
+                          ? Icons.fullscreen_exit_rounded
+                          : Icons.fullscreen_rounded,
+                      DesktopWindow.fullScreen.value
+                          ? l.exitFullScreen
+                          : l.fullScreenKey,
+                      DesktopWindow.toggleFullScreen,
+                      24,
+                    ),
                   round(
                     Icons.subtitles_outlined,
                     l.audioAndSubtitles,

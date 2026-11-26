@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:zapline_core/zapline_core.dart';
 
 import '../app_state.dart';
+import '../errors.dart';
 import '../l10n.dart';
 import '../layout.dart';
 import '../pairing/pairing_server.dart';
@@ -219,7 +220,11 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
   /// Zapline on a phone scanned the code and sent its whole setup: it is
   /// restored at once (channels download afterwards) and the TV moves on.
   Future<String> _setupFromPhone(String json) async {
-    final summary = await widget.state.restoreBackup(json);
+    final l = context.l10n;
+    var summary = await widget.state.restoreBackup(json);
+    if (widget.state.lastRestore case (:final added, :final updated)) {
+      summary = l.restoreSummary(added, updated);
+    }
     if (mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(context.l10n.setupReceived)));
@@ -230,10 +235,9 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
 
   /// A phone submitted the form: add the source exactly as if typed here.
   Future<PairingReply> _fromPhone(PairingSubmission s) async {
+    final l = context.l10n;
     if (widget.state.isSyncing || _busy) {
-      return const PairingReply.error(
-        'The TV is busy loading another source. Try again in a moment.',
-      );
+      return PairingReply.error(l.pairingBusy);
     }
     setState(() {
       _busy = true;
@@ -251,13 +255,14 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
       );
       _leave();
       return PairingReply.ok(
-        'Done! ${r.channels} channels added'
-        '${r.guide.programmes > 0 ? ' with their TV guide' : ''}.',
+        r.guide.programmes > 0
+            ? l.pairingDoneWithGuide(r.channels)
+            : l.pairingDone(r.channels),
       );
     } catch (e) {
-      final msg = _friendly(e);
+      final msg = friendlyError(l, e);
       if (mounted) setState(() => _error = msg);
-      return PairingReply.error('The TV could not connect: $msg');
+      return PairingReply.error(l.pairingFailed(msg));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -299,28 +304,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
     if (text != null && text.isNotEmpty) _url.text = text;
   }
 
-  /// Turns network and server errors into something a viewer can act on.
-  String _friendly(Object e) {
-    final l = context.l10n;
-    final raw = redactSecrets(e.toString().replaceFirst('Exception: ', ''));
-    final lower = raw.toLowerCase();
-    if (lower.contains('already added')) return l.errorDuplicate;
-    if (lower.contains('failed host lookup') ||
-        lower.contains('socketexception') ||
-        lower.contains('connection refused') ||
-        lower.contains('timed out') ||
-        lower.contains('network is unreachable')) {
-      return l.errorUnreachable;
-    }
-    if (lower.contains('401') ||
-        lower.contains('403') ||
-        lower.contains('auth') ||
-        lower.contains('credential')) {
-      return l.errorLogin;
-    }
-    if (lower.contains('404')) return l.errorNotFound;
-    return l.errorGeneric(raw);
-  }
+  String _friendly(Object e) => friendlyError(context.l10n, e);
 
   Future<void> _submit() async {
     if (_busy || _url.text.trim().isEmpty) return;
@@ -533,9 +517,9 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
           ],
           const SizedBox(height: 24),
           if (_busy)
-            ListenableBuilder(
-              listenable: widget.state,
-              builder: (context, _) => SyncSteps(widget.state.progress),
+            ValueListenableBuilder(
+              valueListenable: widget.state.syncProgress,
+              builder: (context, progress, _) => SyncSteps(progress),
             ),
           if (_error != null)
             Container(

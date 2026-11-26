@@ -374,7 +374,8 @@ class AppLocalizationsIt extends AppLocalizations {
   String get noOtherTracks => 'Questo canale ha una sola traccia audio.';
 
   @override
-  String get swipeHint => 'Scorri su o giù per cambiare canale';
+  String get swipeHint =>
+      'Scorri al centro per cambiare canale; ai lati, luminosità e volume';
 
   @override
   String get noArchive => 'Nessun archivio per questo programma';
@@ -1872,4 +1873,153 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get searchShows => 'Cerca una serie';
+
+  @override
+  String get playerOptions => 'Opzioni';
+
+  @override
+  String get holdOkForOptions => 'Tieni premuto OK per le opzioni';
+
+  @override
+  String reconnecting(int attempt, int total) {
+    return 'Riconnessione… ($attempt di $total)';
+  }
+
+  @override
+  String get streamTimeout => 'Il canale non è partito in tempo';
+
+  @override
+  String get pressOkToRetry =>
+      'Premi OK per riprovare, o Su e Giù per un altro canale';
+
+  @override
+  String backToChannel(String channel) {
+    return 'Torna a $channel';
+  }
+
+  @override
+  String noChannelNumber(int number) {
+    return 'Nessun canale $number';
+  }
+
+  @override
+  String pictureSizeIs(String fit) {
+    return 'Immagine: $fit';
+  }
+
+  @override
+  String get loadingChannel => 'Caricamento del canale';
+
+  @override
+  String lastUpdateFailed(String reason) {
+    return 'Ultimo aggiornamento non riuscito: $reason';
+  }
+
+  @override
+  String get dismiss => 'Chiudi';
+
+  @override
+  String pairingDone(int count) {
+    return 'Fatto! $count canali aggiunti.';
+  }
+
+  @override
+  String pairingDoneWithGuide(int count) {
+    return 'Fatto! $count canali aggiunti con la guida TV.';
+  }
+
+  @override
+  String pairingFailed(String reason) {
+    return 'La TV non è riuscita a collegarsi: $reason';
+  }
+
+  @override
+  String get pairingBusy =>
+      'La TV sta caricando un\'altra sorgente. Riprova tra un momento.';
+
+  @override
+  String channelHiddenNamed(String name) {
+    return '$name è nascosto';
+  }
+
+  @override
+  String sourceUpdateFailedNamed(String name) {
+    return 'Impossibile aggiornare $name';
+  }
+
+  @override
+  String restoreSummary(int added, int updated) {
+    String _temp0 = intl.Intl.pluralLogic(
+      added,
+      locale: localeName,
+      other: '$added sorgenti ripristinate',
+      one: '1 sorgente ripristinata',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      updated,
+      locale: localeName,
+      other: ', $updated aggiornate',
+      one: ', 1 aggiornata',
+      zero: '',
+    );
+    return '$_temp0$_temp1';
+  }
+
+  @override
+  String get moreOptions => 'Altro';
+
+  @override
+  String get muted => 'Muto';
+
+  @override
+  String get volumeKey => 'Volume (M per il muto)';
+
+  @override
+  String get fullScreenKey => 'Schermo intero (F)';
+
+  @override
+  String get exitFullScreen => 'Esci da schermo intero';
+
+  @override
+  String get ownPlayer => 'Player Zapline (beta)';
+
+  @override
+  String get ownPlayerHint =>
+      'Cambio canale più rapido e sottotitoli presenti nello stream. Disattivalo se un canale non si vede bene.';
+
+  @override
+  String get matchFrameRate => 'Adatta la frequenza dello schermo';
+
+  @override
+  String get matchFrameRateHint =>
+      'Il TV passa alla frequenza del canale (50 Hz, 24 Hz per i film) per movimenti più fluidi. Alcuni TV si oscurano un attimo nel cambio.';
+
+  @override
+  String get preloadNeighbours => 'Cambio canale istantaneo';
+
+  @override
+  String get preloadNeighboursHint =>
+      'Mentre fai zapping, i canali prima e dopo iniziano a caricarsi. Serve un abbonamento con 2 o più connessioni: con una sola, i canali possono interrompersi.';
+
+  @override
+  String get mergeSources => 'Stesso canale da più sorgenti come uno solo';
+
+  @override
+  String get mergeSourcesHint =>
+      'I canali con la stessa guida e lo stesso nome compaiono una volta; se una sorgente non funziona, parte la successiva.';
+
+  @override
+  String versionFrom(String quality, String source) {
+    return '$quality · $source';
+  }
+
+  @override
+  String get miniPlayerKey => 'Mini player (P)';
+
+  @override
+  String get backgroundAudio => 'Continua l\'audio uscendo dall\'app';
+
+  @override
+  String get backgroundAudioHint =>
+      'A schermo spento o in un\'altra app il canale continua come audio, con una notifica per metterlo in pausa.';
 }

@@ -31,16 +31,31 @@ List<Channel> channelsIn(AppState state, String? group) => switch (group) {
 };
 
 /// Caches [channelsIn] until the group or the stored channels change.
+/// Large lists load off screen: meanwhile the list shown before stays.
 class ChannelListCache {
-  (String?, int)? _key;
-  List<Channel> _list = const [];
+  (String?, int, int)? _key;
+  List<Channel>? _list;
 
-  List<Channel> get(AppState state, String? group) {
-    final key = (group, state.version);
-    if (key != _key) {
-      _key = key;
-      _list = channelsIn(state, group);
-    }
-    return _list;
+  /// `null` only while the first list loads.
+  List<Channel>? get(AppState state, String? group) {
+    // Favourites and recents change without the channels changing.
+    final key = (
+      group,
+      state.version,
+      switch (group) {
+        favouritesGroup => state.favouritesVersion,
+        recentGroup => state.recentsVersion,
+        _ => 0,
+      },
+    );
+    if (key == _key) return _list;
+    final list = switch (group) {
+      favouritesGroup => state.favourites(),
+      recentGroup => state.recents(),
+      final g => state.channelsReady(g),
+    };
+    if (list == null) return _list;
+    _key = key;
+    return _list = list;
   }
 }

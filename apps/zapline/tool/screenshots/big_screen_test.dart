@@ -131,6 +131,28 @@ void main() {
       await step(tester);
       await shot(tester, d, '07-receive');
       await back(tester);
+
+      // The player: info bar, options on a held OK, a number being typed.
+      // Focus came back to the groups: OK enters the grid, OK again plays.
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await step(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await step(tester);
+      await shot(tester, d, '08-player');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.select);
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.select);
+      await step(tester);
+      await shot(tester, d, '08b-player-options');
+      await tester.binding.handlePopRoute();
+      await step(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
+      await tester.pump(const Duration(milliseconds: 100));
+      await shot(tester, d, '08c-player-digits');
+      await tester.pump(const Duration(seconds: 2));
+      await tester.binding.handlePopRoute();
+      await step(tester);
       // ignore: avoid_print
       print(
         '${d.name}: ${problems.length} problems\n'

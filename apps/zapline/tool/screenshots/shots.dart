@@ -4,6 +4,7 @@
 //   flutter test tool/screenshots/phone_test.dart
 //
 // PNGs land in build/screenshots/.
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -42,13 +43,14 @@ const phoneLandscape = Device(
 const tv = Device('tv', Size(960, 540), 2);
 
 Future<void> loadFonts() async {
+  // Forward slashes work on Windows too.
   final dir =
-      '${Platform.environment['FLUTTER_ROOT'] ?? r'D:\tools\flutter'}'
-      r'\bin\cache\artifacts\material_fonts';
+      '${Platform.environment['FLUTTER_ROOT'] ?? 'D:/tools/flutter'}'
+      '/bin/cache/artifacts/material_fonts';
   Future<void> family(String name, List<String> files) async {
     final loader = FontLoader(name);
     for (final f in files) {
-      final bytes = File('$dir\\$f').readAsBytesSync();
+      final bytes = File('$dir/$f').readAsBytesSync();
       loader.addFont(Future.value(ByteData.sublistView(bytes)));
     }
     await loader.load();
@@ -62,7 +64,7 @@ Future<void> loadFonts() async {
     loader.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
   }
   await loader.load();
-  await family('MaterialIcons', ['materialicons-regular.otf']);
+  await family('MaterialIcons', ['MaterialIcons-Regular.otf']);
 }
 
 void useDevice(WidgetTester tester, Device d) {
@@ -144,15 +146,22 @@ Future<void> shot(WidgetTester tester, Device d, String name) async {
 
 /// Plays nothing; draws a test picture so overlays can be judged.
 class FakeEngine implements PlaybackEngine {
+  final _position = StreamController<Duration>.broadcast();
+
   @override
   String get name => 'fake';
 
+  /// "Starts" at once, so the player leaves its loading state.
   @override
   Future<void> open(
     Uri url, {
     Map<String, String> headers = const {},
     Duration start = Duration.zero,
-  }) async {}
+  }) async {
+    scheduleMicrotask(() {
+      if (!_position.isClosed) _position.add(const Duration(seconds: 1));
+    });
+  }
 
   @override
   Duration get currentPosition => const Duration(minutes: 42, seconds: 10);
@@ -162,6 +171,15 @@ class FakeEngine implements PlaybackEngine {
 
   @override
   bool get isPlaying => true;
+
+  @override
+  bool hasPicture = true;
+
+  @override
+  bool playsNothing = false;
+
+  @override
+  Future<bool?> hasSound() async => true;
 
   @override
   Future<void> play() async {}
@@ -176,13 +194,23 @@ class FakeEngine implements PlaybackEngine {
   Future<void> stop() async {}
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() => _position.close();
 
   @override
-  Stream<Duration> get position => const Stream.empty();
+  Stream<Duration> get position => _position.stream;
 
   @override
   Stream<String> get errors => const Stream.empty();
+
+  @override
+  Stream<bool> get buffering => const Stream.empty();
+
+  /// What the player last asked to preload.
+  (int, List<(int, Uri)>)? preloaded;
+
+  @override
+  Future<void> preload(int current, List<(int, Uri)> next) async =>
+      preloaded = (current, next);
 
   @override
   Future<List<MediaTrack>> audioTracks() async => const [
@@ -198,6 +226,12 @@ class FakeEngine implements PlaybackEngine {
 
   @override
   Future<void> selectSubtitleTrack(String? id) async {}
+
+  /// The last volume asked for.
+  double volume = 1;
+
+  @override
+  Future<void> setVolume(double volume) async => this.volume = volume;
 
   @override
   Widget buildView({BoxFit fit = BoxFit.contain}) => const DecoratedBox(
