@@ -65,7 +65,20 @@ class MpvEngine implements PlaybackEngine {
   Stream<Duration> get position => _player.stream.position;
 
   @override
-  Stream<String> get errors => _player.stream.error;
+  Stream<String> get errors => _errors.stream;
+
+  /// mpv's errors, and a live stream (no length) reaching its end: the
+  /// server closed it, and the player should try again.
+  late final _errors = () {
+    final c = StreamController<String>.broadcast();
+    _player.stream.error.listen(c.add);
+    _player.stream.completed.listen((done) {
+      if (done && _player.state.duration == Duration.zero) {
+        c.add('Stream ended');
+      }
+    });
+    return c;
+  }();
 
   /// Opens one stream at a time: nothing to preload.
   @override

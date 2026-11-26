@@ -105,12 +105,15 @@ PlaybackEngine Function()? debugEngineFactory;
 PlaybackEngine createDefaultEngine({
   bool ownPlayer = false,
   bool background = false,
+  bool matchFrameRate = false,
 }) {
   if (debugEngineFactory case final make?) return make();
   if (kIsWeb) return NativeEngine();
   return switch (defaultTargetPlatform) {
     TargetPlatform.android =>
-      ownPlayer ? Media3Engine(background: background) : NativeEngine(),
+      ownPlayer
+          ? Media3Engine(background: background, matchFrameRate: matchFrameRate)
+          : NativeEngine(),
     _ => MpvEngine(),
   };
 }

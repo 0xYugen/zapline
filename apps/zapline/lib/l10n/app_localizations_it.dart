@@ -1988,6 +1988,13 @@ class AppLocalizationsIt extends AppLocalizations {
       'Cambio canale più rapido e sottotitoli presenti nello stream. Disattivalo se un canale non si vede bene.';
 
   @override
+  String get matchFrameRate => 'Adatta la frequenza dello schermo';
+
+  @override
+  String get matchFrameRateHint =>
+      'Il TV passa alla frequenza del canale (50 Hz, 24 Hz per i film) per movimenti più fluidi. Alcuni TV si oscurano un attimo nel cambio.';
+
+  @override
   String get preloadNeighbours => 'Cambio canale istantaneo';
 
   @override

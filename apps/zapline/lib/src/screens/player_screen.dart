@@ -55,6 +55,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final PlaybackEngine _engine = createDefaultEngine(
     ownPlayer: widget.state.settings.ownPlayer,
     background: widget.state.settings.backgroundAudio && !FormFactor.isTv,
+    matchFrameRate: widget.state.settings.matchFrameRate && FormFactor.isTv,
   );
 
   /// Volume, mute and full screen keys and buttons.
@@ -185,16 +186,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// With Zapline's player and the setting on: the channels before and
   /// after this one load their first seconds, so the next Up or Down shows
   /// at once. Only while zapping.
-  void _preloadNeighbours() {
+  Future<void> _preloadNeighbours() async {
     final n = _channels.length;
     if (_replay != null || n < 2 || !widget.state.settings.preloadNeighbours) {
       return;
     }
+    // Each preloaded channel is one more connection to the provider: the
+    // account must allow them, or the channel playing could be cut.
+    final allowed = await widget.state.connectionsAllowed(_channel.sourceId);
+    if (!mounted || (allowed != null && allowed < 2)) return;
+    final index = _index;
     Uri url(int i) => widget.state.playable(_channels[(i + n) % n]).streamUrl;
     // Ranks around this one; with two channels both neighbours are one.
-    _engine.preload(_index, [
-      (_index - 1, url(_index - 1)),
-      if (n > 2) (_index + 1, url(_index + 1)),
+    // Two connections: only the next one.
+    _engine.preload(index, [
+      if (allowed == null || allowed >= 3) (index - 1, url(index - 1)),
+      if (n > 2 || allowed == 2) (index + 1, url(index + 1)),
     ]);
     _preloadDrop?.cancel();
     _preloadDrop = Timer(const Duration(seconds: 25), () {
@@ -431,7 +438,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       title: widget.state.displayName(_channel),
       subtitle: (replay ?? _now)?.title,
     );
-    _openTimeout = Timer(const Duration(seconds: 20), () {
+    // Dead channels now fail fast natively; 15 s still lets a slow
+    // provider start.
+    _openTimeout = Timer(const Duration(seconds: 15), () {
       if (mounted && _opening && _engine.currentPosition == Duration.zero) {
         _onFailure(_streamTimeout);
       }

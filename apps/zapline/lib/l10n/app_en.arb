@@ -642,6 +642,8 @@
   "exitFullScreen": "Exit full screen",
   "ownPlayer": "Zapline player (beta)",
   "ownPlayerHint": "Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.",
+  "matchFrameRate": "Match the frame rate",
+  "matchFrameRateHint": "The TV switches to the channel's refresh rate (50 Hz, 24 Hz for films) for smoother motion. Some TVs go dark for a moment when switching.",
   "preloadNeighbours": "Instant channel change",
   "preloadNeighboursHint": "While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.",
   "mergeSources": "Same channel from several sources as one",

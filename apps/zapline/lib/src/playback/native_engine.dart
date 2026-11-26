@@ -94,6 +94,12 @@ class NativeEngine implements PlaybackEngine {
     }
     _setBuffering(v.isBuffering);
     if (v.isPlaying) _position.add(v.position);
+    // A live stream (no length) doesn't end: the server closed it. As an
+    // error, the player tries again.
+    final live = v.duration <= Duration.zero || v.duration.inHours > 24;
+    if (v.isCompleted && live && _lastError != 'Stream ended') {
+      _errors.add(_lastError = 'Stream ended');
+    }
   }
 
   void _setBuffering(bool b) {

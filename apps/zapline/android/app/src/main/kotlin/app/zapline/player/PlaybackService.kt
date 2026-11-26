@@ -17,7 +17,13 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         session?.let { addSession(it) }
+    }
+
+    override fun onDestroy() {
+        if (instance === this) instance = null
+        super.onDestroy()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
@@ -32,5 +38,8 @@ class PlaybackService : MediaSessionService() {
     companion object {
         /** The player screen's session, set while one plays. */
         var session: MediaSession? = null
+
+        /** The service while it runs. */
+        var instance: PlaybackService? = null
     }
 }

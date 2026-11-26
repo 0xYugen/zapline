@@ -3248,6 +3248,18 @@ abstract class AppLocalizations {
   /// **'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.'**
   String get ownPlayerHint;
 
+  /// No description provided for @matchFrameRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Match the frame rate'**
+  String get matchFrameRate;
+
+  /// No description provided for @matchFrameRateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The TV switches to the channel\'s refresh rate (50 Hz, 24 Hz for films) for smoother motion. Some TVs go dark for a moment when switching.'**
+  String get matchFrameRateHint;
+
   /// No description provided for @preloadNeighbours.
   ///
   /// In en, this message translates to:

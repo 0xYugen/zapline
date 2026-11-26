@@ -51,6 +51,7 @@ class MainActivity : FlutterActivity() {
             }
         media3 = Media3Host(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
             .also {
+                it.frameRate = { rate -> matchFrameRate(rate) }
                 flutterEngine.platformViewsController.registry
                     .registerViewFactory("zapline/media3-view", Media3ViewFactory(it))
             }
@@ -161,6 +162,37 @@ class MainActivity : FlutterActivity() {
                 )
         )
         return "started"
+    }
+
+    // The display mode that shows [rate] frames per second evenly: the
+    // same resolution, at a refresh that is a whole multiple of it (50 Hz
+    // for 25 and 50 fps, 23.976 or 47.95 Hz for films). Null goes back to
+    // the system's choice. Nothing happens if the TV offers no such mode.
+    private fun matchFrameRate(rate: Float?) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val display = window.decorView.display ?: return
+        val attrs = window.attributes
+        val wanted = if (rate == null) 0 else {
+            val now = display.mode
+            display.supportedModes
+                .filter {
+                    it.physicalWidth == now.physicalWidth &&
+                        it.physicalHeight == now.physicalHeight
+                }
+                .mapNotNull { m ->
+                    val ratio = m.refreshRate / rate
+                    val whole = Math.round(ratio)
+                    // Within 0.1 %: 59.94 Hz isn't 60 fps' match, 60 Hz is.
+                    if (whole >= 1 && Math.abs(ratio - whole) < 0.001f * whole) m to whole
+                    else null
+                }
+                // The fewest repeats of each frame: 24 Hz before 48 Hz.
+                .minByOrNull { it.second }
+                ?.first?.modeId ?: return
+        }
+        if (attrs.preferredDisplayModeId == wanted) return
+        attrs.preferredDisplayModeId = wanted
+        window.attributes = attrs
     }
 
     private fun pipSupported(): Boolean =

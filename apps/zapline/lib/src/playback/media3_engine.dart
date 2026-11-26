@@ -15,12 +15,14 @@ import 'playback_engine.dart';
 /// show, playback starts after one second of buffer, and subtitles carried
 /// in the stream are shown.
 class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
-  Media3Engine({this.background = false}) : _id = _nextId++ {
+  Media3Engine({this.background = false, this.matchFrameRate = false})
+    : _id = _nextId++ {
     _ready = _method.invokeMethod<void>('create', {
       'id': _id,
       'background': background,
+      'matchFrameRate': matchFrameRate,
     });
-    _sub = _events.receiveBroadcastStream().listen(_onEvent, onError: (_) {});
+    _sub = _shared.listen(_onEvent, onError: (_) {});
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -30,8 +32,23 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
   /// channel playing behind the launcher.
   final bool background;
 
+  /// The screen switches to the stream's frame rate while it plays (TVs,
+  /// when chosen in Settings) and back when the player closes.
+  final bool matchFrameRate;
+
   /// Paused because the app was left: plays again when it is back.
   bool _pausedByApp = false;
+
+  /// A live stream let go when the app was left, to open again at live.
+  (Uri, Map<String, String>)? _reopen;
+
+  /// What was last opened, to open a live stream again.
+  (Uri, Map<String, String>)? _last;
+
+  /// Live, as the player says once ready; before that, live unless it
+  /// has a length.
+  bool? _isLive;
+  bool get _live => _isLive ?? _duration <= Duration.zero;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -40,12 +57,21 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
         // Picture-in-picture shows the app shrunk, not left.
         if (DeviceControls.inPip.value || _closedOpens == _opens) return;
         // With background sound the media service keeps it going.
-        if (!background && !_pausedByApp) {
+        if (background || _pausedByApp || _reopen != null) return;
+        if (_live && _last != null) {
+          // A live channel is let go: its decoders, connection and buffer
+          // free (TV sticks have few), and it opens again at live.
+          _reopen = _last;
+          _call('stop');
+        } else {
           _pausedByApp = true;
           _call('pause');
         }
       case AppLifecycleState.resumed:
-        if (_pausedByApp) {
+        if (_reopen case (final url, final headers)) {
+          _reopen = null;
+          open(url, headers: headers);
+        } else if (_pausedByApp) {
           _pausedByApp = false;
           _call('play');
         }
@@ -56,6 +82,11 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
 
   static const _method = MethodChannel('zapline/media3');
   static const _events = EventChannel('zapline/media3/events');
+
+  /// One stream for every player: each listening to the channel on its own
+  /// would cut the others off when it stops (a new player opened before
+  /// the old one has closed).
+  static final _shared = _events.receiveBroadcastStream();
   static int _nextId = 1;
 
   final int _id;
@@ -91,12 +122,17 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
         if (!_position.isClosed) _position.add(_current);
       case 'duration':
         _duration = Duration(milliseconds: (e['ms'] as num).toInt());
+        if (e['live'] case final bool live) _isLive = live;
       case 'playing':
         _playing = e['value'] == true;
       case 'buffering':
         if (!_buffering.isClosed) _buffering.add(e['value'] == true);
       case 'error':
         if (!_errors.isClosed) _errors.add('${e['message']}');
+      case 'ended':
+        // A live stream doesn't end: the server closed it. As an error,
+        // the player tries again; a film's end is its own.
+        if (_live && !_errors.isClosed) _errors.add('Stream ended');
     }
   }
 
@@ -113,6 +149,10 @@ class Media3Engine with WidgetsBindingObserver implements PlaybackEngine {
   }) {
     _stopLater?.cancel();
     _opens++;
+    _last = (url, headers);
+    _reopen = null;
+    _pausedByApp = false;
+    _isLive = null;
     _current = _duration = Duration.zero;
     return _call('open', {
       'url': url.toString(),

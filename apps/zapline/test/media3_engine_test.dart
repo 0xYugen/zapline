@@ -114,6 +114,40 @@ void main() {
     await e.dispose();
   });
 
+  test('two players share the event stream; a live end is an error', () async {
+    final a = Media3Engine(), b = Media3Engine();
+    final aErrors = <String>[], bErrors = <String>[];
+    a.errors.listen(aErrors.add);
+    b.errors.listen(bErrors.add);
+    await a.open(Uri.parse('http://x.example/1.ts'));
+    await b.open(Uri.parse('http://x.example/movie.mp4'));
+    final ids = [
+      for (final c in calls)
+        if (c.method == 'create') (c.arguments as Map)['id'],
+    ];
+    expect(ids, hasLength(2));
+    sink.success({'id': ids[0], 'event': 'duration', 'ms': 0, 'live': true});
+    sink.success({
+      'id': ids[1],
+      'event': 'duration',
+      'ms': 5000,
+      'live': false,
+    });
+    // The server closed the live stream: retried as an error.
+    sink.success({'id': ids[0], 'event': 'ended'});
+    // A film's end is just its end.
+    sink.success({'id': ids[1], 'event': 'ended'});
+    await Future<void>.delayed(Duration.zero);
+    expect(aErrors, ['Stream ended']);
+    expect(bErrors, isEmpty);
+    // One player gone, the other still hears its events.
+    await a.dispose();
+    sink.success({'id': ids[1], 'event': 'error', 'message': 'Source error'});
+    await Future<void>.delayed(Duration.zero);
+    expect(bErrors, ['Source error']);
+    await b.dispose();
+  });
+
   test('audio and subtitle tracks', () async {
     final e = Media3Engine();
     final audio = await e.audioTracks();
@@ -150,8 +184,29 @@ void main() {
   test(
     'leaving the app pauses, coming back plays; not with background sound',
     () async {
+      final live = Media3Engine();
+      await live.open(Uri.parse('http://x.example/1.ts'));
+      // A live channel is let go and opens again at live on return.
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await Future<void>.delayed(Duration.zero);
+      expect(methods(), ['create', 'open', 'stop']);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(methods().last, 'open');
+      expect((calls.last.arguments as Map)['url'], 'http://x.example/1.ts');
+      await live.dispose();
+
+      // A film pauses where it is.
+      calls.clear();
       final e = Media3Engine();
-      await e.open(Uri.parse('http://x.example/1.ts'));
+      await e.open(Uri.parse('http://x.example/movie.mp4'));
+      final id = (calls.first.arguments as Map)['id'];
+      sink.success({'id': id, 'event': 'duration', 'ms': 5000, 'live': false});
+      await Future<void>.delayed(Duration.zero);
       binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);

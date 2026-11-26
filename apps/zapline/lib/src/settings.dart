@@ -81,6 +81,12 @@ class AppSettings {
   bool get backgroundAudio => _bool('backgroundAudio', false);
   set backgroundAudio(bool v) => _put('backgroundAudio', '$v');
 
+  /// With Zapline's player on a TV: the screen switches to the stream's
+  /// frame rate (50 Hz for European TV, 24 Hz for films), so motion is
+  /// smooth instead of judder. Some TVs blank for a moment as they switch.
+  bool get matchFrameRate => _bool('matchFrameRate', false);
+  set matchFrameRate(bool v) => _put('matchFrameRate', '$v');
+
   /// With Zapline's player: while zapping, the channels before and after
   /// the one playing load their first seconds, so Up and Down show the
   /// next at once. Needs a provider allowing more than one connection.

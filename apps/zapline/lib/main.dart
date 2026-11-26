@@ -456,15 +456,19 @@ class _ZaplineAppState extends State<ZaplineApp>
             : () {
                 final all = widget.state.channels();
                 final i = widget.state.indexOfChannel(all, channel);
-                _navigator.currentState?.push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PlayerScreen(
-                      state: widget.state,
-                      channels: i < 0 ? [channel] : all,
-                      initialIndex: i < 0 ? 0 : i,
+                // In place of any player open: two would hold two decoders
+                // and two connections.
+                _navigator.currentState
+                  ?..popUntil((r) => r.isFirst)
+                  ..push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PlayerScreen(
+                        state: widget.state,
+                        channels: i < 0 ? [channel] : all,
+                        initialIndex: i < 0 ? 0 : i,
+                      ),
                     ),
-                  ),
-                );
+                  );
               },
       );
     }

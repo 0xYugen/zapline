@@ -1984,6 +1984,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.';
 
   @override
+  String get matchFrameRate => 'Match the frame rate';
+
+  @override
+  String get matchFrameRateHint =>
+      'The TV switches to the channel\'s refresh rate (50 Hz, 24 Hz for films) for smoother motion. Some TVs go dark for a moment when switching.';
+
+  @override
   String get preloadNeighbours => 'Instant channel change';
 
   @override

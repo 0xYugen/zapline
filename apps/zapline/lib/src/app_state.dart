@@ -1596,6 +1596,27 @@ class AppState extends ChangeNotifier {
   SourceRecord? _source(String id) =>
       sources.where((s) => s.id == id).firstOrNull;
 
+  final _connections = <String, Future<int?>>{};
+
+  /// How many streams [sourceId]'s account may open at once, as an Xtream
+  /// panel says (asked once per session); `null` when unknown. Preloading
+  /// channels needs spare ones: on a one-connection account a second
+  /// connection can cut the channel playing.
+  Future<int?> connectionsAllowed(String sourceId) =>
+      _connections.putIfAbsent(sourceId, () async {
+        final s = _source(sourceId);
+        if (s == null || s.kind != SourceKind.xtream) return null;
+        try {
+          final account = await XtreamClient(
+            SourceSync.credentialsOf(s),
+            timeout: const Duration(seconds: 10),
+          ).authenticate();
+          return account.maxConnections;
+        } catch (_) {
+          return null;
+        }
+      });
+
   Future<MovieDetails?> movieDetails(Movie m) async {
     final source = _source(m.sourceId);
     if (source == null || vod == null) return null;
