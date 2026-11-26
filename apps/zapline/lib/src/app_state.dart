@@ -9,6 +9,7 @@ import 'package:zapline_data/zapline_data.dart';
 
 import 'secret_store.dart';
 import 'countries.dart';
+import 'db_write.dart';
 import 'format.dart';
 import 'free_epg.dart';
 import 'settings.dart';
@@ -170,6 +171,23 @@ _channelJob(
       options.acrossSources ? db.guideLinks() : null,
     );
 
+/// [AppState._needingGuideOf] on another isolate.
+List<Channel> Function(ZaplineDatabase) _needingGuideJob(
+  String sourceId,
+  ChannelVisibility visibility,
+  _MergeOptions options,
+  Set<String> noGuide,
+  bool acrossSources,
+) =>
+    (db) => AppState._needingGuideOf(
+      db,
+      sourceId,
+      visibility,
+      options,
+      noGuide,
+      acrossSources ? db.guideLinks() : null,
+    );
+
 /// App-wide state backed by the local database.
 class AppState extends ChangeNotifier {
   AppState(
@@ -307,6 +325,8 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _autoRefresh?.cancel();
+    _firstRefresh?.cancel();
     _guideArrived?.cancel();
     guideVersion.dispose();
     lastPlayed.dispose();
@@ -677,7 +697,8 @@ class AppState extends ChangeNotifier {
   bool get hasRecents => _hasRecents;
 
   void markWatched(Channel c) {
-    db.markWatched(c);
+    // Never holds up a zap, even while a sync writes.
+    writeSoon(() => db.markWatched(c));
     _hasRecents = true;
     recentsVersion++;
   }
@@ -890,9 +911,12 @@ class AppState extends ChangeNotifier {
       _favouriteKeys.contains(ZaplineDatabase.channelKey(c));
 
   void toggleFavourite(Channel c) {
-    db.setFavourite(c, !isFavourite(c));
-    // Channel lists stay as they are: only the favourites change.
-    _favouriteKeys = db.favouriteKeys();
+    final key = ZaplineDatabase.channelKey(c), add = !isFavourite(c);
+    writeSoon(() => db.setFavourite(c, add));
+    // Shown at once, whenever the database takes it. Channel lists stay as
+    // they are: only the favourites change.
+    _favouriteKeys = {..._favouriteKeys}..remove(key);
+    if (add) _favouriteKeys.add(key);
     favouritesVersion++;
     notifyListeners();
   }
@@ -1026,19 +1050,44 @@ class AppState extends ChangeNotifier {
   final _needingGuide = <String, ((int, int, int), List<Channel>)>{};
 
   List<Channel> _channelsNeedingGuide(String sourceId) {
+    final o = _mergeOptions;
+    return _needingGuideOf(
+      db,
+      sourceId,
+      _visibility,
+      o,
+      settings.noGuideChannels,
+      o.acrossSources ? db.guideLinks() : null,
+    );
+  }
+
+  /// Channels of [sourceId] worth a guide: shown, with no guide in any of
+  /// their versions and not marked as having none. Static and plain, so
+  /// it also runs on another isolate (it reads every channel of a source).
+  static List<Channel> _needingGuideOf(
+    ZaplineDatabase db,
+    String sourceId,
+    ChannelVisibility visibility,
+    _MergeOptions options,
+    Set<String> noGuide,
+    Map<String, String>? guides,
+  ) {
     final missing = {
       for (final c in db.unmatchedChannels(sourceId: sourceId))
         ZaplineDatabase.channelKey(c),
     };
     if (missing.isEmpty) return const [];
-    final none = settings.noGuideChannels;
+    final (merged, versions) = _mergeVersionsOf(
+      db.channels(sourceId: sourceId, visibility: visibility),
+      options,
+      guides,
+    );
     return [
-      for (final c in _mergeVersions(
-        db.channels(sourceId: sourceId, visibility: _visibility),
-      ))
-        if (!none.contains(ZaplineDatabase.channelKey(c)) &&
-            versionsOf(c)
-                .every((v) => missing.contains(ZaplineDatabase.channelKey(v))))
+      for (final c in merged)
+        if (!noGuide.contains(ZaplineDatabase.channelKey(c)) &&
+            (versions[ZaplineDatabase.channelKey(c)] ?? [c]).every(
+              (v) => missing.contains(ZaplineDatabase.channelKey(v)),
+            ))
           c,
     ];
   }
@@ -1167,11 +1216,26 @@ class AppState extends ChangeNotifier {
   }
 
   /// Queues [s]'s channels that have no guide at all.
-  void _askGuidesWithout(SourceRecord s) {
+  /// After a sync: when the XMLTV guide covers less than half of [s]'s
+  /// channels, the rest are asked of the panel one by one. Worked out off
+  /// screen (it reads every channel); with a good guide nothing is asked,
+  /// sparing the panel hundreds of requests (some ban for that).
+  Future<void> _askGuidesWithout(SourceRecord s) async {
     if (guideFetcher == null || !ChannelGuideFetcher.supports(s)) return;
+    if (coverage(s.id).ratio >= 0.5) return;
+    final o = _mergeOptions;
+    final needing = await _offScreen(
+      _needingGuideJob(
+        s.id,
+        _visibility,
+        o,
+        settings.noGuideChannels,
+        o.acrossSources,
+      ),
+    );
     final now = DateTime.now();
     final wanted = [
-      for (final c in channelsNeedingGuide(s.id).take(400))
+      for (final c in needing.take(400))
         // Marked as asked, so the screen doesn't queue them a second time.
         if (_guideAsked.putIfAbsent(ZaplineDatabase.channelKey(c), () => now) ==
             now)
@@ -1187,8 +1251,11 @@ class AppState extends ChangeNotifier {
     final fetcher = guideFetcher!;
     while (_guideRunning < 4 &&
         (_guideQueue.isNotEmpty ||
-            // Background work keeps a slot free for the screen.
-            (_guideRunning < 2 && _guideBackground.isNotEmpty))) {
+            // Background work keeps a slot free for the screen, and waits
+            // while a channel plays: the panel serves that stream too.
+            (_guideRunning < 2 &&
+                nowPlaying == null &&
+                _guideBackground.isNotEmpty))) {
       final (source, c) = _guideQueue.isNotEmpty
           ? _guideQueue.removeLast()
           : _guideBackground.removeAt(0);
@@ -1317,17 +1384,15 @@ class AppState extends ChangeNotifier {
 
   void _saveReminders(List<Reminder> list) {
     _reminders = List.unmodifiable(list);
-    db.setSetting(
-      'reminders',
-      jsonEncode([
-        for (final r in list)
-          {
-            'k': r.channelKey,
-            's': r.start.millisecondsSinceEpoch ~/ 1000,
-            't': r.title,
-          },
-      ]),
-    );
+    final json = jsonEncode([
+      for (final r in list)
+        {
+          'k': r.channelKey,
+          's': r.start.millisecondsSinceEpoch ~/ 1000,
+          't': r.title,
+        },
+    ]);
+    writeSoon(() => db.setSetting('reminders', json));
   }
 
   bool hasReminder(Channel c, Programme p) {
@@ -1566,12 +1631,18 @@ class AppState extends ChangeNotifier {
   /// Saves where playback stopped; screens redraw when the player closes.
   void savePosition(String key, Duration position, Duration duration) {
     if (duration <= Duration.zero) return;
-    db.savePosition(key, position, duration);
+    writeSoon(() => db.savePosition(key, position, duration));
   }
 
   /// What this device plays now, for a phone controlling it ("Send to
-  /// TV"); set by the players.
-  ({String title, String? subtitle})? nowPlaying;
+  /// TV"); set by the players. While set, background work waits.
+  ({String title, String? subtitle})? get nowPlaying => _nowPlaying;
+  ({String title, String? subtitle})? _nowPlaying;
+  set nowPlaying(({String title, String? subtitle})? value) {
+    _nowPlaying = value;
+    // The player closed: the guides asked of the panel can go on.
+    if (value == null && guideFetcher != null) _pumpGuides();
+  }
 
   /// Port this device receives "Send to TV" on, to leave itself out of the
   /// devices it finds.
@@ -1916,6 +1987,8 @@ class AppState extends ChangeNotifier {
           db.setSetting(key, value);
       }
     }
+    // Written past the settings' own copy: read them again.
+    settings.reload();
     await _offScreen(_rebuildLinks);
     _reload();
     notifyListeners();
@@ -1954,18 +2027,62 @@ class AppState extends ChangeNotifier {
 
   /// Re-syncs sources not refreshed within [maxAge]; errors are ignored so a
   /// temporarily unreachable server never blocks startup.
-  Future<void> refreshStale({Duration? maxAge}) async {
+  Future<void> refreshStale({
+    Duration? maxAge,
+    bool whilePlaying = true,
+  }) async {
     final hours = settings.refreshHours;
     if (maxAge == null && hours == 0) return; // automatic refresh is off
     maxAge ??= Duration(hours: hours);
     final cutoff = DateTime.now().toUtc().subtract(maxAge);
     for (final s in List.of(sources)) {
       if (s.syncedAt != null && s.syncedAt!.isAfter(cutoff)) continue;
+      // Someone started watching: the rest waits, unless a source has no
+      // data at all yet.
+      if (!whilePlaying && nowPlaying != null && s.syncedAt != null) return;
       try {
         await _sync(s);
       } catch (e) {
         debugPrint(redactSecrets('Background refresh of ${s.name} failed: $e'));
       }
+    }
+  }
+
+  Timer? _autoRefresh, _firstRefresh;
+  bool _refreshAll = false;
+
+  /// Refreshes stale sources when nobody is watching: a guide download of
+  /// a hundred megabytes and its import take a TV stick's bandwidth and
+  /// CPU from the channel playing. First 20 s after start, then every 15
+  /// minutes while the app stays open (TVs are left on for days). A source
+  /// with no data at all is refreshed even while a channel plays.
+  /// [all] refreshes every source once, however recent.
+  void startAutoRefresh({bool all = false}) {
+    _refreshAll = all;
+    _autoRefresh?.cancel();
+    _firstRefresh?.cancel();
+    _firstRefresh = Timer(const Duration(seconds: 20), maybeRefresh);
+    _autoRefresh = Timer.periodic(
+      const Duration(minutes: 15),
+      (_) => maybeRefresh(),
+    );
+  }
+
+  /// Refreshes now if it's a good time (see [startAutoRefresh]); also
+  /// when the app comes back to the front.
+  Future<void> maybeRefresh() async {
+    if (isSyncing) return;
+    final playing = nowPlaying != null;
+    if (playing && sources.every((s) => s.syncedAt != null)) return;
+    final all = _refreshAll;
+    _refreshAll = false;
+    try {
+      await refreshStale(
+        maxAge: all ? Duration.zero : null,
+        whilePlaying: false,
+      );
+    } catch (e) {
+      debugPrint('Refresh: $e');
     }
   }
 
@@ -2021,7 +2138,7 @@ class AppState extends ChangeNotifier {
       db.setSetting('syncFailure:${s.id}', null);
       // A new sync may have brought a guide: ask again where it didn't.
       _guideAsked.clear();
-      _askGuidesWithout(s);
+      unawaited(_askGuidesWithout(s));
       return result;
     } catch (e) {
       db.setSetting('syncFailure:${s.id}', redactSecrets('$e'));

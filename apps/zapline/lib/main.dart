@@ -92,7 +92,8 @@ Future<void> main() async {
     // programmes left doubled by the daylight saving change go away.
     final cleanup = state.db.setting('guideReplaceFix5') == null;
     if (cleanup) state.db.setSetting('guideReplaceFix5', '1');
-    state.refreshStale(maxAge: cleanup ? Duration.zero : null);
+    // Not at once: the home and the last channel open first.
+    state.startAutoRefresh(all: cleanup);
   }
 }
 
@@ -430,6 +431,7 @@ class _ZaplineAppState extends State<ZaplineApp>
     if (state == AppLifecycleState.resumed) {
       keepScreenAwake(widget.state.settings.keepScreenOn);
       _checkForUpdate();
+      widget.state.maybeRefresh();
     }
   }
 
