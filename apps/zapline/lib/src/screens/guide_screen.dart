@@ -803,6 +803,7 @@ class _Details extends StatelessWidget {
     final s = selected;
     if (s == null) return const SizedBox.shrink();
     final p = s.programme;
+    final description = p == null ? null : state.programmeDescription(p);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -826,10 +827,10 @@ class _Details extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
         ),
-        if (p?.description != null) ...[
+        if (description != null) ...[
           const SizedBox(height: 6),
           Text(
-            p!.description!,
+            description,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(

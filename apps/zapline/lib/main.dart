@@ -58,7 +58,12 @@ Future<void> main() async {
   await LogoCache.init(await getApplicationCacheDirectory());
   final dir = await getApplicationSupportDirectory();
   final dbPath = '${dir.path}${Platform.pathSeparator}zapline.db';
-  final db = ZaplineDatabase.open(dbPath);
+  final db = ZaplineDatabase.open(
+    dbPath,
+    // The screen's connection waits little for a sync's write slice
+    // (about 200 ms); small writes retry later instead (writeSoon).
+    busyTimeoutMs: 300,
+  );
   late final AppState state;
   state = AppState(
     db,

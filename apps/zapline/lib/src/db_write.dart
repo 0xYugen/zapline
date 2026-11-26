@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:zapline_data/zapline_data.dart';
 
 /// Runs a small write from the screen's thread without ever stalling it:
 /// while a sync on another isolate holds the database, the write is tried
@@ -22,6 +23,7 @@ void writeSoon(void Function() write, {int tries = 6}) {
 
 /// SQLite's "database is locked" (SQLITE_BUSY) from another connection.
 bool isBusy(Object e) {
+  if (ZaplineDatabase.isBusy(e)) return true;
   final s = '$e';
   return s.contains('database is locked') ||
       s.contains('SQLITE_BUSY') ||

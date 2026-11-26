@@ -1016,6 +1016,7 @@ class AppState extends ChangeNotifier {
     for (final v in versionsOf(c)) {
       db.linkGuide(ZaplineDatabase.channelKey(v), guideId);
     }
+    _askAfterLink([c]);
     // Channels of several sources merge by their guide channel.
     if (_mergeOptions.acrossSources) _reload();
     guideVersion.value++;
@@ -1029,9 +1030,21 @@ class AppState extends ChangeNotifier {
         db.linkGuide(ZaplineDatabase.channelKey(v), id);
       }
     }
+    _askAfterLink([for (final (c, _) in links) c]);
     if (_mergeOptions.acrossSources) _reload();
     guideVersion.value++;
     notifyListeners();
+  }
+
+  /// A guide channel linked by hand may have been imported only around the
+  /// last sync (the import keeps the full days for channels it knew were
+  /// wanted; the next sync brings them all). Meanwhile the source's own
+  /// short guide fills in what's on now.
+  void _askAfterLink(Iterable<Channel> channels) {
+    for (final c in channels) {
+      _guideAsked.remove(ZaplineDatabase.channelKey(c));
+      _wantGuide(c);
+    }
   }
 
   /// Channels of [sourceId] worth matching to a guide: shown, without a
@@ -1762,6 +1775,18 @@ class AppState extends ChangeNotifier {
     DateTime to,
   ) => db.guide(channels, from, to);
 
+  /// The description of one programme from [guideRows], which leaves
+  /// them out.
+  String? programmeDescription(Programme p) {
+    if (p.description != null) return p.description;
+    try {
+      return db.programmeDescription(p.channelId, p.start);
+    } catch (e) {
+      if (isBusy(e)) return null;
+      rethrow;
+    }
+  }
+
   /// [guide] for rows on screen: channels with nothing on now are asked of
   /// their source, as the channel lists do.
   Map<String, List<Programme>> guideRows(
@@ -1769,7 +1794,8 @@ class AppState extends ChangeNotifier {
     DateTime from,
     DateTime to,
   ) {
-    final found = db.guide(channels, from, to);
+    // Descriptions are read only for the programme the panel shows.
+    final found = db.guide(channels, from, to, withDescriptions: false);
     final now = DateTime.now().toUtc();
     // A source's own short guide covers around now: worth asking only
     // when that is on screen.
