@@ -39,6 +39,11 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // A test build (-P zaplineTest=true) installs next to the released
+        // app, with its own data, so it can be tried without uninstalling.
+        val test = project.findProperty("zaplineTest") == "true"
+        if (test) applicationIdSuffix = ".test"
+        manifestPlaceholders["appLabel"] = if (test) "Zapline Test" else "Zapline"
     }
 
     signingConfigs {
