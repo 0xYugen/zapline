@@ -196,6 +196,13 @@ class FakeEngine implements PlaybackEngine {
   @override
   Stream<bool> get buffering => const Stream.empty();
 
+  /// What the player last asked to preload.
+  (int, List<(int, Uri)>)? preloaded;
+
+  @override
+  Future<void> preload(int current, List<(int, Uri)> next) async =>
+      preloaded = (current, next);
+
   @override
   Future<List<MediaTrack>> audioTracks() async => const [
     MediaTrack(id: '1', label: 'Italiano', language: 'ita', selected: true),

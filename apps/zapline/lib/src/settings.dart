@@ -54,6 +54,12 @@ class AppSettings {
   bool get ownPlayer => _bool('ownPlayer', false);
   set ownPlayer(bool v) => _db.setSetting('ownPlayer', '$v');
 
+  /// With Zapline's player: while zapping, the channels before and after
+  /// the one playing load their first seconds, so Up and Down show the
+  /// next at once. Needs a provider allowing more than one connection.
+  bool get preloadNeighbours => _bool('preloadNeighbours', false);
+  set preloadNeighbours(bool v) => _db.setSetting('preloadNeighbours', '$v');
+
   /// The screen stays on while Zapline is open.
   bool get keepScreenOn => _bool('keepScreenOn', true);
   set keepScreenOn(bool v) => _db.setSetting('keepScreenOn', '$v');

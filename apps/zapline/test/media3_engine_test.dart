@@ -127,4 +127,22 @@ void main() {
     expect(calls.last.arguments, containsPair('value', 0.4));
     await e.dispose();
   });
+
+  test('preload sends the neighbours with their places', () async {
+    final e = Media3Engine();
+    await e.preload(4, [
+      (3, Uri.parse('http://x.example/3.ts')),
+      (5, Uri.parse('http://x.example/5.ts')),
+    ]);
+    final args = calls.last.arguments as Map;
+    expect(calls.last.method, 'preload');
+    expect(args['current'], 4);
+    expect(args['items'], [
+      {'index': 3, 'url': 'http://x.example/3.ts'},
+      {'index': 5, 'url': 'http://x.example/5.ts'},
+    ]);
+    await e.preload(4, const []);
+    expect((calls.last.arguments as Map)['items'], isEmpty);
+    await e.dispose();
+  });
 }

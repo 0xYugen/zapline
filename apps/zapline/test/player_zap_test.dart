@@ -193,4 +193,27 @@ void main() {
     expect(engine.volume, closeTo(0.95, 0.001));
     await tester.pump(const Duration(seconds: 2));
   });
+
+  testWidgets('with the setting on, neighbours preload while zapping', (
+    tester,
+  ) async {
+    final (state, engine) = await _player(tester);
+    // Off by default: providers often allow one connection only.
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(engine.preloaded, isNull);
+
+    state.settings.preloadNeighbours = true;
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 100));
+    final (current, next) = engine.preloaded!;
+    expect(current, 1);
+    expect(
+      [for (final (i, u) in next) (i, u.pathSegments.last)],
+      [(0, '1.ts'), (2, '3.ts')],
+    );
+
+    // Watching, not zapping: they are let go.
+    await tester.pump(const Duration(seconds: 26));
+    expect(engine.preloaded!.$2, isEmpty);
+  });
 }

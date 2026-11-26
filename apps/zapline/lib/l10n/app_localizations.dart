@@ -3247,6 +3247,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.'**
   String get ownPlayerHint;
+
+  /// No description provided for @preloadNeighbours.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant channel change'**
+  String get preloadNeighbours;
+
+  /// No description provided for @preloadNeighboursHint.
+  ///
+  /// In en, this message translates to:
+  /// **'While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.'**
+  String get preloadNeighboursHint;
 }
 
 class _AppLocalizationsDelegate

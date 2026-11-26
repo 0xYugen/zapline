@@ -1982,4 +1982,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ownPlayerHint =>
       'Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.';
+
+  @override
+  String get preloadNeighbours => 'Instant channel change';
+
+  @override
+  String get preloadNeighboursHint =>
+      'While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop.';
 }

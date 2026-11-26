@@ -641,5 +641,7 @@
   "fullScreenKey": "Full screen (F)",
   "exitFullScreen": "Exit full screen",
   "ownPlayer": "Zapline player (beta)",
-  "ownPlayerHint": "Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly."
+  "ownPlayerHint": "Faster channel changes and subtitles carried in the stream. Turn off if a channel plays badly.",
+  "preloadNeighbours": "Instant channel change",
+  "preloadNeighboursHint": "While you zap, the channels before and after start loading. Needs a subscription allowing 2 or more connections: with only one, channels may stop."
 }

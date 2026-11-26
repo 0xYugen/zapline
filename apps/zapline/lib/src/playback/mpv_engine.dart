@@ -67,6 +67,10 @@ class MpvEngine implements PlaybackEngine {
   @override
   Stream<String> get errors => _player.stream.error;
 
+  /// Opens one stream at a time: nothing to preload.
+  @override
+  Future<void> preload(int current, List<(int, Uri)> next) async {}
+
   @override
   Stream<bool> get buffering => _player.stream.buffering;
 

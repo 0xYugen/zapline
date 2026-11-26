@@ -72,6 +72,12 @@ abstract class PlaybackEngine {
 
   /// Playback volume, 0 (silent) to 1 (full), kept across streams.
   Future<void> setVolume(double volume);
+
+  /// Loads the first seconds of [next] (their place in the list being
+  /// zapped, their address) so a zap to one shows at once; [current] is
+  /// the place of what plays. An empty list lets them go. Engines that
+  /// can't preload ignore it.
+  Future<void> preload(int current, List<(int, Uri)> next) async {}
 }
 
 /// An audio or subtitle track as the player shows it.

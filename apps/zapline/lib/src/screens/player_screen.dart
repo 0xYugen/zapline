@@ -176,6 +176,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
+  /// Lets the preloaded channels go a while after the last zap: someone
+  /// watching doesn't need them, and providers count connections.
+  Timer? _preloadDrop;
+
+  /// With Zapline's player and the setting on: the channels before and
+  /// after this one load their first seconds, so the next Up or Down shows
+  /// at once. Only while zapping.
+  void _preloadNeighbours() {
+    final n = _channels.length;
+    if (_replay != null || n < 2 || !widget.state.settings.preloadNeighbours) {
+      return;
+    }
+    Uri url(int i) => widget.state.playable(_channels[(i + n) % n]).streamUrl;
+    // Ranks around this one; with two channels both neighbours are one.
+    _engine.preload(_index, [
+      (_index - 1, url(_index - 1)),
+      if (n > 2) (_index + 1, url(_index + 1)),
+    ]);
+    _preloadDrop?.cancel();
+    _preloadDrop = Timer(const Duration(seconds: 25), () {
+      if (mounted) _engine.preload(_index, const []);
+    });
+  }
+
   /// OK held down: options instead of the channel list.
   DateTime? _okDownAt;
   bool _okLong = false;
@@ -205,6 +229,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _opening = false;
             _openTimeout?.cancel();
             _updateSpinner();
+            _preloadNeighbours();
           }
           if (_retries > 0) {
             // Playing again: the next failure gets its full set of tries.
@@ -287,6 +312,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _stallTimer,
       _clock,
       _okTimer,
+      _preloadDrop,
     ]) {
       t?.cancel();
     }

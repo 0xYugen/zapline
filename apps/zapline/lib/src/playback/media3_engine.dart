@@ -133,6 +133,14 @@ class Media3Engine implements PlaybackEngine {
   Stream<bool> get buffering => _buffering.stream;
 
   @override
+  Future<void> preload(int current, List<(int, Uri)> next) => _call('preload', {
+    'current': current,
+    'items': [
+      for (final (index, url) in next) {'index': index, 'url': url.toString()},
+    ],
+  });
+
+  @override
   Future<void> setVolume(double volume) =>
       _call('setVolume', {'value': volume.clamp(0.0, 1.0)});
 

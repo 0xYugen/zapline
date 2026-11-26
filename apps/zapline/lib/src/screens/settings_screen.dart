@@ -218,6 +218,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: s.ownPlayer,
                     onChanged: (v) => _set(() => s.ownPlayer = v),
                   ),
+                if (ownPlayerAvailable && s.ownPlayer)
+                  SettingsSwitchTile(
+                    title: l.preloadNeighbours,
+                    subtitle: l.preloadNeighboursHint,
+                    value: s.preloadNeighbours,
+                    onChanged: (v) => _set(() => s.preloadNeighbours = v),
+                  ),
                 SettingsSwitchTile(
                   title: l.mergeVersions,
                   subtitle: l.mergeVersionsHint,

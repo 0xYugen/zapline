@@ -20,6 +20,8 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
+import androidx.media3.exoplayer.source.preload.TargetPreloadStatusControl
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -91,6 +93,14 @@ class Media3Host(private val context: Context, messenger: BinaryMessenger) :
                 call.argument<Map<String, String>>("headers") ?: emptyMap(),
                 (call.argument<Number>("startMs") ?: 0).toLong(),
             )
+            "preload" -> s.preload(
+                (call.argument<Number>("current") ?: -1).toInt(),
+                (call.argument<List<Map<String, Any?>>>("items") ?: emptyList()).mapNotNull {
+                    val i = (it["index"] as? Number)?.toInt()
+                    val u = it["url"] as? String
+                    if (i == null || u == null) null else i to u
+                },
+            )
             "stop" -> s.player.stop()
             "play" -> s.player.play()
             "pause" -> s.player.pause()
@@ -138,7 +148,23 @@ class Media3Session(
             DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
     )
 
-    val player: ExoPlayer = ExoPlayer.Builder(context)
+    // The channel playing, by its index in the list being zapped; the ones
+    // next to it get their first seconds loaded (preload), the rest none.
+    private var playingIndex = -1
+
+    private val preloadControl =
+        TargetPreloadStatusControl<Int, DefaultPreloadManager.PreloadStatus> { rank ->
+            if (Math.abs(rank - playingIndex) == 1) {
+                // Two seconds: enough to show the picture at once.
+                DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(2_000)
+            } else {
+                DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_NOT_PRELOADED
+            }
+        }
+
+    // The player and the preload manager share their threads, load control
+    // and sources, as Media3 wants for a preloaded source to play.
+    private val builder = DefaultPreloadManager.Builder(context, preloadControl)
         .setRenderersFactory(
             DefaultRenderersFactory(context).setEnableDecoderFallback(true)
         )
@@ -152,8 +178,48 @@ class Media3Session(
                 .setBufferDurationsMs(15_000, 40_000, 1_000, 2_000)
                 .build()
         )
-        .build()
-        .also { it.addListener(this) }
+
+    val player: ExoPlayer = builder.buildExoPlayer().also { it.addListener(this) }
+    private val preloader: DefaultPreloadManager = builder.build()
+
+    /** Items handed to the preloader, by URL: the same instance finds its source. */
+    private val preloaded = mutableMapOf<String, Pair<Int, MediaItem>>()
+
+    private fun itemFor(url: String): MediaItem {
+        val b = MediaItem.Builder().setUri(url).setMediaId(url)
+        if (url.substringBefore('?').lowercase().endsWith(".m3u8")) {
+            b.setMimeType(MimeTypes.APPLICATION_M3U8)
+        }
+        return b.build()
+    }
+
+    /**
+     * Loads the first seconds of [items] (index in the list, address) next
+     * to [current]; an empty list lets them all go, closing their
+     * connections (many providers allow only one or two at a time).
+     */
+    fun preload(current: Int, items: List<Pair<Int, String>>) {
+        playingIndex = current
+        val keep = items.map { it.second }.toSet()
+        val gone = preloaded.filterKeys { it !in keep }
+        gone.forEach { (url, entry) ->
+            preloader.remove(entry.second)
+            preloaded.remove(url)
+        }
+        for ((index, url) in items) {
+            if (url in preloaded || url == playingUrl) continue
+            val item = itemFor(url)
+            preloaded[url] = index to item
+            preloader.add(item, index)
+        }
+        preloader.setCurrentPlayingIndex(current)
+        preloader.invalidate()
+    }
+
+    private var playingUrl: String? = null
+
+    /** The preloader's item now played, released when another plays. */
+    private var playingPreloaded: MediaItem? = null
 
     private var view: PlayerView? = null
     private var fit = AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -175,11 +241,20 @@ class Media3Session(
         firstFrame = false
         http.setUserAgent(headers["User-Agent"])
         http.setDefaultRequestProperties(headers.filterKeys { it != "User-Agent" })
-        val item = MediaItem.Builder().setUri(url)
-        if (url.substringBefore('?').lowercase().endsWith(".m3u8")) {
-            item.setMimeType(MimeTypes.APPLICATION_M3U8)
+        playingUrl = url
+        // A preloaded channel plays from what it already has; it is then
+        // the player's, and not preloaded again until it is let go.
+        val entry = if (startMs == 0L) preloaded.remove(url) else null
+        val source = entry?.let { preloader.getMediaSource(it.second) }
+        val before = playingPreloaded
+        playingPreloaded = if (source != null) entry?.second else null
+        if (source != null) {
+            player.setMediaSource(source)
+        } else {
+            player.setMediaItem(itemFor(url), startMs)
         }
-        player.setMediaItem(item.build(), startMs)
+        // The previous channel's preloaded source, no longer played.
+        before?.let { preloader.remove(it) }
         player.prepare()
         player.playWhenReady = true
     }
@@ -277,6 +352,10 @@ class Media3Session(
             player.prepare()
             return
         }
+        // A preloaded source kept too long may have gone stale: the retry
+        // opens the channel afresh.
+        playingPreloaded?.let { preloader.remove(it) }
+        playingPreloaded = null
         val cause = error.cause?.message
         emit(
             mapOf(
@@ -288,6 +367,9 @@ class Media3Session(
     }
 
     fun release() {
+        preloader.release()
+        preloaded.clear()
+        playingPreloaded = null
         ticker.removeCallbacks(tick)
         view?.player = null
         view = null

@@ -1986,4 +1986,11 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get ownPlayerHint =>
       'Cambio canale più rapido e sottotitoli presenti nello stream. Disattivalo se un canale non si vede bene.';
+
+  @override
+  String get preloadNeighbours => 'Cambio canale istantaneo';
+
+  @override
+  String get preloadNeighboursHint =>
+      'Mentre fai zapping, i canali prima e dopo iniziano a caricarsi. Serve un abbonamento con 2 o più connessioni: con una sola, i canali possono interrompersi.';
 }
