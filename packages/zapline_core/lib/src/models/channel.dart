@@ -34,6 +34,41 @@ class Channel {
   String toString() => 'Channel($sourceId/$id, $name)';
 }
 
+/// A [Channel] read back from storage, whose addresses are parsed the
+/// first time they are read. Loading a list of 50,000 channels then costs
+/// no `Uri.parse` for the many rows that are never shown or played.
+class StoredChannel extends Channel {
+  StoredChannel({
+    required super.sourceId,
+    required super.id,
+    required super.name,
+    required String streamUrl,
+    String? logoUrl,
+    super.number,
+    super.groupTitle,
+    super.epgChannelId,
+    super.catchup,
+    super.httpHeaders,
+  })  : _stream = streamUrl,
+        _logo = logoUrl,
+        super(streamUrl: _unread);
+
+  /// Stands for the address in [Channel]; [streamUrl] reads the real one.
+  static final _unread = Uri();
+
+  final String _stream;
+  final String? _logo;
+
+  late final Uri _streamUrl = Uri.parse(_stream);
+  late final Uri? _logoUrl = _logo == null ? null : Uri.tryParse(_logo);
+
+  @override
+  Uri get streamUrl => _streamUrl;
+
+  @override
+  Uri? get logoUrl => _logoUrl;
+}
+
 enum CatchupMode { defaultMode, append, shift, flussonic, xtream, vod }
 
 class CatchupInfo {

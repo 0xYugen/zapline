@@ -535,7 +535,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   /// The channel [number] stands for: in the list being watched, or else
   /// among all channels. `null` when there is none.
-  (List<Channel>, int)? _channelNumbered(int number) {
+  (List<Channel>, int)? _channelNumbered(int number, {bool wait = false}) {
     int find(List<Channel> list) {
       for (var i = 0; i < list.length; i++) {
         if (widget.state.channelNumber(list[i], i) == number) return i;
@@ -545,7 +545,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final here = find(_channels);
     if (here >= 0) return (_channels, here);
-    final all = widget.state.channels();
+    // The preview while typing never waits for a large list to load.
+    final all = wait
+        ? widget.state.channels()
+        : widget.state.channelsReady(null) ?? const <Channel>[];
     final there = find(all);
     return there >= 0 ? (all, there) : null;
   }
@@ -561,7 +564,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final n = int.tryParse(_digits);
     setState(() => _digits = '');
     if (n == null) return;
-    final found = _channelNumbered(n);
+    final found = _channelNumbered(n, wait: true);
     if (found != null) return _goTo(found.$2, found.$1);
     // A lone 0 goes back to the last channel, as on most TV remotes.
     if (n == 0) _recall();

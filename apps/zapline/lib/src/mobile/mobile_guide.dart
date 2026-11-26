@@ -62,7 +62,8 @@ class _MobileGuideState extends State<MobileGuide> {
         final state = widget.state;
         if (!groupsOf(state).contains(_group)) _group = null;
         final locked = _group != null && state.isLocked(_group!);
-        final list = locked ? const <Channel>[] : _cache.get(state, _group);
+        final loaded = locked ? const <Channel>[] : _cache.get(state, _group);
+        final list = loaded ?? const <Channel>[];
         final at = _at;
         final tonight = _tonight;
         return Column(
@@ -108,6 +109,8 @@ class _MobileGuideState extends State<MobileGuide> {
             Expanded(
               child: locked
                   ? LockedGroupView(state: state)
+                  : loaded == null
+                  ? const LoadingView()
                   : list.isEmpty
                   ? EmptyView(context.l10n.noChannelsInGroup)
                   : ListView.builder(

@@ -148,6 +148,19 @@ List<(Channel, Programme)> Function(ZaplineDatabase) _programmeSearch(
 ) =>
     (db) => db.searchProgrammes(query, from: from, visibility: visibility);
 
+/// [group]'s channels, merged, for [AppState.channelsReady] on another
+/// isolate.
+(List<Channel>, Map<String, List<Channel>>) Function(ZaplineDatabase)
+_channelJob(
+  String? group,
+  ChannelVisibility visibility,
+  ({bool merge, bool saveData, Map<String, String> choices}) options,
+) =>
+    (db) => AppState._mergeVersionsOf(
+      db.channels(group: group, visibility: visibility),
+      options,
+    );
+
 /// App-wide state backed by the local database.
 class AppState extends ChangeNotifier {
   AppState(
@@ -403,18 +416,74 @@ class AppState extends ChangeNotifier {
 
   // --------------------------------------------------------- channels
 
-  List<Channel> channels({String? group}) =>
-      _mergeVersions(db.channels(group: group, visibility: _visibility));
+  /// [group]'s channels (`null`: all of them), versions merged. Kept until
+  /// the stored channels or the preferences change; a list loaded off
+  /// screen by [channelsReady] is used here too.
+  List<Channel> channels({String? group}) {
+    _dropStaleLists();
+    final cached = _lists[group];
+    if (cached != null) return cached;
+    final (list, versions) = _mergeVersionsOf(
+      db.channels(group: group, visibility: _visibility),
+      _mergeOptions,
+    );
+    _versions.addAll(versions);
+    return _lists[group] = list;
+  }
+
+  /// [group]'s channels when already loaded; otherwise `null`, and they
+  /// load on another isolate (50,000 rows take a TV stick a second or
+  /// two) and listeners are told when they are here.
+  List<Channel>? channelsReady(String? group) {
+    _dropStaleLists();
+    final cached = _lists[group];
+    if (cached != null) return cached;
+    // A small playlist loads here at once: cheaper than another isolate.
+    if (background == null || channelCount < 2000) {
+      return channels(group: group);
+    }
+    if (!_loadingLists.contains(group)) {
+      _loadingLists.add(group);
+      final at = version;
+      _offScreen(_channelJob(group, _visibility, _mergeOptions)).then(
+        (r) {
+          _loadingLists.remove(group);
+          // Stale by now: the next ask loads again.
+          if (at != version) return;
+          final (list, versions) = r;
+          _versions.addAll(versions);
+          _lists[group] = list;
+          notifyListeners();
+        },
+        onError: (Object e) {
+          _loadingLists.remove(group);
+          debugPrint('Channels not loaded: $e');
+        },
+      );
+    }
+    return null;
+  }
+
+  final _lists = <String?, List<Channel>>{};
+  final _loadingLists = <String?>{};
+  int _listsAt = -1;
+
+  void _dropStaleLists() {
+    if (_listsAt == version) return;
+    _listsAt = version;
+    _lists.clear();
+    _loadingLists.clear();
+    _versions.clear();
+  }
 
   List<Channel> search(String query) =>
       _mergeVersions(db.search(query, visibility: _visibility));
 
   // ------------------------------------------------ versions of a channel
 
-  /// Every version of a merged channel by each version's key; rebuilt as
+  /// Every version of a merged channel by each version's key; filled as
   /// lists are merged, dropped when the stored channels change.
   final _versions = <String, List<Channel>>{};
-  int _versionsAt = -1;
 
   static final _parsed = <String, ChannelVariant>{};
 
@@ -424,30 +493,44 @@ class AppState extends ChangeNotifier {
   static String _versionKey(Channel c) =>
       '${c.sourceId}\u0000${_variant(c.name).key}';
 
-  /// Order of preference: best picture first, or HD first to save data.
-  int _rank(VideoQuality q) => settings.saveData
-      ? switch (q) {
-          VideoQuality.hd || VideoQuality.unknown => 0,
-          VideoQuality.sd => 1,
-          VideoQuality.fhd => 2,
-          VideoQuality.uhd => 3,
-        }
-      : -(q == VideoQuality.unknown ? VideoQuality.hd.index : q.index);
+  ({bool merge, bool saveData, Map<String, String> choices})
+  get _mergeOptions => (
+    merge: settings.mergeVersions,
+    saveData: settings.saveData,
+    choices: settings.versionChoices,
+  );
 
   /// One entry per channel: its versions ("HD", "FHD", "4K", backups) fold
   /// into the preferred one, at the place of the first.
   List<Channel> _mergeVersions(List<Channel> list) {
-    if (!settings.mergeVersions || list.length < 2) return list;
-    if (_versionsAt != version) {
-      _versions.clear();
-      _versionsAt = version;
-    }
+    _dropStaleLists();
+    final (out, versions) = _mergeVersionsOf(list, _mergeOptions);
+    _versions.addAll(versions);
+    return out;
+  }
+
+  /// [list] merged, with every merged channel's versions by version key.
+  /// Static and plain, so it runs on another isolate as well.
+  static (List<Channel>, Map<String, List<Channel>>) _mergeVersionsOf(
+    List<Channel> list,
+    ({bool merge, bool saveData, Map<String, String> choices}) o,
+  ) {
+    final versions = <String, List<Channel>>{};
+    if (!o.merge || list.length < 2) return (list, versions);
+    // Order of preference: best picture first, or HD first to save data.
+    int rank(VideoQuality q) => o.saveData
+        ? switch (q) {
+            VideoQuality.hd || VideoQuality.unknown => 0,
+            VideoQuality.sd => 1,
+            VideoQuality.fhd => 2,
+            VideoQuality.uhd => 3,
+          }
+        : -(q == VideoQuality.unknown ? VideoQuality.hd.index : q.index);
     final byKey = <String, List<Channel>>{};
     for (final c in list) {
       (byKey[_versionKey(c)] ??= []).add(c);
     }
-    if (byKey.length == list.length) return list;
-    final choices = settings.versionChoices;
+    if (byKey.length == list.length) return (list, versions);
     final out = <Channel>[];
     for (final c in list) {
       final key = _versionKey(c);
@@ -461,13 +544,13 @@ class AppState extends ChangeNotifier {
       final sorted = [...group]
         ..sort(
           (a, b) =>
-              _rank(_variant(a.name).quality)
-                  .compareTo(_rank(_variant(b.name).quality)),
+              rank(_variant(a.name).quality)
+                  .compareTo(rank(_variant(b.name).quality)),
         );
       for (final v in sorted) {
-        _versions[ZaplineDatabase.channelKey(v)] = sorted;
+        versions[ZaplineDatabase.channelKey(v)] = sorted;
       }
-      final chosen = choices[key];
+      final chosen = o.choices[key];
       out.add(
         sorted.firstWhere(
           (v) => ZaplineDatabase.channelKey(v) == chosen,
@@ -475,7 +558,7 @@ class AppState extends ChangeNotifier {
         ),
       );
     }
-    return out;
+    return (out, versions);
   }
 
   /// The versions of [c] in order of preference; just [c] when it has none.
@@ -865,6 +948,19 @@ class AppState extends ChangeNotifier {
   /// Channels of [sourceId] worth matching to a guide: shown, without a
   /// guide in any of their versions, and not marked as having none.
   List<Channel> channelsNeedingGuide(String sourceId) {
+    // Screens ask on every redraw; a large source's channels load once per
+    // change of the channels, guide links or "no guide" marks.
+    final key = (version, guideVersion.value, settings.noGuideChannels.length);
+    final cached = _needingGuide[sourceId];
+    if (cached != null && cached.$1 == key) return cached.$2;
+    final list = _channelsNeedingGuide(sourceId);
+    _needingGuide[sourceId] = (key, list);
+    return list;
+  }
+
+  final _needingGuide = <String, ((int, int, int), List<Channel>)>{};
+
+  List<Channel> _channelsNeedingGuide(String sourceId) {
     final missing = {
       for (final c in db.unmatchedChannels(sourceId: sourceId))
         ZaplineDatabase.channelKey(c),

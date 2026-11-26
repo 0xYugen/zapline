@@ -504,3 +504,13 @@ class EmptyView extends StatelessWidget {
     ),
   );
 }
+
+/// A list on its way: a large playlist loads off screen at first.
+class LoadingView extends StatelessWidget {
+  const LoadingView({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Center(
+    child: CircularProgressIndicator(color: ZaplineColors.focus),
+  );
+}

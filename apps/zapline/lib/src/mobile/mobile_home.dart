@@ -371,7 +371,8 @@ class _ChannelsTabState extends State<ChannelsTab> {
         final state = widget.state;
         if (!groupsOf(state).contains(_group)) _group = null;
         final locked = _group != null && state.isLocked(_group!);
-        final list = locked ? const <Channel>[] : _cache.get(state, _group);
+        final loaded = locked ? const <Channel>[] : _cache.get(state, _group);
+        final list = loaded ?? const <Channel>[];
         // The last channel watched, a tap away, on the full list only.
         final last = _group == null && state.hasRecents
             ? state.recents().firstOrNull
@@ -385,6 +386,8 @@ class _ChannelsTabState extends State<ChannelsTab> {
             Expanded(
               child: locked
                   ? LockedGroupView(state: state)
+                  : loaded == null
+                  ? const LoadingView()
                   : list.isEmpty
                   ? EmptyView(context.l10n.noChannelsInGroup)
                   : CustomScrollView(

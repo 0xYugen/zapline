@@ -62,7 +62,14 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   final _groupNodes = <String?, FocusNode>{};
 
   (String?, int, int)? _cacheKey;
-  List<Channel> _cache = const [];
+  List<Channel>? _cache;
+
+  /// The grid was asked for while its channels were still loading: it
+  /// takes focus once they are here.
+  bool _wantGrid = false;
+
+  /// The channel to reopen at startup, once all channels have loaded.
+  Channel? _resume;
 
   @override
   void initState() {
@@ -87,11 +94,22 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       if (widget.autoplayFirst && _visible.isNotEmpty) {
         _play(_visible, 0);
       } else if (widget.state.resumeChannel case final last?) {
-        final all = widget.state.channels();
-        final i = widget.state.indexOfChannel(all, last);
-        if (i >= 0) _play(all, i);
+        _resume = last;
+        _resumeWhenLoaded();
       }
     });
+  }
+
+  /// Opens [_resume] in the list of all channels, as soon as it is loaded
+  /// (off screen, for a large playlist).
+  void _resumeWhenLoaded() {
+    final last = _resume;
+    if (last == null) return;
+    final all = widget.state.channelsReady(null);
+    if (all == null) return;
+    _resume = null;
+    final i = widget.state.indexOfChannel(all, last);
+    if (i >= 0) _play(all, i);
   }
 
   /// Back from the player: the grid shows the channel zapped to.
@@ -119,7 +137,11 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   FocusNode _groupNode(String? g) =>
       _groupNodes.putIfAbsent(g, () => FocusNode(debugLabel: 'group $g'));
 
-  List<Channel> get _visible {
+  /// The channels of the group on screen; while a large list loads, the
+  /// one shown before stays, and none at the very start.
+  List<Channel> get _visible => _loaded ?? const [];
+
+  List<Channel>? get _loaded {
     final state = widget.state;
     // Favourites and recents change without the channels changing.
     final key = (
@@ -132,12 +154,14 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       },
     );
     if (key != _cacheKey) {
-      _cacheKey = key;
-      _cache = switch (_group) {
-        _favourites => widget.state.favourites(),
-        _recent => widget.state.recents(),
-        final g => widget.state.channels(group: g),
+      final list = switch (_group) {
+        _favourites => state.favourites(),
+        _recent => state.recents(),
+        final g => state.channelsReady(g),
       };
+      if (list == null) return _cache;
+      _cacheKey = key;
+      _cache = list;
     }
     return _cache;
   }
@@ -157,6 +181,14 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
   }
 
   void _toGrid() {
+    if (!_locked && _loaded == null) {
+      // Still loading: the grid takes focus when its channels arrive.
+      setState(() {
+        _area = _Area.grid;
+        _wantGrid = true;
+      });
+      return;
+    }
     if (_locked || _visible.isEmpty) {
       _toGroups();
       return;
@@ -281,7 +313,17 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       ...state.groups,
     ];
     if (!groups.contains(_group)) _group = null;
-    final visible = _visible;
+    final loaded = _loaded;
+    final visible = loaded ?? const <Channel>[];
+    if (loaded != null && (_wantGrid || _resume != null)) {
+      final focusGrid = _wantGrid;
+      _wantGrid = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (focusGrid) _toGrid();
+        _resumeWhenLoaded();
+      });
+    }
     final wide = _area == _Area.menu;
     final showGroups = _area != _Area.grid;
 
@@ -292,6 +334,11 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
               icon: Icons.lock_outline_rounded,
               title: l.groupLocked,
               subtitle: l.pressOkForPin,
+            )
+          : loaded == null
+          // A large playlist's first load, off screen.
+          ? const Center(
+              child: CircularProgressIndicator(color: ZaplineColors.focus),
             )
           : visible.isEmpty && state.isSyncing
           // A playlist just added or received: say it is on its way.

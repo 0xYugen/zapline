@@ -561,17 +561,16 @@ class ZaplineDatabase {
   static Channel _channel(Row r) {
     final mode = r['catchup_mode'] as String?;
     final headers = r['headers'] as String?;
-    return Channel(
+    // Addresses are parsed when first read: most rows of a long list are
+    // never shown or played.
+    return StoredChannel(
       sourceId: r['source_id'] as String,
       id: r['id'] as String,
       number: r['number'] as int?,
       name: r['name'] as String,
       groupTitle: r['group_title'] as String?,
-      logoUrl: switch (r['logo'] as String?) {
-        final l? => Uri.tryParse(l),
-        null => null,
-      },
-      streamUrl: Uri.parse(r['stream_url'] as String),
+      logoUrl: r['logo'] as String?,
+      streamUrl: r['stream_url'] as String,
       epgChannelId: r['epg_id'] as String?,
       catchup: mode == null
           ? null
