@@ -150,4 +150,56 @@ void main() {
       expect(client.xmltvUrl.queryParameters['username'], 'alice');
     });
   });
+
+  group('slow panels', () {
+    final creds = XtreamCredentials(
+      baseUrl: Uri.parse('http://panel.example:8080'),
+      username: 'u',
+      password: 'p',
+    );
+
+    XtreamClient client(List<(Duration, String)> chunks) => XtreamClient(
+          creds,
+          timeout: const Duration(milliseconds: 200),
+          httpClient: MockClient.streaming((req, _) async {
+            Stream<List<int>> body() async* {
+              for (final (wait, text) in chunks) {
+                await Future<void>.delayed(wait);
+                yield utf8.encode(text);
+              }
+            }
+
+            return http.StreamedResponse(body(), 200);
+          }),
+        );
+
+    test('a list arriving steadily is read even when it takes long', () async {
+      // Six pauses of 120 ms: 720 ms in all, more than the timeout of 200.
+      final parts = [
+        '[',
+        '{"stream_id":1,"name":"A"}',
+        ',',
+        '{"stream_id":2,',
+        '"name":"B"}',
+        ']'
+      ];
+      final c = client([
+        for (final p in parts) (const Duration(milliseconds: 120), p),
+      ]);
+      final list = await c.liveStreams();
+      expect(list.map((s) => s.name), ['A', 'B']);
+    });
+
+    test('a list that stops arriving fails with a clear error', () async {
+      final c = client([
+        (Duration.zero, '[{"stream_id":1,'),
+        (const Duration(milliseconds: 600), '"name":"A"}]'),
+      ]);
+      expect(
+        c.liveStreams(),
+        throwsA(isA<XtreamException>()
+            .having((e) => e.message, 'message', contains('stopped'))),
+      );
+    });
+  });
 }

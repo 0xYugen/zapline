@@ -293,7 +293,9 @@ class SourceSync {
   Future<_Fetched> _m3u(SourceRecord s) async {
     final uri = Uri.tryParse(s.url);
     if (uri == null || !uri.hasScheme) throw SyncException('Not a valid URL');
-    final res = await _send(uri);
+    // Like the guides: one more try on a busy server, and no waiting for
+    // ever on one that stopped sending.
+    final res = await _sendRetrying(uri);
     final parser = M3uParser();
     final channels = <Channel>[];
     final movies = <Movie>[];
@@ -497,10 +499,10 @@ class SourceSync {
   /// enough that the far end is worth reading again.
   static const _unchangedFor = Duration(hours: 20);
 
-  /// Guides are big downloads from free servers that are sometimes busy:
-  /// one more try after a short wait, and no waiting forever on a server
-  /// that stopped answering. A 304 (with [headers] asking whether the
-  /// guide changed) comes back as is.
+  /// Playlists and guides are big downloads from servers that are
+  /// sometimes busy: one more try after a short wait, and no waiting
+  /// forever on a server that stopped answering. A 304 (with [headers]
+  /// asking whether the guide changed) comes back as is.
   Future<http.StreamedResponse> _sendRetrying(
     Uri url, {
     Map<String, String> headers = const {},
