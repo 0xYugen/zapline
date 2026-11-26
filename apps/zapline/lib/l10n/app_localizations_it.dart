@@ -342,6 +342,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get liveBadge => 'LIVE';
 
   @override
+  String get onAirNow => 'In onda';
+
+  @override
   String get catchUpBadge => 'REPLAY';
 
   @override

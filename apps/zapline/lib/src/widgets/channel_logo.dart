@@ -9,8 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:zapline_core/zapline_core.dart';
 
-import '../theme.dart';
-
 /// Disk cache for channel logos. Logos rarely change and lists show
 /// hundreds of them, so each is fetched once and kept on disk; decoding
 /// happens at display size (see [ChannelLogo]) to keep memory low on TV
@@ -338,24 +336,20 @@ class _Initials extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A quiet tile, its letters tinted: a list of them reads as channels
-    // without a logo, not as a row of coloured blocks.
+    // A light, soft tile with dark letters, like a logo's plate.
     final color = _palette[name.hashCode.abs() % _palette.length];
     return Container(
       width: width,
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          color.withValues(alpha: 0.10),
-          ZaplineColors.surfaceHigh,
-        ),
+        color: Color.lerp(color, Colors.white, 0.72),
         borderRadius: BorderRadius.circular(height * 0.2),
       ),
       child: Text(
         _initials,
         style: TextStyle(
-          color: Color.lerp(color, ZaplineColors.text, 0.35),
+          color: Color.lerp(color, const Color(0xFF202124), 0.8),
           fontWeight: FontWeight.w600,
           letterSpacing: 0.4,
           fontSize: height * 0.34,

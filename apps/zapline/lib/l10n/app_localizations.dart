@@ -686,6 +686,12 @@ abstract class AppLocalizations {
   /// **'LIVE'**
   String get liveBadge;
 
+  /// No description provided for @onAirNow.
+  ///
+  /// In en, this message translates to:
+  /// **'On now'**
+  String get onAirNow;
+
   /// No description provided for @catchUpBadge.
   ///
   /// In en, this message translates to:

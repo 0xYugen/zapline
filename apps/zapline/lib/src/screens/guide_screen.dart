@@ -76,6 +76,9 @@ class GuideGridState extends State<GuideGrid> {
   static const _labelWidth = 240.0;
   static const _rowHeight = 64.0;
 
+  /// The programme in focus, large, above the grid.
+  static const _headerHeight = 184.0;
+
   /// A row, taller with large system text.
   double get _rowExtent => scaledExtent(context, _rowHeight);
 
@@ -417,33 +420,29 @@ class GuideGridState extends State<GuideGrid> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _pruneNodes());
     }
 
-    // A soft light behind the programme in focus, as TV launchers have:
-    // drawn once, it costs nothing as the focus moves.
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        const Positioned(
-          top: -160,
-          right: -120,
-          width: 820,
-          height: 520,
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0x7A2B4A7A),
-                    Color(0x4D6A3D6E),
-                    Color(0x00000000),
-                  ],
-                  stops: [0, 0.45, 1],
-                ),
+    // Behind the programme in focus, a picture-like wash of colour in the
+    // channel's own hues, fading into the page, as TV launchers have. It
+    // changes only when the focus moves to another channel.
+    return LayoutBuilder(
+      builder: (context, box) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: -48,
+            right: -56,
+            width: box.maxWidth * 0.62 + 56,
+            height: _headerHeight + 40,
+            child: IgnorePointer(
+              child: ValueListenableBuilder(
+                valueListenable: _selected,
+                builder: (context, selected, _) =>
+                    _HeroArt(seed: selected?.channel.name ?? ''),
               ),
             ),
           ),
-        ),
-        _guideColumn(),
-      ],
+          _guideColumn(),
+        ],
+      ),
     );
   }
 
@@ -452,7 +451,7 @@ class GuideGridState extends State<GuideGrid> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: 150,
+          height: _headerHeight,
           child: ValueListenableBuilder(
             valueListenable: _selected,
             builder: (context, selected, _) =>
@@ -857,6 +856,84 @@ class _DigitBadge extends StatelessWidget {
   );
 }
 
+/// A wash of two colours picked from [seed] (the channel's name), with a
+/// soft disc, fading to the page on the left and below.
+class _HeroArt extends StatelessWidget {
+  const _HeroArt({required this.seed});
+
+  final String seed;
+
+  static const _hues = [215.0, 265.0, 330.0, 15.0, 160.0, 195.0, 290.0, 35.0];
+
+  @override
+  Widget build(BuildContext context) {
+    final h = seed.hashCode.abs();
+    final a = HSLColor.fromAHSL(1, _hues[h % _hues.length], 0.45, 0.32);
+    final b = HSLColor.fromAHSL(
+      1,
+      _hues[(h ~/ 8 + 3) % _hues.length],
+      0.35,
+      0.30,
+    );
+    // Faded out by masks, not painted over: it then blends into whatever
+    // is under it, with no edge. Drawn once per channel focused.
+    return RepaintBoundary(
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (r) => const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          // Eased, so the eye finds no line where it ends.
+          colors: [
+            Color(0x00FFFFFF),
+            Color(0x14FFFFFF),
+            Color(0x55FFFFFF),
+            Color(0xB3FFFFFF),
+            Color(0xFFFFFFFF),
+          ],
+          stops: [0, 0.18, 0.4, 0.65, 0.9],
+        ).createShader(r),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (r) => const LinearGradient(
+            colors: [Color(0x00FFFFFF), Color(0x99FFFFFF), Color(0xFFFFFFFF)],
+            stops: [0, 0.45, 1],
+          ).createShader(r),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [a.toColor(), b.toColor()],
+                  ),
+                ),
+              ),
+              const Align(
+                alignment: Alignment(0.45, -0.35),
+                child: FractionallySizedBox(
+                  widthFactor: 0.42,
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0x14FFFFFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Details extends StatelessWidget {
   const _Details({required this.selected, required this.state});
 
@@ -877,11 +954,12 @@ class _Details extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          (p == null
-                  ? state.displayName(s.channel)
-                  : '${state.displayName(s.channel)} · ${_day(context, p.start)}'
-                        '${time(p.start)}–${time(p.stop)}')
-              .toUpperCase(),
+          [
+            if (airing) context.l10n.onAirNow,
+            state.displayName(s.channel),
+            if (p != null)
+              '${_day(context, p.start)}${time(p.start)}–${time(p.stop)}',
+          ].join(' · ').toUpperCase(),
           style: const TextStyle(
             fontSize: 14,
             letterSpacing: 0.6,
@@ -897,7 +975,7 @@ class _Details extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontSize: 40,
+            fontSize: 46,
             height: 1.15,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.4,
@@ -906,7 +984,7 @@ class _Details extends StatelessWidget {
         // How far into what's on now.
         if (airing)
           Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 2),
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
             child: SizedBox(
               width: 280,
               child: ClipRRect(
