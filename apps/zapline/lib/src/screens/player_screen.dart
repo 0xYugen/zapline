@@ -131,11 +131,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Timer? _openTimeout;
   Timer? _retriesReset;
 
-  /// A picture frozen this long won't come back by itself; before any
-  /// picture, a stall is a start that didn't take.
+  /// A picture frozen 10 s while watching won't come back by itself; in
+  /// the first seconds, 5 s frozen is a start that didn't take.
   void _watchStall() {
     _stallTimer?.cancel();
-    _stallTimer = Timer(Duration(seconds: _engine.hasPicture ? 20 : 8), () {
+    final started = _startedAt;
+    final watching =
+        _engine.hasPicture &&
+        started != null &&
+        DateTime.now().difference(started) > const Duration(seconds: 10);
+    _stallTimer = Timer(Duration(seconds: watching ? 10 : 5), () {
       if (mounted && _stalled) _onFailure(_streamTimeout);
     });
   }
@@ -143,9 +148,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// Checks, a moment after a channel starts, that it shows a picture.
   Timer? _pictureTimer;
 
-  /// A version of this channel was skipped for showing no picture: the
-  /// one that does is then remembered (see [_checkPicture]).
-  bool _skippedBlack = false;
+  /// A version of this channel was given up for another: the one that
+  /// then plays well is remembered (see [_checkPicture]).
+  bool _fellBack = false;
+
+  /// When the stream playing first moved; a stall in its first seconds
+  /// is a start that didn't take, later one of the connection.
+  DateTime? _startedAt;
   Timer? _stallTimer;
 
   // -------------------------------------------- what's on, cached
@@ -260,6 +269,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _opening = false;
             _openTimeout?.cancel();
             _updateSpinner();
+            _startedAt = DateTime.now();
             _preloadNeighbours();
             _checkPicture();
             // Stalled from the start: watched from now.
@@ -432,6 +442,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _open({bool retry = false}) async {
     final seq = ++_openSeq;
+    // The version remembered for this channel, even if the list this
+    // player was given still shows another.
+    if (_version == null) {
+      final listed = _channels[_index];
+      final preferred = widget.state.preferredVersion(listed);
+      if (!identical(preferred, listed)) _version = preferred;
+    }
     _zapTimer?.cancel();
     _retryTimer?.cancel();
     _retryTimer = null;
@@ -439,6 +456,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _pictureTimer?.cancel();
     _retriesReset?.cancel();
     _stallTimer?.cancel();
+    _startedAt = null;
     if (!retry) _retries = 0;
     final replay = _replay;
     final url = replay == null
@@ -471,7 +489,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     // Dead channels now fail fast natively; 15 s still lets a slow
     // provider start.
     // With another version to fall back on, a channel that hasn't started
-    // in 8 s gives way to it.
+    // in 6 s gives way to it.
     final otherVersion =
         replay == null &&
         widget.state
@@ -482,7 +500,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ZaplineDatabase.channelKey(_channel) &&
                   !_failed.contains(ZaplineDatabase.channelKey(v)),
             );
-    _openTimeout = Timer(Duration(seconds: otherVersion ? 8 : 12), () {
+    _openTimeout = Timer(Duration(seconds: otherVersion ? 6 : 12), () {
       if (mounted && _opening && _engine.currentPosition == Duration.zero) {
         _onFailure(_streamTimeout);
       }
@@ -517,33 +535,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _updateSpinner();
   }
 
-  /// A moment after a channel starts, it should show a picture:
+  /// A moment after a channel starts, it should show a picture and have
+  /// sound:
   /// * neither picture nor sound (stuck loading, or nothing the device can
   ///   decode) counts as failed: the next version, or tried again;
-  /// * sound only (a picture the device can't decode, a broken stream) on
-  ///   a channel with other versions goes on to the next; alone, it may be
-  ///   a radio and keeps playing.
-  /// The version that then shows a picture is remembered, so the channel
-  /// starts on it next time.
+  /// * a picture without voice, or a voice without picture (a format the
+  ///   device can't decode, a broken stream), on a channel with other
+  ///   versions goes on to the next; alone (a radio has no picture) it
+  ///   keeps playing.
+  /// The version that plays well after another was given up is
+  /// remembered: the channel starts on it from then on.
   void _checkPicture() {
     _pictureTimer?.cancel();
     if (_replay != null) return;
     final seq = _openSeq;
-    _pictureTimer = Timer(_pictureWait, () {
+    _pictureTimer = Timer(_pictureWait, () async {
       if (!mounted || seq != _openSeq || _opening) return;
-      if (_engine.hasPicture) {
-        if (_skippedBlack) {
-          _skippedBlack = false;
-          widget.state.preferVersion(_channel);
-        }
-        return;
-      }
-      if (_stalled || !_engine.isPlaying || _engine.playsNothing) {
+      final picture = _engine.hasPicture;
+      if (!picture &&
+          (_stalled || !_engine.isPlaying || _engine.playsNothing)) {
         _onFailure(_streamTimeout);
         return;
       }
-      if (widget.state.versionsOf(_channel).length > 1 && _tryNextVersion()) {
-        _skippedBlack = true;
+      final sound = await _engine.hasSound();
+      if (!mounted || seq != _openSeq) return;
+      final good = picture && sound != false;
+      if (!good &&
+          widget.state.versionsOf(_channel).length > 1 &&
+          _tryNextVersion()) {
+        return;
+      }
+      if (good && _fellBack) {
+        _fellBack = false;
+        widget.state.preferVersion(_channel);
       }
     });
   }
@@ -553,7 +577,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// Tries again from the first attempt, after the automatic ones gave up.
   void _retryNow() {
     _failed.clear();
-    _skippedBlack = false;
+    _fellBack = false;
     _version = null;
     _open();
   }
@@ -565,7 +589,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _replay = null;
     _version = null;
     _failed.clear();
-    _skippedBlack = false;
+    _fellBack = false;
     _scheduleOpen();
   }
 
@@ -608,7 +632,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _replay = null;
     _version = null;
     _failed.clear();
-    _skippedBlack = false;
+    _fellBack = false;
     _open();
   }
 
@@ -630,6 +654,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         .firstOrNull;
     if (next == null) return false;
     _version = next;
+    _fellBack = true;
     _open(retry: true);
     return true;
   }
@@ -644,7 +669,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _version = picked.channel;
     _failed.clear();
-    _skippedBlack = false;
+    _fellBack = false;
     _replay = null;
     _open();
   }

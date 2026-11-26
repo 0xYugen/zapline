@@ -54,6 +54,10 @@ class MpvEngine implements PlaybackEngine {
   @override
   bool get playsNothing => false;
 
+  // libmpv decodes any sound in software.
+  @override
+  Future<bool?> hasSound() async => null;
+
   @override
   Future<void> play() => _player.play();
 

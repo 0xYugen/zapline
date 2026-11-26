@@ -668,13 +668,51 @@ class AppState extends ChangeNotifier {
   /// "4K", "FHD", "HD" or "SD" as [c]'s name says, if it says.
   String? qualityOf(Channel c) => _variant(c.name).quality.label;
 
+  /// The version of [c]'s channel picked to play (by hand, or the one
+  /// that worked when another didn't); [c] when none was.
+  Channel preferredVersion(Channel c) {
+    final versions = versionsOf(c);
+    if (versions.length < 2) return c;
+    final choices = settings.versionChoices;
+    for (final v in versions) {
+      final key = choices[_versionKey(v)];
+      if (key == null) continue;
+      for (final w in versions) {
+        if (ZaplineDatabase.channelKey(w) == key) return w;
+      }
+    }
+    return c;
+  }
+
   /// Plays [c] from now on when its channel is opened.
   void preferVersion(Channel c) {
-    settings.versionChoices = {
-      ...settings.versionChoices,
-      _versionKey(c): ZaplineDatabase.channelKey(c),
-    };
-    _reload();
+    final key = ZaplineDatabase.channelKey(c);
+    final versions = versionsOf(c);
+    final choices = settings.versionChoices;
+    // Choices are kept under each version's own key: the one picked
+    // before, under another version's, would win over this one.
+    for (final v in versions) {
+      choices.remove(_versionKey(v));
+    }
+    settings.versionChoices = {...choices, _versionKey(c): key};
+    // The lists already loaded show it in the channel's place at once.
+    // Not reloaded: that would drop every channel's versions (a player
+    // open would have none to fall back on) and cost a TV stick a reload
+    // of the whole list.
+    final keys = {for (final v in versions) ZaplineDatabase.channelKey(v)};
+    for (final list in _lists.values) {
+      for (var i = 0; i < list.length; i++) {
+        final k = ZaplineDatabase.channelKey(list[i]);
+        if (k != key && keys.contains(k)) {
+          try {
+            list[i] = c;
+          } on UnsupportedError {
+            _lists.clear();
+            break;
+          }
+        }
+      }
+    }
     notifyListeners();
   }
 

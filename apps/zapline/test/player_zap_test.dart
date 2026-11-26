@@ -21,6 +21,22 @@ class _Engine extends FakeEngine {
   /// Streams that play sound but show no picture.
   final black = <String>{};
 
+  /// Streams that never start.
+  final hang = <String>{};
+
+  @override
+  Duration get currentPosition =>
+      opened.isNotEmpty && hang.contains(opened.last)
+      ? Duration.zero
+      : super.currentPosition;
+
+  /// Streams with a picture but no sound the device plays.
+  final mute = <String>{};
+
+  @override
+  Future<bool?> hasSound() async =>
+      opened.isEmpty || !mute.contains(opened.last);
+
   /// Streams that start, then stall at once.
   final stalling = <String>{};
   final _stalls = StreamController<bool>.broadcast();
@@ -50,6 +66,7 @@ class _Engine extends FakeEngine {
       scheduleMicrotask(() => _errors.add('Source error'));
       return;
     }
+    if (hang.contains(url.pathSegments.last)) return;
     await super.open(url, headers: headers, start: start);
     if (stalling.contains(url.pathSegments.last)) {
       // After the first position, as such streams do.
@@ -310,5 +327,53 @@ void main() {
       find.text('This channel is not available right now'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a version stuck loading gives way in 6 s, and is remembered', (
+    tester,
+  ) async {
+    final (state, engine) = await _player(
+      tester,
+      count: 3,
+      names: ['Rai 2 HD', 'Rai 2 FHD', 'Rai 3'],
+    );
+    expect(engine.opened, ['2.ts']);
+    engine.hang.add('2.ts');
+    // Opened again so the hang applies from the start.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    // Keys close together (real time) open after the burst pause.
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(engine.opened, ['2.ts', '3.ts', '2.ts']);
+    await tester.pump(const Duration(seconds: 6));
+    expect(engine.opened.last, '1.ts');
+    // Plays well: from now on the channel is this version.
+    await tester.pump(const Duration(seconds: 5));
+    expect(state.channels().first.name, 'Rai 2 HD');
+    final before = engine.opened.length;
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump(const Duration(seconds: 1));
+    expect(engine.opened.sublist(before), ['3.ts', '1.ts']);
+    await tester.pump(const Duration(seconds: 30));
+  });
+
+  testWidgets('a picture without voice gives way to the next version', (
+    tester,
+  ) async {
+    final (state, engine) = await _player(
+      tester,
+      count: 3,
+      names: ['Rai 2 HD', 'Rai 2 FHD', 'Rai 3'],
+    );
+    engine.mute.add('2.ts');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(seconds: 4));
+    expect(engine.opened, ['2.ts', '1.ts']);
+    await tester.pump(const Duration(seconds: 5));
+    expect(state.channels().first.name, 'Rai 2 HD');
+    await tester.pump(const Duration(seconds: 30));
   });
 }

@@ -150,6 +150,20 @@ class NativeEngine implements PlaybackEngine {
   @override
   bool get isPlaying => _value?.isPlaying ?? false;
 
+  @override
+  Future<bool?> hasSound() async {
+    final c = _controller.value;
+    if (c == null || !c.value.isInitialized) return null;
+    if (!c.isAudioTrackSupportAvailable()) return null;
+    try {
+      final tracks = await c.getAudioTracks();
+      // A track the device can't decode is listed but never selected.
+      return tracks.isEmpty ? null : tracks.any((t) => t.isSelected);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // video_player doesn't say which tracks the device can play.
   @override
   bool get playsNothing => false;

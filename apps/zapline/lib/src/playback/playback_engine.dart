@@ -50,6 +50,11 @@ abstract class PlaybackEngine {
   /// decode: as good as failed. Engines that can't tell say false.
   bool get playsNothing;
 
+  /// Whether the stream playing has sound the device plays: false when
+  /// its audio can't be decoded (a picture without voice); null when the
+  /// engine can't tell or doesn't know yet.
+  Future<bool?> hasSound();
+
   Future<void> play();
 
   Future<void> pause();

@@ -179,6 +179,9 @@ class FakeEngine implements PlaybackEngine {
   bool playsNothing = false;
 
   @override
+  Future<bool?> hasSound() async => true;
+
+  @override
   Future<void> play() async {}
 
   @override

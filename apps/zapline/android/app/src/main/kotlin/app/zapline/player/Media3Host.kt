@@ -427,6 +427,9 @@ class Media3Session(
                     "event" to "tracks",
                     "audio" to tracks.isTypeSupported(C.TRACK_TYPE_AUDIO),
                     "video" to tracks.isTypeSupported(C.TRACK_TYPE_VIDEO),
+                    // An audio track playing; null when the stream has none.
+                    "sound" to if (tracks.containsType(C.TRACK_TYPE_AUDIO))
+                        tracks.isTypeSelected(C.TRACK_TYPE_AUDIO) else null,
                 )
             )
         }
