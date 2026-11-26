@@ -295,13 +295,13 @@ class GuideCoverage {
 /// Synchronous by design (SQLite via FFI is fast); run heavy imports on a
 /// background isolate with its own connection to the same file.
 class ZaplineDatabase {
-  ZaplineDatabase._(this._db) {
+  ZaplineDatabase._(this._db, {int busyTimeoutMs = 3000}) {
     _db.execute('PRAGMA foreign_keys = ON');
     _db.execute('PRAGMA journal_mode = WAL');
     _db.execute('PRAGMA synchronous = NORMAL');
     // The sync isolate writes while the app reads and saves small things:
     // wait for it a little instead of failing at once.
-    _db.execute('PRAGMA busy_timeout = 3000');
+    _db.execute('PRAGMA busy_timeout = $busyTimeoutMs');
     // 16 MB of page cache (the default is 2 MB): guide imports and channel
     // lists touch many pages. Sorts stay in memory, and the write-ahead log
     // is cut back after big imports instead of keeping its largest size.
@@ -313,8 +313,13 @@ class ZaplineDatabase {
     _migrate();
   }
 
-  factory ZaplineDatabase.open(String path) =>
-      ZaplineDatabase._(sqlite3.open(path));
+  /// [busyTimeoutMs] is how long a write waits for the other connection
+  /// (the sync's, or the app's) before failing with SQLITE_BUSY. The app's
+  /// connection, on the UI thread, can wait less and save what fails with
+  /// [tryWrite] later; a sync slice holds the lock about 200 ms (see
+  /// [writeSlice]).
+  factory ZaplineDatabase.open(String path, {int busyTimeoutMs = 3000}) =>
+      ZaplineDatabase._(sqlite3.open(path), busyTimeoutMs: busyTimeoutMs);
 
   factory ZaplineDatabase.inMemory() =>
       ZaplineDatabase._(sqlite3.openInMemory());
@@ -322,6 +327,23 @@ class ZaplineDatabase {
   final Database _db;
 
   void close() => _db.close();
+
+  /// Whether [e] is the database being busy (the other connection held
+  /// the lock longer than the busy timeout): worth trying again later.
+  static bool isBusy(Object e) =>
+      e is SqliteException && (e.resultCode == 5 || e.resultCode == 6);
+
+  /// Runs a small [write]; `false` when the database stayed busy: nothing
+  /// was stored, try again later. Other errors are thrown as usual.
+  bool tryWrite(void Function() write) {
+    try {
+      write();
+      return true;
+    } on SqliteException catch (e) {
+      if (isBusy(e)) return false;
+      rethrow;
+    }
+  }
 
   void _migrate() {
     var v = _db.userVersion;
@@ -1265,8 +1287,13 @@ class ZaplineDatabase {
   /// Stores programmes fetched for one channel from its source (Xtream's
   /// short EPG) and links the channel to them. Used when the source's
   /// XMLTV guide is missing or has nothing for the channel.
-  void storeChannelGuide(Channel c, List<Programme> programmes) {
-    if (programmes.isEmpty) return;
+  ///
+  /// `false` when the database stayed busy (a sync writing): nothing was
+  /// stored, ask again later.
+  bool storeChannelGuide(Channel c, List<Programme> programmes) =>
+      programmes.isEmpty || tryWrite(() => _storeChannelGuide(c, programmes));
+
+  void _storeChannelGuide(Channel c, List<Programme> programmes) {
     final key = channelKey(c);
     final id = '$channelGuidePrefix$key';
     _transaction(() {

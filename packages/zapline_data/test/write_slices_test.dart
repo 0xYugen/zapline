@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:sqlite3/sqlite3.dart';
 import 'package:zapline_core/zapline_core.dart';
 import 'package:zapline_data/zapline_data.dart';
 import 'package:test/test.dart';
@@ -107,4 +108,38 @@ void main() {
     }
     expect(longest, lessThan(1500));
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('small writes on a busy database say to try later', () {
+    final dir = Directory.systemTemp.createTempSync('zapline_busy');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final path = '${dir.path}/z.db';
+    final db = ZaplineDatabase.open(path, busyTimeoutMs: 50);
+    addTearDown(db.close);
+    db.saveSource(_src);
+    db.replaceChannels('s', _channels(1));
+    final channel = db.channels().single;
+    final programmes = [
+      Programme(
+        channelId: 'x',
+        start: now,
+        stop: now.add(const Duration(hours: 1)),
+        title: 'News',
+      ),
+    ];
+
+    // Another connection holding the lock, as a sync does.
+    final other = sqlite3.open(path)..execute('BEGIN IMMEDIATE');
+    expect(db.storeChannelGuide(channel, programmes), isFalse);
+    expect(db.savePosition('movie:s/1', Duration.zero, Duration.zero), isFalse);
+    expect(db.tryWrite(() => db.setSetting('a', '1')), isFalse);
+    expect(() => db.setSetting('a', '1'), throwsA(isA<SqliteException>()));
+    other
+      ..execute('COMMIT')
+      ..close();
+
+    expect(db.storeChannelGuide(channel, programmes), isTrue);
+    expect(db.savePosition('movie:s/1', Duration.zero, Duration.zero), isTrue);
+    expect(db.tryWrite(() => db.setSetting('a', '1')), isTrue);
+    expect(db.setting('a'), '1');
+  });
 }

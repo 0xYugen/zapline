@@ -472,16 +472,20 @@ extension VodStore on ZaplineDatabase {
 
   // ------------------------------------------------------ positions, list
 
-  void savePosition(String key, Duration position, Duration duration) =>
-      _db.execute(
-        'INSERT OR REPLACE INTO positions(key, position, duration, updated) '
-        'VALUES (?, ?, ?, ?)',
-        [
-          key,
-          position.inMilliseconds,
-          duration.inMilliseconds,
-          ZaplineDatabase._secs(DateTime.now().toUtc()),
-        ],
+  /// `false` when the database stayed busy (see [ZaplineDatabase.tryWrite]):
+  /// a position is saved again a few seconds later anyway.
+  bool savePosition(String key, Duration position, Duration duration) =>
+      tryWrite(
+        () => _db.execute(
+          'INSERT OR REPLACE INTO positions(key, position, duration, updated) '
+          'VALUES (?, ?, ?, ?)',
+          [
+            key,
+            position.inMilliseconds,
+            duration.inMilliseconds,
+            ZaplineDatabase._secs(DateTime.now().toUtc()),
+          ],
+        ),
       );
 
   PlaybackPosition? position(String key) {
