@@ -20,23 +20,34 @@ class EpgMatch {
 /// it. Fuzzier strategies are left out: a wrong guide is worse than no
 /// guide, and unmatched channels are offered for manual mapping instead.
 ///
-/// Guide channels in [empty] carry no real programmes (only fillers such
-/// as "No Game Today", see [isFillerTitle]): another guide's channel of
-/// the same name wins over them. Free guides list DAZN's event feeds as
-/// "DAZN1.it" next to the real DAZN 1 schedule under another id.
+/// With [programmes] (real programmes ahead per guide channel), of guide
+/// channels sharing a name the one with the most wins, and those with
+/// none (only fillers such as "No Game Today", see [isFillerTitle]) come
+/// last. Free guides list DAZN's event feeds as "DAZN1.it" next to the
+/// real DAZN 1 schedule under another id.
 class ChannelMatcher {
   ChannelMatcher(Iterable<XmltvChannel> guideChannels,
       {Map<String, String> manualOverrides = const {},
-      Set<String> empty = const {}})
+      Map<String, int>? programmes})
       : _manual = manualOverrides,
-        _empty = empty {
-    // Channels with programmes first: the first of a name is kept.
-    final ordered = [
-      for (final gc in guideChannels)
-        if (!empty.contains(gc.id)) gc,
-      for (final gc in guideChannels)
-        if (empty.contains(gc.id)) gc,
-    ];
+        _empty = programmes == null
+            ? const {}
+            : {
+                for (final gc in guideChannels)
+                  if ((programmes[gc.id] ?? 0) == 0) gc.id,
+              } {
+    // The fullest first: the first of a name is kept. Stable, so equal
+    // ones keep the guides' order.
+    final ordered = [...guideChannels];
+    if (programmes != null) {
+      final place = {for (final (i, gc) in ordered.indexed) gc: i};
+      ordered.sort((a, b) {
+        final byCount =
+            (programmes[b.id] ?? 0).compareTo(programmes[a.id] ?? 0);
+        return byCount != 0 ? byCount : place[a]!.compareTo(place[b]!);
+      });
+    }
+    final empty = _empty;
     for (final gc in ordered) {
       _byId.putIfAbsent(gc.id.toLowerCase(), () => gc.id);
       for (final n in gc.displayNames) {
@@ -44,10 +55,20 @@ class ChannelMatcher {
         if (key.isNotEmpty) _byName.putIfAbsent(key, () => gc.id);
       }
       // Ids like "Canale5.it" double as names.
-      final idName = normalizeChannelName(gc.id.split('.').first);
+      final idName = normalizeChannelName(guideIdName(gc.id));
       if (idName.isNotEmpty) _byName.putIfAbsent(idName, () => gc.id);
+      final names = {
+        for (final n in [
+          ...gc.displayNames.map(withoutCountrySuffix),
+          guideIdName(gc.id),
+        ])
+          normalizeChannelName(n),
+      }..remove('');
       for (final key in {
-        for (final n in [...gc.displayNames, gc.id.split('.').first])
+        for (final n in [
+          ...gc.displayNames.map(withoutCountrySuffix),
+          guideIdName(gc.id)
+        ])
           looseChannelKey(n),
       }) {
         if (key.isEmpty) continue;
@@ -56,9 +77,16 @@ class ChannelMatcher {
         if (empty.contains(gc.id) && known != null && !empty.contains(known)) {
           continue;
         }
-        // Two guide channels with the same loose name: ambiguous, unused.
-        _byLoose[key] =
-            _byLoose.containsKey(key) && _byLoose[key] != gc.id ? null : gc.id;
+        // Two guide channels with the same loose name: ambiguous, unused;
+        // unless they have the same name too (one channel in two guides):
+        // the first, the fuller, is kept.
+        if (!_byLoose.containsKey(key)) {
+          _byLoose[key] = gc.id;
+          _looseNames[key] = names;
+        } else if (known != gc.id &&
+            !(_looseNames[key] ?? const {}).any(names.contains)) {
+          _byLoose[key] = null;
+        }
       }
     }
   }
@@ -68,6 +96,7 @@ class ChannelMatcher {
   final _byId = <String, String>{};
   final _byName = <String, String>{};
   final _byLoose = <String, String?>{};
+  final _looseNames = <String, Set<String>>{};
 
   /// [channelKey] identifies the channel for manual overrides
   /// (e.g. `"$sourceId/$id"`).
@@ -101,6 +130,37 @@ class ChannelMatcher {
     return null;
   }
 }
+
+/// The channel name an XMLTV id stands for: "Canale5.it" → "Canale5",
+/// "DAZN.1.it.it" → "DAZN 1", "Rai.1.HD..101.it" → "Rai 1 HD" (a channel
+/// number after an empty part is the guide's own). Only the first part
+/// was taken before: "Rai" for every Rai channel of such guides.
+String guideIdName(String id) {
+  final parts = id.split('.');
+  while (parts.length > 1 &&
+      (parts.last.isEmpty || _countryCode.hasMatch(parts.last))) {
+    parts.removeLast();
+  }
+  if (parts.length > 2 &&
+      _digits.hasMatch(parts.last) &&
+      parts[parts.length - 2].isEmpty) {
+    parts.removeLast();
+  }
+  return parts.where((p) => p.isNotEmpty).join(' ');
+}
+
+/// [name] without an id-like country suffix: guides that repeat the id
+/// as the name write "Virgin Radio.it".
+String withoutCountrySuffix(String name) {
+  final dot = name.lastIndexOf('.');
+  if (dot <= 0 || !_countryCode.hasMatch(name.substring(dot + 1))) {
+    return name;
+  }
+  return name.substring(0, dot);
+}
+
+final _countryCode = RegExp(r'^[a-zA-Z]{2,3}$');
+final _digits = RegExp(r'^\d+$');
 
 /// Titles free guides put in place of a schedule they don't have.
 bool isFillerTitle(String title) =>
@@ -158,7 +218,7 @@ class GuideWants {
   /// Whether a channel could be linked to [gc].
   bool call(XmltvChannel gc) {
     if (_ids.contains(gc.id.toLowerCase())) return true;
-    final idName = gc.id.split('.').first;
+    final idName = guideIdName(gc.id);
     for (final n in [...gc.displayNames, idName]) {
       if (_names.contains(normalizeChannelName(n)) ||
           _loose.contains(looseChannelKey(n))) {
@@ -323,7 +383,10 @@ class GuideIndex {
             (
               gc,
               [
-                for (final name in [...gc.displayNames, gc.id.split('.').first])
+                for (final name in [
+                  ...gc.displayNames.map(withoutCountrySuffix),
+                  guideIdName(gc.id)
+                ])
                   (normalizeChannelName(name), _words(name)),
               ],
             ),

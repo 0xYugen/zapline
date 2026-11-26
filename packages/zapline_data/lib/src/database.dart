@@ -1686,7 +1686,7 @@ class ZaplineDatabase {
     final matcher = ChannelMatcher(
       guideChannels(),
       manualOverrides: overrides,
-      empty: _guidesWithoutProgrammes(),
+      programmes: _realProgrammeCounts(),
     );
     final current = {
       for (final r in _db.select(
@@ -1725,19 +1725,18 @@ class ZaplineDatabase {
     return (channels: count, links: links, current: current);
   }
 
-  /// Guide channels with nothing but fillers ("No Game Today") or nothing
-  /// at all from now on: matched last, see [ChannelMatcher].
-  Set<String> _guidesWithoutProgrammes() {
+  /// Real programmes ahead per guide channel (fillers such as "No Game
+  /// Today" left out): for matching, see [ChannelMatcher].
+  Map<String, int> _realProgrammeCounts() {
     final fillers = fillerTitles.map((t) => "'$t'").join(', ');
     return {
       for (final r in _db.select(
-        'SELECT guide_id FROM guide_channels g '
-        "WHERE guide_id NOT LIKE '$channelGuidePrefix%' AND NOT EXISTS ("
-        '  SELECT 1 FROM programmes p WHERE p.guide_id = g.guide_id '
-        '  AND p.stop > ? AND lower(trim(p.title)) NOT IN ($fillers))',
+        'SELECT guide_id, count(*) AS n FROM programmes '
+        'WHERE stop > ? AND lower(trim(title)) NOT IN ($fillers) '
+        'GROUP BY guide_id',
         [_secs(DateTime.now().toUtc())],
       ))
-        r['guide_id'] as String,
+        r['guide_id'] as String: r['n'] as int,
     };
   }
 
