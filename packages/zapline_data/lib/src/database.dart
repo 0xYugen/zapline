@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show sleep;
 
 import 'package:zapline_core/zapline_core.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -220,7 +221,7 @@ const _schema = [
   ) WITHOUT ROWID''',
 ];
 
-enum _GuideWriteKind { clear, channel, programme }
+enum _GuideWriteKind { channel, programme }
 
 /// One write of a guide import, held until its batch is written.
 class _GuideWrite {
@@ -294,13 +295,13 @@ class GuideCoverage {
 /// Synchronous by design (SQLite via FFI is fast); run heavy imports on a
 /// background isolate with its own connection to the same file.
 class ZaplineDatabase {
-  ZaplineDatabase._(this._db) {
+  ZaplineDatabase._(this._db, {int busyTimeoutMs = 3000}) {
     _db.execute('PRAGMA foreign_keys = ON');
     _db.execute('PRAGMA journal_mode = WAL');
     _db.execute('PRAGMA synchronous = NORMAL');
     // The sync isolate writes while the app reads and saves small things:
     // wait for it a little instead of failing at once.
-    _db.execute('PRAGMA busy_timeout = 3000');
+    _db.execute('PRAGMA busy_timeout = $busyTimeoutMs');
     // 16 MB of page cache (the default is 2 MB): guide imports and channel
     // lists touch many pages. Sorts stay in memory, and the write-ahead log
     // is cut back after big imports instead of keeping its largest size.
@@ -312,8 +313,13 @@ class ZaplineDatabase {
     _migrate();
   }
 
-  factory ZaplineDatabase.open(String path) =>
-      ZaplineDatabase._(sqlite3.open(path));
+  /// [busyTimeoutMs] is how long a write waits for the other connection
+  /// (the sync's, or the app's) before failing with SQLITE_BUSY. The app's
+  /// connection, on the UI thread, can wait less and save what fails with
+  /// [tryWrite] later; a sync slice holds the lock about 200 ms (see
+  /// [writeSlice]).
+  factory ZaplineDatabase.open(String path, {int busyTimeoutMs = 3000}) =>
+      ZaplineDatabase._(sqlite3.open(path), busyTimeoutMs: busyTimeoutMs);
 
   factory ZaplineDatabase.inMemory() =>
       ZaplineDatabase._(sqlite3.openInMemory());
@@ -321,6 +327,23 @@ class ZaplineDatabase {
   final Database _db;
 
   void close() => _db.close();
+
+  /// Whether [e] is the database being busy (the other connection held
+  /// the lock longer than the busy timeout): worth trying again later.
+  static bool isBusy(Object e) =>
+      e is SqliteException && (e.resultCode == 5 || e.resultCode == 6);
+
+  /// Runs a small [write]; `false` when the database stayed busy: nothing
+  /// was stored, try again later. Other errors are thrown as usual.
+  bool tryWrite(void Function() write) {
+    try {
+      write();
+      return true;
+    } on SqliteException catch (e) {
+      if (isBusy(e)) return false;
+      rethrow;
+    }
+  }
 
   void _migrate() {
     var v = _db.userVersion;
@@ -350,34 +373,106 @@ class ZaplineDatabase {
   /// isolate's connection if it holds it. A plain BEGIN that reads before
   /// it writes fails outright (SQLITE_BUSY_SNAPSHOT) when the other
   /// connection commits in between, and the busy timeout doesn't help.
-  T _transaction<T>(T Function() body) {
+  ///
+  /// A [sliced] transaction lets go of the lock at [_yieldLock] once it has
+  /// held it for [writeSlice] (see there).
+  T _transaction<T>(T Function() body, {bool sliced = false}) {
     // Already inside one: it commits or rolls back for both.
     if (!_db.autocommit) return body();
     _db.execute('BEGIN IMMEDIATE');
+    _sliced = sliced;
+    _held.reset();
+    _held.start();
     try {
       final r = body();
       _db.execute('COMMIT');
       return r;
     } catch (_) {
-      _db.execute('ROLLBACK');
+      // A slice that could not start again has nothing to roll back.
+      if (!_db.autocommit) _db.execute('ROLLBACK');
       rethrow;
+    } finally {
+      _sliced = false;
+      _held.stop();
     }
+  }
+
+  /// How long a big write (a sync's channels, films, guide) holds the
+  /// database before letting the app's connection in.
+  ///
+  /// The app's small writes (a favourite, a position) wait for the lock
+  /// on the UI thread, so a sync's 50k-row write in one transaction is a
+  /// frozen screen for seconds on a TV stick. Big writes are cut into
+  /// transactions of about this long, with a short pause between them.
+  /// The price: until the last slice, another connection can see the list
+  /// half written (some rows new, some old, none missing in between that
+  /// weren't removed from the source). The app reloads its lists once a
+  /// sync is done, so at worst a screen opened during the sync shows the
+  /// mix until then; nothing is lost if the sync fails midway, the next
+  /// one finishes the job.
+  Duration writeSlice = const Duration(milliseconds: 200);
+
+  /// The pause between two slices. SQLite's busy handler polls every
+  /// 25-50 ms in the first 200 ms of waiting, so a waiting connection
+  /// gets in during it.
+  Duration writeGap = const Duration(milliseconds: 50);
+
+  bool _sliced = false;
+  final _held = Stopwatch();
+
+  /// Inside a sliced transaction (see [writeSlice]): commits what was
+  /// written so far and starts again after a pause, once the lock has
+  /// been held long enough. Call it between rows that can be seen apart.
+  void _yieldLock() {
+    if (!_sliced || _held.elapsed < writeSlice) return;
+    _db.execute('COMMIT');
+    if (writeGap > Duration.zero) sleep(writeGap);
+    _db.execute('BEGIN IMMEDIATE');
+    _held.reset();
   }
 
   /// Reads with [read] outside any transaction, then runs [write] with what
   /// it read in a write transaction. Big comparisons (a sync's 50k channels
   /// against the stored ones) so don't hold the write lock while reading.
-  /// When another connection committed in between, [read] runs again under
-  /// the lock, so [write] never works from an outdated picture.
-  void _readThenWrite<R>(R Function() read, void Function(R) write) {
+  /// When another connection committed in between (the app saving a
+  /// setting, most likely), [write] still goes ahead if [stamp], a cheap
+  /// summary of the rows [read] reads, is unchanged; otherwise [read] runs
+  /// again, outside the lock while it can. Reading 150k rows under the
+  /// lock keeps the app waiting for most of a second. [write] never works
+  /// from an outdated picture.
+  void _readThenWrite<R>(
+    R Function() read,
+    void Function(R) write, {
+    bool sliced = false,
+    String Function()? stamp,
+  }) {
     if (!_db.autocommit) return write(read());
-    final before = _dataVersion();
-    var data = read();
-    _transaction(() {
-      if (_dataVersion() != before) data = read();
-      write(data);
-    });
+    for (var tries = 0; ; tries++) {
+      final before = _dataVersion();
+      final stamped = stamp?.call();
+      final data = read();
+      final wrote = _transaction(() {
+        if (_dataVersion() == before || (stamp != null && stamp() == stamped)) {
+          write(data);
+          return true;
+        }
+        if (tries < 3) return false;
+        write(read());
+        return true;
+      }, sliced: sliced);
+      if (wrote) return;
+    }
   }
+
+  /// A summary of [sourceId]'s rows of [table] that changes when one is
+  /// added, removed or moved, for [_readThenWrite].
+  String _rowsStamp(String table, String sourceId) => _db
+      .select('SELECT count(*), total(sort) FROM $table WHERE source_id = ?', [
+        sourceId,
+      ])
+      .first
+      .values
+      .join('/');
 
   /// Changes whenever another connection commits.
   int _dataVersion() =>
@@ -465,6 +560,8 @@ class ZaplineDatabase {
       _readThenWrite(
         () => _storedRows('channels', sourceId, _dataCols),
         (old) => _writeChannels(sourceId, channels, old),
+        sliced: true,
+        stamp: () => _rowsStamp('channels', sourceId),
       );
 
   /// [table]'s rows of [sourceId]: id → (sort, the values of [cols]).
@@ -507,6 +604,7 @@ class ZaplineDatabase {
       for (final c in channels) {
         final at = sort++;
         if (!seen.add(c.id)) continue;
+        _yieldLock();
         final values = _channelValues(c);
         final before = old.remove(c.id);
         if (before == null) {
@@ -519,6 +617,7 @@ class ZaplineDatabase {
         }
       }
       for (final id in old.keys) {
+        _yieldLock();
         delete.execute([sourceId, id]);
       }
     } finally {
@@ -954,11 +1053,15 @@ class ZaplineDatabase {
   // ------------------------------------------------------------------ guide
 
   /// Imports a guide. Programmes are upserted, so several guides can be
-  /// layered. A guide channel's programmes still to come are replaced the
-  /// first time the channel shows up, so a guide republished with other
-  /// times (a daylight saving change, a fix, a time shift) doesn't leave
-  /// the old programmes overlapping the new ones. Past programmes stay for
-  /// replay.
+  /// layered. A guide channel's programmes still to come are replaced:
+  /// once the guide is read, those the import didn't bring again go, so a
+  /// guide republished with other times (a daylight saving change, a fix,
+  /// a time shift) doesn't leave the old programmes overlapping the new
+  /// ones. Past programmes stay for replay.
+  ///
+  /// A programme brought again unchanged is not written again: most of a
+  /// guide is the same from one day to the next, and re-importing an
+  /// unchanged guide of 1M programmes takes 3.8 s instead of 8.5 s.
   ///
   /// [claimed], shared by the guides of one sync, gives each guide channel
   /// to the first guide that has it: later guides' programmes for it are
@@ -976,6 +1079,8 @@ class ZaplineDatabase {
   }) async {
     final taken = claimed ?? <String>{};
     final mine = <String, int>{};
+    // What this import brought for each of its channels, for the sweep.
+    final brought = <String, List<int>>{};
     final from = _secs((now ?? DateTime.now()).toUtc());
     // Writes in arrival order: a channel's clearing comes before its
     // programmes.
@@ -984,24 +1089,30 @@ class ZaplineDatabase {
 
     void flush() {
       if (pending.isEmpty) return;
-      final clear = _db.prepare(
-        'DELETE FROM programmes WHERE guide_id = ? AND stop > ?',
-      );
       final upsertChannel = _db.prepare(
         'INSERT OR REPLACE INTO guide_channels(guide_id, names, icon) '
         'VALUES (?, ?, ?)',
       );
+      // Rewritten only when something changed: an unchanged row isn't
+      // touched, nor its entry in the title index.
       final upsertProgramme = _db.prepare(
-        'INSERT OR REPLACE INTO programmes(guide_id, start, stop, title, '
+        'INSERT INTO programmes(guide_id, start, stop, title, '
         'description, category, episode, icon) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?) '
+        'ON CONFLICT(guide_id, start) DO UPDATE SET stop = excluded.stop, '
+        'title = excluded.title, description = excluded.description, '
+        'category = excluded.category, episode = excluded.episode, '
+        'icon = excluded.icon '
+        'WHERE stop IS NOT excluded.stop OR title IS NOT excluded.title '
+        'OR description IS NOT excluded.description '
+        'OR category IS NOT excluded.category '
+        'OR episode IS NOT excluded.episode OR icon IS NOT excluded.icon',
       );
       try {
-        _transaction(() {
+        _transaction(sliced: true, () {
           for (final w in pending) {
+            _yieldLock();
             switch (w.kind) {
-              case _GuideWriteKind.clear:
-                clear.execute(w.args);
               case _GuideWriteKind.channel:
                 upsertChannel.execute(w.args);
               case _GuideWriteKind.programme:
@@ -1010,7 +1121,6 @@ class ZaplineDatabase {
           }
         });
       } finally {
-        clear.close();
         upsertChannel.close();
         upsertProgramme.close();
       }
@@ -1039,17 +1149,10 @@ class ZaplineDatabase {
             if (taken.contains(id)) continue;
             mine[id] = start;
             taken.add(id);
-            // What this guide covers replaces what was there; older
-            // programmes stay for replay.
-            pending.add(
-              _GuideWrite(_GuideWriteKind.clear, [
-                id,
-                start < from ? start : from,
-              ]),
-            );
           } else if (start < first) {
             mine[id] = start;
           }
+          (brought[id] ??= []).add(start);
           pending.add(
             _GuideWrite(_GuideWriteKind.programme, [
               id,
@@ -1071,11 +1174,53 @@ class ZaplineDatabase {
       }
     }
     flush();
+    _sweepGuide(brought, mine, from);
     return GuideImportResult(
       channels: channels,
       programmes: programmes,
       starts: mine,
     );
+  }
+
+  /// After an import: what each guide channel had from its first imported
+  /// programme on (or from [from], when that came later), and the import
+  /// didn't bring again, goes. Programmes already airing at that point
+  /// count too: a programme moved earlier would overlap them. Older
+  /// programmes stay for replay.
+  void _sweepGuide(
+    Map<String, List<int>> brought,
+    Map<String, int> first,
+    int from,
+  ) {
+    if (brought.isEmpty) return;
+    final stored = _db.prepare(
+      'SELECT start FROM programmes WHERE guide_id = ? '
+      'AND start >= ? AND stop > ?',
+    );
+    final delete = _db.prepare(
+      'DELETE FROM programmes WHERE guide_id = ? AND start = ?',
+    );
+    try {
+      _transaction(sliced: true, () {
+        for (final MapEntry(key: id, value: starts) in brought.entries) {
+          _yieldLock();
+          final f = first[id]!;
+          final since = f < from ? f : from;
+          final keep = starts.toSet();
+          for (final r in stored.select([
+            id,
+            since - longestProgramme.inSeconds,
+            since,
+          ])) {
+            final start = r.columnAt(0) as int;
+            if (!keep.contains(start)) delete.execute([id, start]);
+          }
+        }
+      });
+    } finally {
+      stored.close();
+      delete.close();
+    }
   }
 
   /// Lines up the guide channels [ids], just imported, with the guide
@@ -1153,14 +1298,16 @@ class ZaplineDatabase {
         if (own[id] ?? usual case final d when d != 0 && d % 1800 == 0) id: d,
     };
     if (moves.isEmpty) return 0;
-    _transaction(() {
+    // One channel at a time, so the lock can be let go in between.
+    _transaction(sliced: true, () {
       _db.execute(
         'CREATE TEMP TABLE IF NOT EXISTS moving AS '
         'SELECT * FROM programmes WHERE 0',
       );
-      _db.execute('DELETE FROM moving');
       for (final MapEntry(key: id, value: move) in moves.entries) {
+        _yieldLock();
         final since = ids[id];
+        _db.execute('DELETE FROM moving');
         _db.execute(
           'INSERT INTO moving SELECT guide_id, start + ?, stop + ?, title, '
           'description, category, episode, icon FROM programmes '
@@ -1171,8 +1318,8 @@ class ZaplineDatabase {
           'DELETE FROM programmes WHERE guide_id = ? AND start >= ?',
           [id, since],
         );
+        _db.execute('INSERT OR REPLACE INTO programmes SELECT * FROM moving');
       }
-      _db.execute('INSERT OR REPLACE INTO programmes SELECT * FROM moving');
       _db.execute('DELETE FROM moving');
     });
     return moves.length;
@@ -1181,8 +1328,13 @@ class ZaplineDatabase {
   /// Stores programmes fetched for one channel from its source (Xtream's
   /// short EPG) and links the channel to them. Used when the source's
   /// XMLTV guide is missing or has nothing for the channel.
-  void storeChannelGuide(Channel c, List<Programme> programmes) {
-    if (programmes.isEmpty) return;
+  ///
+  /// `false` when the database stayed busy (a sync writing): nothing was
+  /// stored, ask again later.
+  bool storeChannelGuide(Channel c, List<Programme> programmes) =>
+      programmes.isEmpty || tryWrite(() => _storeChannelGuide(c, programmes));
+
+  void _storeChannelGuide(Channel c, List<Programme> programmes) {
     final key = channelKey(c);
     final id = '$channelGuidePrefix$key';
     _transaction(() {
@@ -1301,17 +1453,43 @@ class ZaplineDatabase {
   int pruneProgrammes(DateTime before) {
     // A programme ending before [before] started before it too: the start
     // bound lets the start index find them instead of reading every row.
+    // A few thousand at a time: a day of a big guide is 100k rows.
     final t = _secs(before);
-    _db.execute('DELETE FROM programmes WHERE start < ? AND stop < ?', [t, t]);
-    return _db.updatedRows;
+    var count = 0;
+    final delete = _db.prepare(
+      'DELETE FROM programmes WHERE (guide_id, start) IN ('
+      'SELECT guide_id, start FROM programmes WHERE start < ? AND stop < ? '
+      'LIMIT $_pruneChunk)',
+    );
+    try {
+      _transaction(sliced: true, () {
+        while (true) {
+          _yieldLock();
+          delete.execute([t, t]);
+          final n = _db.updatedRows;
+          count += n;
+          if (n < _pruneChunk) break;
+        }
+      });
+    } finally {
+      delete.close();
+    }
+    return count;
   }
 
-  /// Housekeeping after a sync: refreshes the query planner's statistics
+  static const _pruneChunk = 5000;
+
+  /// Housekeeping after a sync: trims the film and series details cache
+  /// (see [pruneVodDetails]), refreshes the query planner's statistics
   /// and folds the write-ahead log back into the database, so it doesn't
   /// keep the size of the biggest import. Cheap when nothing changed.
   void maintain() {
+    pruneVodDetails();
     _db.execute('PRAGMA optimize');
-    _db.select('PRAGMA wal_checkpoint(TRUNCATE)');
+    // PASSIVE copies what it can without waiting for, or blocking, the
+    // app's connection (TRUNCATE waits for every reader and writer);
+    // journal_size_limit cuts the log file back at its next reset.
+    _db.select('PRAGMA wal_checkpoint(PASSIVE)');
   }
 
   /// What was last imported from the guide at [url], for asking its server
@@ -1389,6 +1567,25 @@ class ZaplineDatabase {
         },
       ),
   ];
+
+  /// The guide channels any channel of any source could use (see
+  /// [GuideWants]): a guide import keeps only their programmes, plus what
+  /// airs around now on the others.
+  GuideWants guideWants() => GuideWants(
+    [
+      for (final r in _db.select('SELECT epg_id, name FROM channels'))
+        (r['epg_id'] as String?, r['name'] as String),
+    ],
+    guideIds: [
+      for (final r in _db.select(
+        'SELECT guide_id FROM epg_overrides UNION '
+        'SELECT guide_id FROM epg_map',
+      ))
+        if (r['guide_id'] as String case final id
+            when !id.startsWith(channelGuidePrefix))
+          id,
+    ],
+  );
 
   void setGuideOverride(Channel c, String? guideId) {
     if (guideId == null) {
@@ -1552,11 +1749,21 @@ class ZaplineDatabase {
 
   /// Programmes overlapping [from, to) for each channel, keyed by
   /// [channelKey]. Channels without a guide are absent.
+  ///
+  /// A guide grid doesn't show descriptions: [withDescriptions] false
+  /// leaves them out (a week of a big guide's descriptions is tens of
+  /// megabytes read for nothing); [programmeDescription] fetches the one
+  /// a detail panel shows.
+  ///
+  /// Programmes are found from [longestProgramme] before [from]: without
+  /// a lower bound on the start, every past programme kept for replay
+  /// would be read to find the few still airing.
   Map<String, List<Programme>> guide(
     Iterable<Channel> channels,
     DateTime from,
-    DateTime to,
-  ) {
+    DateTime to, {
+    bool withDescriptions = true,
+  }) {
     final keys = [for (final c in channels) channelKey(c)];
     if (keys.isEmpty) return const {};
     final out = <String, List<Programme>>{};
@@ -1568,17 +1775,40 @@ class ZaplineDatabase {
       );
       final rows = _db.select(
         'SELECT m.channel_key, p.guide_id, p.start, p.stop, p.title, '
-        'p.description, p.category, p.episode, p.icon '
+        '${withDescriptions ? 'p.description' : 'NULL AS description'}, '
+        'p.category, p.episode, p.icon '
         'FROM epg_map m JOIN programmes p ON p.guide_id = m.guide_id '
         'WHERE m.channel_key IN (${List.filled(part.length, '?').join(',')}) '
-        'AND p.stop > ? AND p.start < ? ORDER BY m.channel_key, p.start',
-        [...part, _secs(from), _secs(to)],
+        'AND p.start >= ? AND p.stop > ? AND p.start < ? '
+        'ORDER BY m.channel_key, p.start',
+        [
+          ...part,
+          _secs(from.subtract(longestProgramme)),
+          _secs(from),
+          _secs(to),
+        ],
       );
       for (final r in rows) {
         (out[r['channel_key'] as String] ??= []).add(_programme(r));
       }
     }
     return out;
+  }
+
+  /// How long a programme can be and still be found by [guide] from
+  /// after its start. Guides fill nights with programmes of a few hours;
+  /// a channel's "programme" that lasts days is a placeholder.
+  static const longestProgramme = Duration(hours: 24);
+
+  /// The description of the programme of guide channel [guideId]
+  /// (a [Programme.channelId]) starting at [start], for programmes read
+  /// without one (see [guide]).
+  String? programmeDescription(String guideId, DateTime start) {
+    final r = _db.select(
+      'SELECT description FROM programmes WHERE guide_id = ? AND start = ?',
+      [guideId, _secs(start)],
+    );
+    return r.isEmpty ? null : r.first.columnAt(0) as String?;
   }
 
   /// A programme from a row with the programmes table's column names.
@@ -1674,8 +1904,8 @@ class ZaplineDatabase {
   Programme? airingOn(String guideId, DateTime at) {
     final r = _db.select(
       'SELECT start, stop, title FROM programmes '
-      'WHERE guide_id = ? AND start <= ? AND stop > ? LIMIT 1',
-      [guideId, _secs(at), _secs(at)],
+      'WHERE guide_id = ? AND start BETWEEN ? AND ? AND stop > ? LIMIT 1',
+      [guideId, _secs(at.subtract(longestProgramme)), _secs(at), _secs(at)],
     );
     if (r.isEmpty) return null;
     return Programme(
@@ -1695,9 +1925,14 @@ class ZaplineDatabase {
         'SELECT p.guide_id, p.start, p.stop, p.title, p.description, '
         'p.category, p.episode, p.icon '
         'FROM epg_map m JOIN programmes p ON p.guide_id = m.guide_id '
-        'WHERE m.channel_key = ? AND p.stop > ? AND p.start < ? '
-        'ORDER BY p.start LIMIT 4',
-        [channelKey(c), _secs(at), _secs(at) + 12 * 3600],
+        'WHERE m.channel_key = ? AND p.start >= ? AND p.stop > ? '
+        'AND p.start < ? ORDER BY p.start LIMIT 4',
+        [
+          channelKey(c),
+          _secs(at.subtract(longestProgramme)),
+          _secs(at),
+          _secs(at) + 12 * 3600,
+        ],
       ))
         _programme(r),
     ];

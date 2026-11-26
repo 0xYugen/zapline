@@ -69,6 +69,72 @@ class ChannelMatcher {
   }
 }
 
+/// Which guide channels a set of channels could use: every key the
+/// [ChannelMatcher] might link them by. Big free guides list thousands of
+/// channels; the programmes of the ones no channel can use need not be
+/// stored (see `XmltvParser.wanted`).
+///
+/// It errs on the side of keeping: a guide channel is wanted when any of
+/// its keys is one a channel has, even where the matcher would find the
+/// key ambiguous and link nothing.
+class GuideWants {
+  /// [channels] are (epg id, name) pairs; [guideIds] the guide channels
+  /// linked by hand or by an earlier match, which stay wanted whatever
+  /// their names.
+  GuideWants(
+    Iterable<(String? epgId, String name)> channels, {
+    Iterable<String> guideIds = const [],
+  }) {
+    for (final (epgId, name) in channels) {
+      if (epgId != null && epgId.isNotEmpty) _ids.add(epgId.toLowerCase());
+      final n = normalizeChannelName(name);
+      if (n.isNotEmpty) _names.add(n);
+      final l = looseChannelKey(name);
+      if (l.isNotEmpty) _loose.add(l);
+    }
+    for (final id in guideIds) {
+      _ids.add(id.toLowerCase());
+    }
+  }
+
+  final _ids = <String>{};
+  final _names = <String>{};
+  final _loose = <String>{};
+
+  bool get isEmpty => _ids.isEmpty && _names.isEmpty && _loose.isEmpty;
+
+  /// Whether a channel could be linked to [gc].
+  bool call(XmltvChannel gc) {
+    if (_ids.contains(gc.id.toLowerCase())) return true;
+    final idName = gc.id.split('.').first;
+    for (final n in [...gc.displayNames, idName]) {
+      if (_names.contains(normalizeChannelName(n)) ||
+          _loose.contains(looseChannelKey(n))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Changes when the set of keys changes, in any order: a guide imported
+  /// for other channels is downloaded again rather than kept as it was.
+  String get fingerprint {
+    // FNV-1a over the sorted keys, kept to 32 bits.
+    var h = 0x811c9dc5;
+    for (final set in [_ids, _names, _loose]) {
+      for (final k in set.toList()..sort()) {
+        for (final c in k.codeUnits) {
+          h = ((h ^ c) * 0x01000193) & 0xffffffff;
+        }
+        h = ((h ^ 0x0a) * 0x01000193) & 0xffffffff;
+      }
+      h = ((h ^ 0x1e) * 0x01000193) & 0xffffffff;
+    }
+    final n = _ids.length + _names.length + _loose.length;
+    return '${h.toRadixString(16).padLeft(8, '0')}-$n';
+  }
+}
+
 // `[IT]`, `(IT)`, `IT:`, `IT |`, `|IT|` and `IT - ` (a spaced dash, so names
 // like "Rai-Sport" are left alone).
 final _prefix = RegExp(

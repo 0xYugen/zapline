@@ -115,6 +115,9 @@ class SourceSync {
       final extra = source.extraGuideUrls.map(Uri.parse).toList();
       final urls = {...extra, ...guideUrls};
       final claimed = <String>{};
+      // Programmes only for the guide channels some channel could use:
+      // free guides list thousands of channels nobody here watches.
+      final wants = db.guideWants();
       for (final url in urls) {
         try {
           // Each guide has its own shift, set by the user.
@@ -129,6 +132,7 @@ class SourceSync {
             guide.programmes,
             shift,
             claimed,
+            wants.isEmpty ? null : wants,
           );
           // A guide the user didn't shift is lined up with the guides
           // before it, for when it is off by an hour or more. (An unchanged
@@ -227,53 +231,92 @@ class SourceSync {
     List<Movie>? movies;
     List<Show>? shows;
     try {
-      final categories = {
-        for (final c in await client.vodCategories()) c.id: c.name,
-      };
-      db.replaceMovies(sourceId, [
-        for (final v in await client.vodStreams())
-          if (v.streamId >= 0)
-            Movie(
-              sourceId: sourceId,
-              id: '${v.streamId}',
-              name: v.name,
-              category: categories[v.categoryId],
-              posterUrl: url(v.iconUrl),
-              rating: readRating(v.rating),
-              addedAt: v.addedAt,
-              containerExtension: v.containerExtension,
-            ),
-      ]);
+      final categories = await client.vodCategories();
+      final names = {for (final c in categories) c.id: c.name};
+      final list = await _byCategory(
+        categories,
+        (id) => client.vodStreams(categoryId: id),
+        (v) => v.categoryId,
+        (v) => v.streamId < 0
+            ? null
+            : Movie(
+                sourceId: sourceId,
+                id: '${v.streamId}',
+                name: v.name,
+                category: names[v.categoryId],
+                posterUrl: url(v.iconUrl),
+                rating: readRating(v.rating),
+                addedAt: v.addedAt,
+                containerExtension: v.containerExtension,
+              ),
+      );
+      db.replaceMovies(sourceId, list);
       // Already stored; nothing for the caller to write.
       movies = null;
     } on Exception {
       movies = null;
     }
     try {
-      final categories = {
-        for (final c in await client.seriesCategories()) c.id: c.name,
-      };
-      shows = [
-        for (final v in await client.series())
-          if (v.seriesId >= 0)
-            Show(
-              sourceId: sourceId,
-              id: '${v.seriesId}',
-              name: v.name,
-              category: categories[v.categoryId],
-              coverUrl: url(v.coverUrl),
-              backdropUrl: url(v.backdropUrl),
-              rating: readRating(v.rating),
-              plot: v.plot,
-              genre: v.genre,
-              releaseDate: v.releaseDate,
-              updatedAt: v.lastModified,
-            ),
-      ];
+      final categories = await client.seriesCategories();
+      final names = {for (final c in categories) c.id: c.name};
+      shows = await _byCategory(
+        categories,
+        (id) => client.series(categoryId: id),
+        (v) => v.categoryId,
+        (v) => v.seriesId < 0
+            ? null
+            : Show(
+                sourceId: sourceId,
+                id: '${v.seriesId}',
+                name: v.name,
+                category: names[v.categoryId],
+                coverUrl: url(v.coverUrl),
+                backdropUrl: url(v.backdropUrl),
+                rating: readRating(v.rating),
+                plot: v.plot,
+                genre: v.genre,
+                releaseDate: v.releaseDate,
+                updatedAt: v.lastModified,
+              ),
+      );
     } on Exception {
       shows = null;
     }
     return (movies, shows);
+  }
+
+  /// A panel's films or series asked for one category at a time, one
+  /// after the other: a list of 100k films comes as one JSON answer of
+  /// tens of megabytes, decoded whole in memory on a TV stick; a category
+  /// at a time only one category's answer is held, as it is turned into
+  /// [T]s. Falls back to the whole list in one go when the panel has no
+  /// categories, fails on one, or ignores the category asked for (some
+  /// send everything every time).
+  Future<List<T>> _byCategory<R, T extends Object>(
+    List<XtreamCategory> categories,
+    Future<List<R>> Function(String? categoryId) fetch,
+    String? Function(R) categoryOf,
+    T? Function(R) convert,
+  ) async {
+    List<T> all(List<R> raw) => [for (final r in raw) ?convert(r)];
+    if (categories.isEmpty) return all(await fetch(null));
+    final out = <T>[];
+    try {
+      for (final c in categories) {
+        final raw = await fetch(c.id);
+        // A film can be in more than one category, listed under another
+        // as its own; most of them from elsewhere means the category was
+        // ignored.
+        final elsewhere = raw.where((r) => categoryOf(r) != c.id).length;
+        if (raw.length > 1 && elsewhere * 2 > raw.length) {
+          return all(await fetch(null));
+        }
+        out.addAll(all(raw));
+      }
+    } on Exception {
+      return all(await fetch(null));
+    }
+    return out;
   }
 
   /// Where and how to log in to an Xtream source.
@@ -293,7 +336,9 @@ class SourceSync {
   Future<_Fetched> _m3u(SourceRecord s) async {
     final uri = Uri.tryParse(s.url);
     if (uri == null || !uri.hasScheme) throw SyncException('Not a valid URL');
-    final res = await _send(uri);
+    // Like the guides: one more try on a busy server, and no waiting for
+    // ever on one that stopped sending.
+    final res = await _sendRetrying(uri);
     final parser = M3uParser();
     final channels = <Channel>[];
     final movies = <Movie>[];
@@ -408,14 +453,18 @@ class SourceSync {
     int offset,
     Duration shift,
     Set<String> claimed,
+    GuideWants? wants,
   ) async {
     onProgress?.call(
       SyncProgress(SyncStage.guide, count: offset, message: url.host),
     );
     // The same guide, imported lately with the same settings: ask the
     // server whether it changed, and keep what is there when it didn't.
+    // Which channels are wanted is part of it: a guide imported for other
+    // channels has to come again.
     final params =
-        '${guidePast.inMinutes}/${guideAhead.inMinutes}/${shift.inMinutes}';
+        '${guidePast.inMinutes}/${guideAhead.inMinutes}/${shift.inMinutes}'
+        '${wants == null ? '' : '/${wants.fingerprint}'}';
     final known = db.guideFeed(url.toString());
     final usable =
         known != null &&
@@ -443,12 +492,23 @@ class SourceSync {
     var count = offset;
     Object? failure;
     var whole = false;
+    // Channels this guide has that nobody wants: only what airs around now
+    // is kept for them, and another guide may still bring theirs whole.
+    final unwanted = <String>{};
     final items =
         XmltvParser(
           // Widen the window by the shift so no programme is lost to it.
           from: now.subtract(guidePast).subtract(shift),
           to: now.add(guideAhead).subtract(shift),
           onComplete: () => whole = true,
+          wanted: wants == null
+              ? null
+              : (c) {
+                  if (wants(c)) return true;
+                  unwanted.add(c.id.toLowerCase());
+                  return false;
+                },
+          around: now.subtract(shift),
         ).parseBytes(_maybeGunzip(res.stream)).map((item) {
           if (item is! XmltvProgramme) return item;
           if (++count % 2000 == 0) {
@@ -471,6 +531,7 @@ class SourceSync {
       ),
     );
     final r = await db.importGuide(safe, claimed: claimed, now: now);
+    claimed.removeAll(unwanted);
     if (r.programmes == 0 && failure != null) throw failure!;
     // Only a guide that arrived whole is worth keeping as is next time.
     final etag = res.headers['etag'];
@@ -482,7 +543,7 @@ class SourceSync {
           etag: etag,
           lastModified: modified,
           params: params,
-          ids: r.starts.keys.toSet(),
+          ids: r.starts.keys.toSet().difference(unwanted),
           channels: r.channels,
           programmes: r.programmes,
           fetchedAt: now,
@@ -497,10 +558,10 @@ class SourceSync {
   /// enough that the far end is worth reading again.
   static const _unchangedFor = Duration(hours: 20);
 
-  /// Guides are big downloads from free servers that are sometimes busy:
-  /// one more try after a short wait, and no waiting forever on a server
-  /// that stopped answering. A 304 (with [headers] asking whether the
-  /// guide changed) comes back as is.
+  /// Playlists and guides are big downloads from servers that are
+  /// sometimes busy: one more try after a short wait, and no waiting
+  /// forever on a server that stopped answering. A 304 (with [headers]
+  /// asking whether the guide changed) comes back as is.
   Future<http.StreamedResponse> _sendRetrying(
     Uri url, {
     Map<String, String> headers = const {},

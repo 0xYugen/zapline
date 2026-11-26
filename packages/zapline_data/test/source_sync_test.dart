@@ -87,6 +87,58 @@ void main() {
     expect(cur?.title, 'Hour 0');
   });
 
+  test('a guide keeps programmes for its wanted channels only', () async {
+    // News is a channel of the playlist; Other is not, and only what airs
+    // around now is kept for it.
+    final other = StringBuffer(
+      '<channel id="other.example"><display-name>Other</display-name>'
+      '</channel>',
+    );
+    for (final h in [-2, 0, 14, 20]) {
+      final s = now.add(Duration(hours: h));
+      other.write(
+        '<programme start="${_ts(s)}" '
+        'stop="${_ts(s.add(const Duration(hours: 1)))}" '
+        'channel="other.example"><title>Other $h</title></programme>',
+      );
+    }
+    final xml = _xmltv(now).replaceFirst('<tv>', '<tv>$other');
+    final client = MockClient((req) async {
+      switch (req.url.path) {
+        case '/list.m3u':
+          return http.Response(
+            '#EXTM3U url-tvg="http://epg.example/guide.xml"\n'
+            '#EXTINF:-1 tvg-id="news.example",News 24\nhttp://s.example/1.ts\n',
+            200,
+          );
+        case '/guide.xml':
+          return http.Response(
+            xml,
+            200,
+            headers: {'etag': '"1"', 'content-type': 'text/xml'},
+          );
+      }
+      return http.Response('', 404);
+    });
+    const src = SourceRecord(
+      id: 'm',
+      kind: SourceKind.m3u,
+      name: 'M',
+      url: 'http://p.example/list.m3u',
+    );
+    db.saveSource(src);
+    final r = await SourceSync(db, httpClient: client).sync(src);
+    expect(r.guide.programmes, 6 + 2);
+    // Still listed, for matching by hand.
+    expect(
+      db.guideChannels().map((c) => c.id),
+      containsAll(['news.example', 'other.example']),
+    );
+    final feed = db.guideFeed('http://epg.example/guide.xml')!;
+    expect(feed.ids, {'news.example'});
+    expect(feed.params, contains(db.guideWants().fingerprint));
+  });
+
   test('a guide cut short or with a bad byte keeps what it had', () async {
     final xml = _xmltv(now).replaceFirst('Hour -2', 'Caffè ÿ');
     final bytes = [
@@ -216,6 +268,95 @@ void main() {
       );
     },
   );
+
+  group('Xtream films and series', () {
+    final films = [
+      for (var i = 0; i < 6; i++)
+        {'stream_id': '$i', 'name': 'Film $i', 'category_id': '${i % 3}'},
+    ];
+    final series = [
+      {'series_id': '1', 'name': 'Show', 'category_id': '9'},
+    ];
+
+    Future<(List<String>, List<String>)> sync({
+      bool failOne = false,
+      bool ignoreCategory = false,
+    }) async {
+      final asked = <String>[];
+      final client = MockClient((req) async {
+        final q = req.url.queryParameters;
+        final action = q['action'];
+        if (action == 'get_vod_streams' || action == 'get_series') {
+          asked.add('$action ${q['category_id'] ?? 'all'}');
+        }
+        if (failOne && q['category_id'] == '1') {
+          return http.Response('busy', 503);
+        }
+        final cat = ignoreCategory ? null : q['category_id'];
+        final body = switch (action) {
+          null => {
+            'user_info': {'auth': 1, 'status': 'Active'},
+          },
+          'get_vod_categories' => [
+            for (var c = 0; c < 3; c++)
+              {'category_id': '$c', 'category_name': 'Cat $c'},
+          ],
+          'get_vod_streams' => [
+            for (final f in films)
+              if (cat == null || f['category_id'] == cat) f,
+          ],
+          'get_series_categories' => [
+            {'category_id': '9', 'category_name': 'Drama'},
+          ],
+          'get_series' => series,
+          _ => <Object>[],
+        };
+        return http.Response(jsonEncode(body), 200);
+      });
+      const src = SourceRecord(
+        id: 'x',
+        kind: SourceKind.xtream,
+        name: 'X',
+        url: 'http://panel.example',
+        username: 'u',
+        password: 'p',
+      );
+      db.saveSource(src);
+      await SourceSync(db, httpClient: client).sync(src, includeGuide: false);
+      return (asked, [for (final m in db.movies()) m.name]);
+    }
+
+    test('come one category at a time', () async {
+      final (asked, names) = await sync();
+      expect(asked, [
+        'get_vod_streams 0',
+        'get_vod_streams 1',
+        'get_vod_streams 2',
+        'get_series 9',
+      ]);
+      expect(names.toSet(), {for (var i = 0; i < 6; i++) 'Film $i'});
+      expect(db.movies().firstWhere((m) => m.id == '4').category, 'Cat 1');
+      expect(db.shows().single.category, 'Drama');
+    });
+
+    test('a failing category falls back to the whole list', () async {
+      final (asked, names) = await sync(failOne: true);
+      expect(
+        asked.where((a) => a.startsWith('get_vod')).last,
+        'get_vod_streams all',
+      );
+      expect(names, hasLength(6));
+    });
+
+    test('a panel ignoring the category is asked for everything', () async {
+      final (asked, names) = await sync(ignoreCategory: true);
+      expect(asked.where((a) => a.startsWith('get_vod')), [
+        'get_vod_streams 0',
+        'get_vod_streams all',
+      ]);
+      expect(names, hasLength(6));
+    });
+  });
 
   test('bad login surfaces a readable error', () async {
     final client = MockClient(

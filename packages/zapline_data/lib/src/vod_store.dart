@@ -122,6 +122,8 @@ extension VodStore on ZaplineDatabase {
             ],
           ),
       ]),
+      sliced: true,
+      stamp: () => _rowsStamp('movies', sourceId),
     );
   }
 
@@ -157,6 +159,7 @@ extension VodStore on ZaplineDatabase {
       for (final (id, values) in rows) {
         final at = sort++;
         if (!seen.add(id)) continue;
+        _yieldLock();
         final before = old.remove(id);
         if (before == null) {
           insert.execute([sourceId, id, at, ...values]);
@@ -167,6 +170,7 @@ extension VodStore on ZaplineDatabase {
         }
       }
       for (final id in old.keys) {
+        _yieldLock();
         delete.execute([sourceId, id]);
       }
     } finally {
@@ -197,6 +201,8 @@ extension VodStore on ZaplineDatabase {
     _readThenWrite(
       () => _storedRows('shows', sourceId, cols.join(', ')),
       (old) => _writeShows(sourceId, cols, old, shows, playlistEpisodes),
+      sliced: true,
+      stamp: () => _rowsStamp('shows', sourceId),
     );
   }
 
@@ -233,6 +239,7 @@ extension VodStore on ZaplineDatabase {
     );
     try {
       for (final (showId, e) in playlistEpisodes) {
+        _yieldLock();
         episode.execute([
           sourceId,
           showId,
@@ -463,18 +470,41 @@ extension VodStore on ZaplineDatabase {
     [key, json, ZaplineDatabase._secs(DateTime.now().toUtc())],
   );
 
+  /// Keeps the details cache from growing for ever: details not fetched
+  /// in [maxAge] go, and beyond the [keep] fetched last only those of
+  /// titles in My List stay (a series' details are its every episode,
+  /// tens of kilobytes; browsing a big catalogue adds up). Details are
+  /// fetched again when opened. Run by [ZaplineDatabase.maintain].
+  int pruneVodDetails({
+    int keep = 1000,
+    Duration maxAge = const Duration(days: 60),
+  }) {
+    final old = ZaplineDatabase._secs(DateTime.now().toUtc().subtract(maxAge));
+    _db.execute(
+      'DELETE FROM vod_details WHERE fetched < ? OR (key NOT IN '
+      '(SELECT key FROM vod_details ORDER BY fetched DESC LIMIT ?) '
+      'AND key NOT IN (SELECT key FROM my_list))',
+      [old, keep],
+    );
+    return _db.updatedRows;
+  }
+
   // ------------------------------------------------------ positions, list
 
-  void savePosition(String key, Duration position, Duration duration) =>
-      _db.execute(
-        'INSERT OR REPLACE INTO positions(key, position, duration, updated) '
-        'VALUES (?, ?, ?, ?)',
-        [
-          key,
-          position.inMilliseconds,
-          duration.inMilliseconds,
-          ZaplineDatabase._secs(DateTime.now().toUtc()),
-        ],
+  /// `false` when the database stayed busy (see [ZaplineDatabase.tryWrite]):
+  /// a position is saved again a few seconds later anyway.
+  bool savePosition(String key, Duration position, Duration duration) =>
+      tryWrite(
+        () => _db.execute(
+          'INSERT OR REPLACE INTO positions(key, position, duration, updated) '
+          'VALUES (?, ?, ?, ?)',
+          [
+            key,
+            position.inMilliseconds,
+            duration.inMilliseconds,
+            ZaplineDatabase._secs(DateTime.now().toUtc()),
+          ],
+        ),
       );
 
   PlaybackPosition? position(String key) {
