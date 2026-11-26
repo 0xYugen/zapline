@@ -43,7 +43,14 @@ final class XmltvProgramme extends XmltvItem {
 /// programmes outside the optional [from]/[to] window are dropped early.
 /// Decompress `.gz` files before handing the stream over.
 class XmltvParser {
-  const XmltvParser({this.from, this.to, this.onComplete});
+  const XmltvParser({
+    this.from,
+    this.to,
+    this.onComplete,
+    this.wanted,
+    this.around,
+    this.aroundSpan = const Duration(hours: 12),
+  });
 
   /// Programmes ending before this instant are skipped.
   final DateTime? from;
@@ -55,13 +62,26 @@ class XmltvParser {
   /// arrived whole, not cut short somewhere.
   final void Function()? onComplete;
 
+  /// Asked once per `<channel>`: whether its programmes are wanted. Free
+  /// guides list thousands of channels a user has a few hundred of; the
+  /// programmes of the others are skipped at their start tag, unless they
+  /// air within [aroundSpan] of [around] (what is on around now still
+  /// tells a guide's channels apart and lines guides up). Programmes of
+  /// channels the guide never announced are kept. `null` keeps everything.
+  final bool Function(XmltvChannel channel)? wanted;
+  final DateTime? around;
+  final Duration aroundSpan;
+
   Stream<XmltvItem> parseBytes(Stream<List<int>> bytes) =>
       // A stray byte that isn't UTF-8 (some free guides have a few) must
       // not lose the whole guide.
       parse(const Utf8Decoder(allowMalformed: true).bind(bytes));
 
   Stream<XmltvItem> parse(Stream<String> chunks) async* {
-    final b = _Builder(from, to);
+    final b = _Builder(from, to)
+      ..wanted = wanted
+      ..bandFrom = around?.subtract(aroundSpan)
+      ..bandTo = around?.add(aroundSpan);
     var whole = false;
     await for (final events in chunks.toXmlEvents()) {
       for (final e in events) {
@@ -84,6 +104,12 @@ class _Builder {
 
   /// Inside a programme outside the window.
   bool skipping = false;
+
+  /// See [XmltvParser.wanted]: the ids (lower case) of channels announced
+  /// and not wanted, and the band around now kept for them.
+  bool Function(XmltvChannel)? wanted;
+  DateTime? bandFrom, bandTo;
+  final unwanted = <String>{};
 
   // Channel state
   String? channelId;
@@ -123,7 +149,7 @@ class _Builder {
             displayNames.clear();
             channelIcon = null;
           case 'programme':
-            progChannel = attr('channel');
+            final ch = progChannel = attr('channel');
             final start = progStart =
                 parseXmltvTime(attr('start'), channelId: progChannel);
             final stop =
@@ -132,10 +158,15 @@ class _Builder {
             progIcon = null;
             // A missing stop counts as an hour (see the end tag).
             final end = stop ?? start?.add(const Duration(hours: 1));
-            skipping = progChannel == null ||
+            skipping = ch == null ||
                 start == null ||
                 (from != null && !end!.isAfter(from!)) ||
-                (to != null && start.isAfter(to!));
+                (to != null && start.isAfter(to!)) ||
+                (unwanted.isNotEmpty &&
+                    unwanted.contains(ch.toLowerCase()) &&
+                    (bandFrom == null ||
+                        !end!.isAfter(bandFrom!) ||
+                        !start.isBefore(bandTo!)));
           case _ when skipping:
             break;
           case 'icon':
@@ -183,6 +214,8 @@ class _Builder {
             iconUrl: channelIcon,
           );
           channelId = null;
+          final w = wanted;
+          if (w != null && !w(item)) unwanted.add(item.id.toLowerCase());
           return item;
         }
         if (name == 'programme') {

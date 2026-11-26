@@ -1390,6 +1390,25 @@ class ZaplineDatabase {
       ),
   ];
 
+  /// The guide channels any channel of any source could use (see
+  /// [GuideWants]): a guide import keeps only their programmes, plus what
+  /// airs around now on the others.
+  GuideWants guideWants() => GuideWants(
+    [
+      for (final r in _db.select('SELECT epg_id, name FROM channels'))
+        (r['epg_id'] as String?, r['name'] as String),
+    ],
+    guideIds: [
+      for (final r in _db.select(
+        'SELECT guide_id FROM epg_overrides UNION '
+        'SELECT guide_id FROM epg_map',
+      ))
+        if (r['guide_id'] as String case final id
+            when !id.startsWith(channelGuidePrefix))
+          id,
+    ],
+  );
+
   void setGuideOverride(Channel c, String? guideId) {
     if (guideId == null) {
       _db.execute('DELETE FROM epg_overrides WHERE channel_key = ?', [

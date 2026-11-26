@@ -87,6 +87,58 @@ void main() {
     expect(cur?.title, 'Hour 0');
   });
 
+  test('a guide keeps programmes for its wanted channels only', () async {
+    // News is a channel of the playlist; Other is not, and only what airs
+    // around now is kept for it.
+    final other = StringBuffer(
+      '<channel id="other.example"><display-name>Other</display-name>'
+      '</channel>',
+    );
+    for (final h in [-2, 0, 14, 20]) {
+      final s = now.add(Duration(hours: h));
+      other.write(
+        '<programme start="${_ts(s)}" '
+        'stop="${_ts(s.add(const Duration(hours: 1)))}" '
+        'channel="other.example"><title>Other $h</title></programme>',
+      );
+    }
+    final xml = _xmltv(now).replaceFirst('<tv>', '<tv>$other');
+    final client = MockClient((req) async {
+      switch (req.url.path) {
+        case '/list.m3u':
+          return http.Response(
+            '#EXTM3U url-tvg="http://epg.example/guide.xml"\n'
+            '#EXTINF:-1 tvg-id="news.example",News 24\nhttp://s.example/1.ts\n',
+            200,
+          );
+        case '/guide.xml':
+          return http.Response(
+            xml,
+            200,
+            headers: {'etag': '"1"', 'content-type': 'text/xml'},
+          );
+      }
+      return http.Response('', 404);
+    });
+    const src = SourceRecord(
+      id: 'm',
+      kind: SourceKind.m3u,
+      name: 'M',
+      url: 'http://p.example/list.m3u',
+    );
+    db.saveSource(src);
+    final r = await SourceSync(db, httpClient: client).sync(src);
+    expect(r.guide.programmes, 6 + 2);
+    // Still listed, for matching by hand.
+    expect(
+      db.guideChannels().map((c) => c.id),
+      containsAll(['news.example', 'other.example']),
+    );
+    final feed = db.guideFeed('http://epg.example/guide.xml')!;
+    expect(feed.ids, {'news.example'});
+    expect(feed.params, contains(db.guideWants().fingerprint));
+  });
+
   test('a guide cut short or with a bad byte keeps what it had', () async {
     final xml = _xmltv(now).replaceFirst('Hour -2', 'Caffè ÿ');
     final bytes = [

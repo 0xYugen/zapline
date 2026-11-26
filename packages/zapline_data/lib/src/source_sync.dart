@@ -115,6 +115,9 @@ class SourceSync {
       final extra = source.extraGuideUrls.map(Uri.parse).toList();
       final urls = {...extra, ...guideUrls};
       final claimed = <String>{};
+      // Programmes only for the guide channels some channel could use:
+      // free guides list thousands of channels nobody here watches.
+      final wants = db.guideWants();
       for (final url in urls) {
         try {
           // Each guide has its own shift, set by the user.
@@ -129,6 +132,7 @@ class SourceSync {
             guide.programmes,
             shift,
             claimed,
+            wants.isEmpty ? null : wants,
           );
           // A guide the user didn't shift is lined up with the guides
           // before it, for when it is off by an hour or more. (An unchanged
@@ -410,14 +414,18 @@ class SourceSync {
     int offset,
     Duration shift,
     Set<String> claimed,
+    GuideWants? wants,
   ) async {
     onProgress?.call(
       SyncProgress(SyncStage.guide, count: offset, message: url.host),
     );
     // The same guide, imported lately with the same settings: ask the
     // server whether it changed, and keep what is there when it didn't.
+    // Which channels are wanted is part of it: a guide imported for other
+    // channels has to come again.
     final params =
-        '${guidePast.inMinutes}/${guideAhead.inMinutes}/${shift.inMinutes}';
+        '${guidePast.inMinutes}/${guideAhead.inMinutes}/${shift.inMinutes}'
+        '${wants == null ? '' : '/${wants.fingerprint}'}';
     final known = db.guideFeed(url.toString());
     final usable =
         known != null &&
@@ -445,12 +453,23 @@ class SourceSync {
     var count = offset;
     Object? failure;
     var whole = false;
+    // Channels this guide has that nobody wants: only what airs around now
+    // is kept for them, and another guide may still bring theirs whole.
+    final unwanted = <String>{};
     final items =
         XmltvParser(
           // Widen the window by the shift so no programme is lost to it.
           from: now.subtract(guidePast).subtract(shift),
           to: now.add(guideAhead).subtract(shift),
           onComplete: () => whole = true,
+          wanted: wants == null
+              ? null
+              : (c) {
+                  if (wants(c)) return true;
+                  unwanted.add(c.id.toLowerCase());
+                  return false;
+                },
+          around: now.subtract(shift),
         ).parseBytes(_maybeGunzip(res.stream)).map((item) {
           if (item is! XmltvProgramme) return item;
           if (++count % 2000 == 0) {
@@ -473,6 +492,7 @@ class SourceSync {
       ),
     );
     final r = await db.importGuide(safe, claimed: claimed, now: now);
+    claimed.removeAll(unwanted);
     if (r.programmes == 0 && failure != null) throw failure!;
     // Only a guide that arrived whole is worth keeping as is next time.
     final etag = res.headers['etag'];
@@ -484,7 +504,7 @@ class SourceSync {
           etag: etag,
           lastModified: modified,
           params: params,
-          ids: r.starts.keys.toSet(),
+          ids: r.starts.keys.toSet().difference(unwanted),
           channels: r.channels,
           programmes: r.programmes,
           fetchedAt: now,

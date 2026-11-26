@@ -75,6 +75,57 @@ void main() {
     expect(progs, hasLength(2));
   });
 
+  test('skips programmes of unwanted channels outside the band around now',
+      () async {
+    const guide = '''<tv>
+  <channel id="Wanted.example"><display-name>Wanted</display-name></channel>
+  <channel id="Other.example"><display-name>Other</display-name></channel>
+  <programme start="20261124100000 +0000" stop="20261124110000 +0000" channel="Wanted.example"><title>W far</title></programme>
+  <programme start="20261124100000 +0000" stop="20261124110000 +0000" channel="other.example"><title>O far</title></programme>
+  <programme start="20261126110000 +0000" stop="20261126130000 +0000" channel="Other.example"><title>O now</title></programme>
+  <programme start="20261124100000 +0000" stop="20261124110000 +0000" channel="Unlisted.example"><title>U far</title></programme>
+</tv>''';
+    final asked = <String>[];
+    final parser = XmltvParser(
+      wanted: (c) {
+        asked.add(c.id);
+        return c.displayNames.contains('Wanted');
+      },
+      around: DateTime.utc(2026, 11, 26, 12),
+    );
+    final items = await parser.parse(_chunked(guide, 13)).toList();
+    // Every channel still comes out: they are listed for matching.
+    expect(items.whereType<XmltvChannel>(), hasLength(2));
+    expect(asked, ['Wanted.example', 'Other.example']);
+    expect(
+      [for (final p in items.whereType<XmltvProgramme>()) p.programme.title],
+      ['W far', 'O now', 'U far'],
+    );
+  });
+
+  test('GuideWants keeps the guide channels a channel could use', () {
+    final wants = GuideWants(
+      [('Rai1.it', 'Rai 1'), (null, 'IT: Canale 5 HD'), (null, 'Rai Tre')],
+      guideIds: ['Manual.example'],
+    );
+    bool w(String id, [List<String> names = const []]) =>
+        wants(XmltvChannel(id: id, displayNames: names));
+    expect(w('rai1.IT'), isTrue); // epg id, any case
+    expect(w('x.example', ['Canale 5']), isTrue); // name
+    expect(w('Canale5.it'), isTrue); // id doubling as a name
+    expect(w('y.example', ['Rai 3']), isTrue); // loose name
+    expect(w('manual.example'), isTrue); // linked by hand
+    expect(w('Other.example', ['Other']), isFalse);
+    expect(
+      GuideWants([(null, 'A'), (null, 'B')]).fingerprint,
+      GuideWants([(null, 'B'), (null, 'A')]).fingerprint,
+    );
+    expect(
+      GuideWants([(null, 'A')]).fingerprint,
+      isNot(GuideWants([(null, 'A'), (null, 'B')]).fingerprint),
+    );
+  });
+
   group('ChannelMatcher', () {
     final guide = [
       const XmltvChannel(id: 'News24.example', displayNames: ['News 24']),
