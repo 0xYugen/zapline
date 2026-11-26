@@ -167,6 +167,7 @@ _channelJob(
     (db) => AppState._mergeVersionsOf(
       db.channels(group: group, visibility: visibility),
       options,
+      options.acrossSources ? db.guideLinks() : null,
     );
 
 /// App-wide state backed by the local database.

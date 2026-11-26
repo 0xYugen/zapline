@@ -56,4 +56,27 @@ void main() {
     expect(state.versionsOf(list.first), hasLength(2));
     expect(state.versionsOf(list.last), hasLength(2));
   });
+
+  test('a large list loaded off screen merges across sources too', () async {
+    final db = ZaplineDatabase.inMemory();
+    final state = fakeState(
+      count: 1100,
+      database: db,
+      background: <R>(job) async => job(db),
+    );
+    await state.addSource(
+      const SourceInput(url: 'http://a.example/get.php?username=a&password=b'),
+    );
+    await state.addSource(
+      const SourceInput(url: 'http://b.example/get.php?username=a&password=b'),
+    );
+    // 2,200 channels: above the size that loads off screen.
+    expect(state.channelCount, greaterThan(2000));
+    expect(state.channelsReady(null), isNull);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    final list = state.channelsReady(null)!;
+    expect(list.length, lessThan(1200));
+    expect(state.versionsOf(list.first), hasLength(2));
+  });
 }
