@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:zapline/src/updates.dart';
 
 void main() {
@@ -38,5 +43,73 @@ void main() {
       AppUpdate.fromRelease({...release, 'tag_name': 'v1'}, tv: false),
       isNull,
     );
+  });
+
+  test('a release whose package is not attached yet is no update', () async {
+    final updater = Updater(
+      httpClient: MockClient(
+        (_) async => http.Response(
+          jsonEncode({...release, 'tag_name': 'v0.1.0-114', 'assets': []}),
+          200,
+        ),
+      ),
+    );
+    // Android installs from inside the app; elsewhere the page is enough.
+    final update = await updater.check(68);
+    if (Updater.installsInApp) {
+      expect(update, isNull);
+    } else {
+      expect(update!.build, 114);
+      expect(update.apk, isNull);
+    }
+    // An empty address saved by an older version is no address.
+    expect(
+      AppUpdate.fromJson({
+        'build': 114,
+        'version': '0.1.0 (114)',
+        'page': 'https://x.test',
+        'apk': '',
+      })!.apk,
+      isNull,
+    );
+  });
+
+  test('when the API refuses, the release page and its links', () async {
+    final asked = <String>[];
+    final updater = Updater(
+      httpClient: MockClient((req) async {
+        asked.add('${req.method} ${req.url.host}${req.url.path}');
+        if (req.url.host == 'api.github.com') {
+          return http.Response('rate limited', 403);
+        }
+        if (req.url.path.endsWith('/releases/latest')) {
+          return http.Response(
+            '',
+            302,
+            headers: {
+              'location':
+                  'https://github.com/0xYugen/zapline/releases/tag/v0.1.0-114',
+            },
+          );
+        }
+        return http.Response('', 200, headers: {'content-length': '50'});
+      }),
+    );
+    final update = (await updater.check(68))!;
+    expect(update.build, 114);
+    expect(
+      update.page.toString(),
+      'https://github.com/0xYugen/zapline/releases/tag/v0.1.0-114',
+    );
+    expect(
+      asked.first,
+      'GET api.github.com/repos/0xYugen/zapline/releases/latest',
+    );
+
+    // Nothing answers at all: a failure, not "up to date".
+    final offline = Updater(
+      httpClient: MockClient((_) async => throw const SocketException('no')),
+    );
+    await expectLater(offline.check(68), throwsA(isA<SocketException>()));
   });
 }
