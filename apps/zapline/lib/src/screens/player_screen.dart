@@ -815,6 +815,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_okDownAt == null || _okLong || !mounted) return;
     _okLong = true;
     _okDownAt = null;
+    swallowHeldKey(_okKeys);
     _openOptions();
   }
 

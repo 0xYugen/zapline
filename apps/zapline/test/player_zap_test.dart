@@ -376,4 +376,26 @@ void main() {
     expect(state.channels().first.name, 'Rai 2 HD');
     await tester.pump(const Duration(seconds: 30));
   });
+
+  testWidgets('OK held with key repeats opens the options, nothing in them', (
+    tester,
+  ) async {
+    await _player(tester);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.select);
+    await tester.pump(const Duration(milliseconds: 600));
+    // The remote keeps sending OK while it is held.
+    for (var i = 0; i < 5; i++) {
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.select);
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('Audio and subtitles'), findsOneWidget);
+    // The first option (audio and subtitles) was not opened.
+    expect(find.text('Audio'), findsNothing);
+    // The next press works as usual: the first option opens.
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('Audio'), findsOneWidget);
+  });
 }

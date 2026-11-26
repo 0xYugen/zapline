@@ -7,6 +7,32 @@ import 'package:flutter/services.dart';
 import '../input_mode.dart';
 import '../theme.dart';
 
+/// Keys held down to open something, ignored by cards until released.
+final _held = <LogicalKeyboardKey>{};
+
+/// Makes cards ignore [keys] until they are released: a key held to open
+/// something (OK held for the options) keeps sending presses, which would
+/// otherwise activate whatever the new panel focuses first, again and
+/// again.
+void swallowHeldKey(Set<LogicalKeyboardKey> keys) {
+  final pressed = HardwareKeyboard.instance.logicalKeysPressed;
+  final held = keys.where(pressed.contains).toSet();
+  if (held.isEmpty) return;
+  _held.addAll(held);
+  late final bool Function(KeyEvent) release;
+  release = (e) {
+    if (e is KeyUpEvent && _held.contains(e.logicalKey)) {
+      // After this release has reached the cards, which ignore it too.
+      scheduleMicrotask(() {
+        _held.remove(e.logicalKey);
+        if (_held.isEmpty) HardwareKeyboard.instance.removeHandler(release);
+      });
+    }
+    return false;
+  };
+  HardwareKeyboard.instance.addHandler(release);
+}
+
 /// When focus last moved to a card; moves closer together than a frame or
 /// two mean a key is held down.
 DateTime _lastReveal = DateTime(0);
@@ -158,6 +184,7 @@ class _FocusCardState extends State<FocusCard> {
       return KeyEventResult.handled;
     }
     if (!_selectKeys.contains(e.logicalKey)) return KeyEventResult.ignored;
+    if (_held.contains(e.logicalKey)) return KeyEventResult.handled;
     switch (e) {
       case KeyDownEvent():
         _downAt = DateTime.now();
@@ -239,16 +266,32 @@ class _FocusCardState extends State<FocusCard> {
         // In long-press mode activation happens on key release (_onKey).
         shortcuts: longPressMode
             ? const {}
+            // Once per press: a held key repeating would activate the card
+            // again and again.
             : const {
-                SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
-                SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-                SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-                SingleActivator(LogicalKeyboardKey.gameButtonA):
-                    ActivateIntent(),
+                SingleActivator(
+                  LogicalKeyboardKey.select,
+                  includeRepeats: false,
+                ): ActivateIntent(),
+                SingleActivator(
+                  LogicalKeyboardKey.enter,
+                  includeRepeats: false,
+                ): ActivateIntent(),
+                SingleActivator(
+                  LogicalKeyboardKey.space,
+                  includeRepeats: false,
+                ): ActivateIntent(),
+                SingleActivator(
+                  LogicalKeyboardKey.gameButtonA,
+                  includeRepeats: false,
+                ): ActivateIntent(),
               },
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) => widget.onPressed(),
+            onInvoke: (_) {
+              if (_held.isEmpty) widget.onPressed();
+              return null;
+            },
           ),
         },
         // Mouse: hovering moves the highlight, like the D-pad does.
