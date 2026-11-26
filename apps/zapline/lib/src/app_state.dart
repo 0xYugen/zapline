@@ -591,6 +591,7 @@ class AppState extends ChangeNotifier {
     final bySource = <String, int>{};
     final byGuide = <String, int>{};
     final byEpg = <String, int>{};
+    final byName = <String, int>{};
     for (final (i, c) in list.indexed) {
       join(bySource, _versionKey(c), i);
       // The same guide id and name in one source: the same channel even
@@ -600,9 +601,15 @@ class AppState extends ChangeNotifier {
       if (epg != null && epg.isNotEmpty) {
         final plain = normalizeChannelName(_variant(c.name).baseName);
         if (plain.isNotEmpty) {
-          join(byEpg, '${c.sourceId}\u0000$epg\u0000$plain', i);
+          // Across sources too when merging them: guide ids are shared
+          // between providers (the common XMLTV ones).
+          final scope = o.acrossSources ? '' : c.sourceId;
+          join(byEpg, '$scope\u0000$epg\u0000$plain', i);
         }
       }
+      // Across sources, the same name, country tag included: "IT: Rai 2"
+      // of one provider and "IT: Rai 2 HD" of another.
+      if (o.acrossSources) join(byName, _variant(c.name).key, i);
       final guide = guides?[ZaplineDatabase.channelKey(c)];
       if (guide != null) {
         final plain = normalizeChannelName(_variant(c.name).baseName);

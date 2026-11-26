@@ -79,4 +79,24 @@ void main() {
     expect(list.length, lessThan(1200));
     expect(state.versionsOf(list.first), hasLength(2));
   });
+
+  test('two sources: the same name joins without any guide', () async {
+    final state = fakeState(
+      count: 2,
+      names: ['IT: Rai 2', 'DE: Rai 2'],
+      epgIds: [null, null],
+    );
+    await state.addSource(
+      const SourceInput(url: 'http://a.example/get.php?username=a&password=b'),
+    );
+    await state.addSource(
+      const SourceInput(url: 'http://b.example/get.php?username=a&password=b'),
+    );
+    final list = state.channels();
+    // One Italian Rai 2, one German: never joined to each other.
+    expect(list, hasLength(2));
+    for (final c in list) {
+      expect({for (final v in state.versionsOf(c)) v.sourceId}, hasLength(2));
+    }
+  });
 }

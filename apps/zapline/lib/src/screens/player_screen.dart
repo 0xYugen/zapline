@@ -129,6 +129,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _retries = 0;
   Timer? _retryTimer;
   Timer? _openTimeout;
+  Timer? _retriesReset;
+
+  /// A picture frozen this long won't come back by itself; before any
+  /// picture, a stall is a start that didn't take.
+  void _watchStall() {
+    _stallTimer?.cancel();
+    _stallTimer = Timer(Duration(seconds: _engine.hasPicture ? 20 : 8), () {
+      if (mounted && _stalled) _onFailure(_streamTimeout);
+    });
+  }
 
   /// Checks, a moment after a channel starts, that it shows a picture.
   Timer? _pictureTimer;
@@ -252,10 +262,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _updateSpinner();
             _preloadNeighbours();
             _checkPicture();
-          }
-          if (_retries > 0) {
-            // Playing again: the next failure gets its full set of tries.
-            setState(() => _retries = 0);
+            // Stalled from the start: watched from now.
+            if (_stalled) _watchStall();
+            if (_retries > 0) {
+              // Playing well for a while again: the next failure gets its
+              // full set of tries. Not at once: a stream that starts and
+              // stalls each time would be retried for ever.
+              _retriesReset?.cancel();
+              _retriesReset = Timer(const Duration(seconds: 20), () {
+                if (mounted && !_stalled && !_opening) {
+                  setState(() => _retries = 0);
+                }
+              });
+            }
           }
           if (_zapWatch.isRunning) {
             _zapWatch.stop();
@@ -268,16 +287,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (!mounted || b == _stalled) return;
           _stalled = b;
           _stallTimer?.cancel();
-          // A picture frozen this long won't come back by itself.
-          if (b && !_opening) {
-            // Before any picture, a stall is a start that didn't take.
-            _stallTimer = Timer(
-              Duration(seconds: _engine.hasPicture ? 20 : 8),
-              () {
-                if (mounted && _stalled) _onFailure(_streamTimeout);
-              },
-            );
-          }
+          if (b && !_opening) _watchStall();
           _updateSpinner();
         }),
       )
@@ -314,6 +324,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     _pictureTimer?.cancel();
+    _retriesReset?.cancel();
     if (_phoneChrome) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       SystemChrome.setPreferredOrientations(const []);
@@ -426,6 +437,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _retryTimer = null;
     _openTimeout?.cancel();
     _pictureTimer?.cancel();
+    _retriesReset?.cancel();
     _stallTimer?.cancel();
     if (!retry) _retries = 0;
     final replay = _replay;
@@ -484,6 +496,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// Playback failed: another version of the channel, then a few new
   /// attempts with growing pauses, then the error with a way to retry.
   void _onFailure(String error) {
+    _retriesReset?.cancel();
     _openTimeout?.cancel();
     _stallTimer?.cancel();
     _opening = _stalled = false;

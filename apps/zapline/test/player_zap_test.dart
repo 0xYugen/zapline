@@ -21,6 +21,13 @@ class _Engine extends FakeEngine {
   /// Streams that play sound but show no picture.
   final black = <String>{};
 
+  /// Streams that start, then stall at once.
+  final stalling = <String>{};
+  final _stalls = StreamController<bool>.broadcast();
+
+  @override
+  Stream<bool> get buffering => _stalls.stream;
+
   /// Streams that play neither sound nor picture.
   final silent = <String>{};
 
@@ -43,7 +50,11 @@ class _Engine extends FakeEngine {
       scheduleMicrotask(() => _errors.add('Source error'));
       return;
     }
-    return super.open(url, headers: headers, start: start);
+    await super.open(url, headers: headers, start: start);
+    if (stalling.contains(url.pathSegments.last)) {
+      // After the first position, as such streams do.
+      Timer(const Duration(milliseconds: 50), () => _stalls.add(true));
+    }
   }
 
   @override
@@ -282,5 +293,22 @@ void main() {
     expect(engine.opened.last, '3.ts');
     expect(engine.opened.where((u) => u == '3.ts'), hasLength(1));
     await tester.pump(const Duration(seconds: 30));
+  });
+
+  testWidgets('a stream that starts and stalls each time ends in a message', (
+    tester,
+  ) async {
+    final (_, engine) = await _player(tester);
+    engine.stalling.add('2.ts');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(seconds: 5));
+    }
+    // Once, then tried again once: not for ever.
+    expect(engine.opened.where((u) => u == '2.ts'), hasLength(2));
+    expect(
+      find.text('This channel is not available right now'),
+      findsOneWidget,
+    );
   });
 }
