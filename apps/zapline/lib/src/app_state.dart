@@ -590,8 +590,19 @@ class AppState extends ChangeNotifier {
 
     final bySource = <String, int>{};
     final byGuide = <String, int>{};
+    final byEpg = <String, int>{};
     for (final (i, c) in list.indexed) {
       join(bySource, _versionKey(c), i);
+      // The same guide id and name in one source: the same channel even
+      // when the names differ by a country tag or punctuation ("IT: Rai 1
+      // HD", "Rai 1 HD", "RAI 1 | HD").
+      final epg = c.epgChannelId?.trim().toLowerCase();
+      if (epg != null && epg.isNotEmpty) {
+        final plain = normalizeChannelName(_variant(c.name).baseName);
+        if (plain.isNotEmpty) {
+          join(byEpg, '${c.sourceId}\u0000$epg\u0000$plain', i);
+        }
+      }
       final guide = guides?[ZaplineDatabase.channelKey(c)];
       if (guide != null) {
         final plain = normalizeChannelName(_variant(c.name).baseName);

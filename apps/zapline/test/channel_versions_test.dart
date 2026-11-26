@@ -46,4 +46,26 @@ void main() {
     s.settingsChanged();
     expect(s.channels(), hasLength(6));
   });
+
+  test('the same guide id and name join versions a tag sets apart', () async {
+    final s = fakeState(
+      count: 5,
+      names: [
+        'IT: Rai 1 HD',
+        'Rai 1 HD',
+        'RAI 1 | HD',
+        'Rai 2 HD',
+        'DE: Rai 1',
+      ],
+      epgIds: ['rai1.it', 'Rai1.it', 'rai1.it', 'rai1.it', 'rai1.de'],
+    );
+    await s.addSource(
+      const SourceInput(url: 'http://x.example/get.php?username=a&password=b'),
+    );
+    final list = s.channels();
+    // Rai 2 shares the id but not the name; the German one neither.
+    expect(list, hasLength(3));
+    expect(s.versionsOf(list.first), hasLength(3));
+    expect(s.versionsOf(list[1]).single.name, 'Rai 2 HD');
+  });
 }

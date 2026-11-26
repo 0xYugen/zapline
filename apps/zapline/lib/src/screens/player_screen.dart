@@ -122,6 +122,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   /// Automatic attempts after a live stream failed or stalled.
   static const _maxRetries = 3;
+
+  /// Tries for the failure being retried: a stream that didn't start in
+  /// time rarely does on the third go, and each try is a long wait.
+  int _triesFor = _maxRetries;
   int _retries = 0;
   Timer? _retryTimer;
   Timer? _openTimeout;
@@ -484,7 +488,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _stallTimer?.cancel();
     _opening = _stalled = false;
     if (_tryNextVersion()) return;
-    if (_retries < _maxRetries) {
+    if (_retries == 0) _triesFor = error == _streamTimeout ? 1 : _maxRetries;
+    if (_retries < _triesFor) {
       _retries++;
       _engine.stop();
       setState(() {});
@@ -1645,7 +1650,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             if (_retries > 0) ...[
               const SizedBox(height: 18),
               Text(
-                context.l10n.reconnecting(_retries, _maxRetries),
+                context.l10n.reconnecting(_retries, _triesFor),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
