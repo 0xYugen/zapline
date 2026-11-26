@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show sleep;
 
 import 'package:zapline_core/zapline_core.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -350,34 +351,106 @@ class ZaplineDatabase {
   /// isolate's connection if it holds it. A plain BEGIN that reads before
   /// it writes fails outright (SQLITE_BUSY_SNAPSHOT) when the other
   /// connection commits in between, and the busy timeout doesn't help.
-  T _transaction<T>(T Function() body) {
+  ///
+  /// A [sliced] transaction lets go of the lock at [_yieldLock] once it has
+  /// held it for [writeSlice] (see there).
+  T _transaction<T>(T Function() body, {bool sliced = false}) {
     // Already inside one: it commits or rolls back for both.
     if (!_db.autocommit) return body();
     _db.execute('BEGIN IMMEDIATE');
+    _sliced = sliced;
+    _held.reset();
+    _held.start();
     try {
       final r = body();
       _db.execute('COMMIT');
       return r;
     } catch (_) {
-      _db.execute('ROLLBACK');
+      // A slice that could not start again has nothing to roll back.
+      if (!_db.autocommit) _db.execute('ROLLBACK');
       rethrow;
+    } finally {
+      _sliced = false;
+      _held.stop();
     }
+  }
+
+  /// How long a big write (a sync's channels, films, guide) holds the
+  /// database before letting the app's connection in.
+  ///
+  /// The app's small writes (a favourite, a position) wait for the lock
+  /// on the UI thread, so a sync's 50k-row write in one transaction is a
+  /// frozen screen for seconds on a TV stick. Big writes are cut into
+  /// transactions of about this long, with a short pause between them.
+  /// The price: until the last slice, another connection can see the list
+  /// half written (some rows new, some old, none missing in between that
+  /// weren't removed from the source). The app reloads its lists once a
+  /// sync is done, so at worst a screen opened during the sync shows the
+  /// mix until then; nothing is lost if the sync fails midway, the next
+  /// one finishes the job.
+  Duration writeSlice = const Duration(milliseconds: 200);
+
+  /// The pause between two slices. SQLite's busy handler polls every
+  /// 25-50 ms in the first 200 ms of waiting, so a waiting connection
+  /// gets in during it.
+  Duration writeGap = const Duration(milliseconds: 50);
+
+  bool _sliced = false;
+  final _held = Stopwatch();
+
+  /// Inside a sliced transaction (see [writeSlice]): commits what was
+  /// written so far and starts again after a pause, once the lock has
+  /// been held long enough. Call it between rows that can be seen apart.
+  void _yieldLock() {
+    if (!_sliced || _held.elapsed < writeSlice) return;
+    _db.execute('COMMIT');
+    if (writeGap > Duration.zero) sleep(writeGap);
+    _db.execute('BEGIN IMMEDIATE');
+    _held.reset();
   }
 
   /// Reads with [read] outside any transaction, then runs [write] with what
   /// it read in a write transaction. Big comparisons (a sync's 50k channels
   /// against the stored ones) so don't hold the write lock while reading.
-  /// When another connection committed in between, [read] runs again under
-  /// the lock, so [write] never works from an outdated picture.
-  void _readThenWrite<R>(R Function() read, void Function(R) write) {
+  /// When another connection committed in between (the app saving a
+  /// setting, most likely), [write] still goes ahead if [stamp], a cheap
+  /// summary of the rows [read] reads, is unchanged; otherwise [read] runs
+  /// again, outside the lock while it can. Reading 150k rows under the
+  /// lock keeps the app waiting for most of a second. [write] never works
+  /// from an outdated picture.
+  void _readThenWrite<R>(
+    R Function() read,
+    void Function(R) write, {
+    bool sliced = false,
+    String Function()? stamp,
+  }) {
     if (!_db.autocommit) return write(read());
-    final before = _dataVersion();
-    var data = read();
-    _transaction(() {
-      if (_dataVersion() != before) data = read();
-      write(data);
-    });
+    for (var tries = 0; ; tries++) {
+      final before = _dataVersion();
+      final stamped = stamp?.call();
+      final data = read();
+      final wrote = _transaction(() {
+        if (_dataVersion() == before || (stamp != null && stamp() == stamped)) {
+          write(data);
+          return true;
+        }
+        if (tries < 3) return false;
+        write(read());
+        return true;
+      }, sliced: sliced);
+      if (wrote) return;
+    }
   }
+
+  /// A summary of [sourceId]'s rows of [table] that changes when one is
+  /// added, removed or moved, for [_readThenWrite].
+  String _rowsStamp(String table, String sourceId) => _db
+      .select('SELECT count(*), total(sort) FROM $table WHERE source_id = ?', [
+        sourceId,
+      ])
+      .first
+      .values
+      .join('/');
 
   /// Changes whenever another connection commits.
   int _dataVersion() =>
@@ -465,6 +538,8 @@ class ZaplineDatabase {
       _readThenWrite(
         () => _storedRows('channels', sourceId, _dataCols),
         (old) => _writeChannels(sourceId, channels, old),
+        sliced: true,
+        stamp: () => _rowsStamp('channels', sourceId),
       );
 
   /// [table]'s rows of [sourceId]: id → (sort, the values of [cols]).
@@ -507,6 +582,7 @@ class ZaplineDatabase {
       for (final c in channels) {
         final at = sort++;
         if (!seen.add(c.id)) continue;
+        _yieldLock();
         final values = _channelValues(c);
         final before = old.remove(c.id);
         if (before == null) {
@@ -519,6 +595,7 @@ class ZaplineDatabase {
         }
       }
       for (final id in old.keys) {
+        _yieldLock();
         delete.execute([sourceId, id]);
       }
     } finally {
@@ -997,8 +1074,13 @@ class ZaplineDatabase {
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       );
       try {
-        _transaction(() {
+        _transaction(sliced: true, () {
+          var cleared = false;
           for (final w in pending) {
+            // Not between a channel's clearing and its first programme,
+            // or the channel would show nothing ahead for a moment.
+            if (!cleared) _yieldLock();
+            cleared = w.kind == _GuideWriteKind.clear;
             switch (w.kind) {
               case _GuideWriteKind.clear:
                 clear.execute(w.args);
@@ -1153,14 +1235,16 @@ class ZaplineDatabase {
         if (own[id] ?? usual case final d when d != 0 && d % 1800 == 0) id: d,
     };
     if (moves.isEmpty) return 0;
-    _transaction(() {
+    // One channel at a time, so the lock can be let go in between.
+    _transaction(sliced: true, () {
       _db.execute(
         'CREATE TEMP TABLE IF NOT EXISTS moving AS '
         'SELECT * FROM programmes WHERE 0',
       );
-      _db.execute('DELETE FROM moving');
       for (final MapEntry(key: id, value: move) in moves.entries) {
+        _yieldLock();
         final since = ids[id];
+        _db.execute('DELETE FROM moving');
         _db.execute(
           'INSERT INTO moving SELECT guide_id, start + ?, stop + ?, title, '
           'description, category, episode, icon FROM programmes '
@@ -1171,8 +1255,8 @@ class ZaplineDatabase {
           'DELETE FROM programmes WHERE guide_id = ? AND start >= ?',
           [id, since],
         );
+        _db.execute('INSERT OR REPLACE INTO programmes SELECT * FROM moving');
       }
-      _db.execute('INSERT OR REPLACE INTO programmes SELECT * FROM moving');
       _db.execute('DELETE FROM moving');
     });
     return moves.length;
@@ -1301,17 +1385,41 @@ class ZaplineDatabase {
   int pruneProgrammes(DateTime before) {
     // A programme ending before [before] started before it too: the start
     // bound lets the start index find them instead of reading every row.
+    // A few thousand at a time: a day of a big guide is 100k rows.
     final t = _secs(before);
-    _db.execute('DELETE FROM programmes WHERE start < ? AND stop < ?', [t, t]);
-    return _db.updatedRows;
+    var count = 0;
+    final delete = _db.prepare(
+      'DELETE FROM programmes WHERE (guide_id, start) IN ('
+      'SELECT guide_id, start FROM programmes WHERE start < ? AND stop < ? '
+      'LIMIT $_pruneChunk)',
+    );
+    try {
+      _transaction(sliced: true, () {
+        while (true) {
+          _yieldLock();
+          delete.execute([t, t]);
+          final n = _db.updatedRows;
+          count += n;
+          if (n < _pruneChunk) break;
+        }
+      });
+    } finally {
+      delete.close();
+    }
+    return count;
   }
+
+  static const _pruneChunk = 5000;
 
   /// Housekeeping after a sync: refreshes the query planner's statistics
   /// and folds the write-ahead log back into the database, so it doesn't
   /// keep the size of the biggest import. Cheap when nothing changed.
   void maintain() {
     _db.execute('PRAGMA optimize');
-    _db.select('PRAGMA wal_checkpoint(TRUNCATE)');
+    // PASSIVE copies what it can without waiting for, or blocking, the
+    // app's connection (TRUNCATE waits for every reader and writer);
+    // journal_size_limit cuts the log file back at its next reset.
+    _db.select('PRAGMA wal_checkpoint(PASSIVE)');
   }
 
   /// What was last imported from the guide at [url], for asking its server

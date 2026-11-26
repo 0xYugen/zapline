@@ -122,6 +122,8 @@ extension VodStore on ZaplineDatabase {
             ],
           ),
       ]),
+      sliced: true,
+      stamp: () => _rowsStamp('movies', sourceId),
     );
   }
 
@@ -157,6 +159,7 @@ extension VodStore on ZaplineDatabase {
       for (final (id, values) in rows) {
         final at = sort++;
         if (!seen.add(id)) continue;
+        _yieldLock();
         final before = old.remove(id);
         if (before == null) {
           insert.execute([sourceId, id, at, ...values]);
@@ -167,6 +170,7 @@ extension VodStore on ZaplineDatabase {
         }
       }
       for (final id in old.keys) {
+        _yieldLock();
         delete.execute([sourceId, id]);
       }
     } finally {
@@ -197,6 +201,8 @@ extension VodStore on ZaplineDatabase {
     _readThenWrite(
       () => _storedRows('shows', sourceId, cols.join(', ')),
       (old) => _writeShows(sourceId, cols, old, shows, playlistEpisodes),
+      sliced: true,
+      stamp: () => _rowsStamp('shows', sourceId),
     );
   }
 
@@ -233,6 +239,7 @@ extension VodStore on ZaplineDatabase {
     );
     try {
       for (final (showId, e) in playlistEpisodes) {
+        _yieldLock();
         episode.execute([
           sourceId,
           showId,
