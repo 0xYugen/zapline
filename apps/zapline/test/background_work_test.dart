@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 import 'package:zapline/src/app_state.dart';
 import 'package:zapline/src/db_write.dart';
+import 'package:zapline/src/layout.dart';
 import 'package:zapline_data/zapline_data.dart';
 
 import 'helpers.dart';
@@ -9,6 +10,17 @@ import 'helpers.dart';
 /// sync holds the database, settings read in loops, refreshes while a
 /// channel plays.
 void main() {
+  test("Zapline's player is the default on TVs only, until set", () {
+    final state = fakeState();
+    addTearDown(() => FormFactor.isTv = false);
+    FormFactor.isTv = false;
+    expect(state.settings.ownPlayer, isFalse);
+    FormFactor.isTv = true;
+    expect(state.settings.ownPlayer, isTrue);
+    state.settings.ownPlayer = false;
+    expect(state.settings.ownPlayer, isFalse);
+  });
+
   test('a write refused while the database is busy is done later', () async {
     var tries = 0;
     writeSoon(() {

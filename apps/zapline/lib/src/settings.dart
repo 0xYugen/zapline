@@ -72,8 +72,10 @@ class AppSettings {
   set muted(bool v) => _put('muted', '$v');
 
   /// Android: play with Zapline's own player (Media3Engine) instead of the
-  /// system one through video_player. Off until it is proven on devices.
-  bool get ownPlayer => _bool('ownPlayer', false);
+  /// system one through video_player. On by default on TVs (Fire TV first):
+  /// instant zaps, dead channels and undecodable formats told at once, a
+  /// buffer sized for a stick. Phones keep the system player for now.
+  bool get ownPlayer => _bool('ownPlayer', FormFactor.isTv);
   set ownPlayer(bool v) => _put('ownPlayer', '$v');
 
   /// Phones, with Zapline's player: leaving the app (or turning the

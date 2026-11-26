@@ -7,7 +7,10 @@ import 'dart:ui';
 /// iptv-epg.org publishes one guide per country under the same address
 /// pattern. Italy also gets epgshare01 and two open-epg.com files (checked
 /// 2026-10-24: about 370 Italian channels, 59 of 60 common provider names
-/// matched).
+/// matched). DAZN Italia, checked 2026-11-26: epgshare01 has DAZN 1's
+/// real schedule, iptv-epg.org Zona DAZN; iptv-epg's DAZN 1-100 event
+/// feeds carry only "No Game Today" (passed over, see ChannelMatcher), and
+/// open-epg's other Italian files and epg.pw add nothing for DAZN.
 class FreeEpg {
   const FreeEpg(this.code, this.name);
 

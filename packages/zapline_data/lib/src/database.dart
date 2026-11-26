@@ -1683,7 +1683,11 @@ class ZaplineDatabase {
       ))
         r['channel_key'] as String: r['guide_id'] as String,
     };
-    final matcher = ChannelMatcher(guideChannels(), manualOverrides: overrides);
+    final matcher = ChannelMatcher(
+      guideChannels(),
+      manualOverrides: overrides,
+      empty: _guidesWithoutProgrammes(),
+    );
     final current = {
       for (final r in _db.select(
         'SELECT channel_key, guide_id, kind FROM epg_map',
@@ -1719,6 +1723,22 @@ class ZaplineDatabase {
       }
     }
     return (channels: count, links: links, current: current);
+  }
+
+  /// Guide channels with nothing but fillers ("No Game Today") or nothing
+  /// at all from now on: matched last, see [ChannelMatcher].
+  Set<String> _guidesWithoutProgrammes() {
+    final fillers = fillerTitles.map((t) => "'$t'").join(', ');
+    return {
+      for (final r in _db.select(
+        'SELECT guide_id FROM guide_channels g '
+        "WHERE guide_id NOT LIKE '$channelGuidePrefix%' AND NOT EXISTS ("
+        '  SELECT 1 FROM programmes p WHERE p.guide_id = g.guide_id '
+        '  AND p.stop > ? AND lower(trim(p.title)) NOT IN ($fillers))',
+        [_secs(DateTime.now().toUtc())],
+      ))
+        r['guide_id'] as String,
+    };
   }
 
   /// Matching needs a channel's names, not where it streams from.

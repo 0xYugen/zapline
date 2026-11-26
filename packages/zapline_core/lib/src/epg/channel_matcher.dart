@@ -19,11 +19,25 @@ class EpgMatch {
 /// ([looseChannelKey]: "Rai Uno" = "Rai 1") when only one guide channel has
 /// it. Fuzzier strategies are left out: a wrong guide is worse than no
 /// guide, and unmatched channels are offered for manual mapping instead.
+///
+/// Guide channels in [empty] carry no real programmes (only fillers such
+/// as "No Game Today", see [isFillerTitle]): another guide's channel of
+/// the same name wins over them. Free guides list DAZN's event feeds as
+/// "DAZN1.it" next to the real DAZN 1 schedule under another id.
 class ChannelMatcher {
   ChannelMatcher(Iterable<XmltvChannel> guideChannels,
-      {Map<String, String> manualOverrides = const {}})
-      : _manual = manualOverrides {
-    for (final gc in guideChannels) {
+      {Map<String, String> manualOverrides = const {},
+      Set<String> empty = const {}})
+      : _manual = manualOverrides,
+        _empty = empty {
+    // Channels with programmes first: the first of a name is kept.
+    final ordered = [
+      for (final gc in guideChannels)
+        if (!empty.contains(gc.id)) gc,
+      for (final gc in guideChannels)
+        if (empty.contains(gc.id)) gc,
+    ];
+    for (final gc in ordered) {
       _byId.putIfAbsent(gc.id.toLowerCase(), () => gc.id);
       for (final n in gc.displayNames) {
         final key = normalizeChannelName(n);
@@ -37,6 +51,11 @@ class ChannelMatcher {
           looseChannelKey(n),
       }) {
         if (key.isEmpty) continue;
+        // An empty channel never makes a loose name with data ambiguous.
+        final known = _byLoose[key];
+        if (empty.contains(gc.id) && known != null && !empty.contains(known)) {
+          continue;
+        }
         // Two guide channels with the same loose name: ambiguous, unused.
         _byLoose[key] =
             _byLoose.containsKey(key) && _byLoose[key] != gc.id ? null : gc.id;
@@ -45,6 +64,7 @@ class ChannelMatcher {
   }
 
   final Map<String, String> _manual;
+  final Set<String> _empty;
   final _byId = <String, String>{};
   final _byName = <String, String>{};
   final _byLoose = <String, String?>{};
@@ -58,16 +78,48 @@ class ChannelMatcher {
     final epgId = channel.epgChannelId;
     if (epgId != null && epgId.isNotEmpty) {
       final hit = _byId[epgId.toLowerCase()];
-      if (hit != null) return EpgMatch(hit, MatchKind.epgId);
+      if (hit != null) {
+        // The id given has nothing to show: the name may find a guide
+        // that does.
+        if (_empty.contains(hit)) {
+          final other = _byNames(channel.name);
+          if (other != null && !_empty.contains(other.guideChannelId)) {
+            return other;
+          }
+        }
+        return EpgMatch(hit, MatchKind.epgId);
+      }
     }
+    return _byNames(channel.name);
+  }
 
-    final byName = _byName[normalizeChannelName(channel.name)];
+  EpgMatch? _byNames(String name) {
+    final byName = _byName[normalizeChannelName(name)];
     if (byName != null) return EpgMatch(byName, MatchKind.name);
-    final loose = _byLoose[looseChannelKey(channel.name)];
+    final loose = _byLoose[looseChannelKey(name)];
     if (loose != null) return EpgMatch(loose, MatchKind.name);
     return null;
   }
 }
+
+/// Titles free guides put in place of a schedule they don't have.
+bool isFillerTitle(String title) =>
+    fillerTitles.contains(title.trim().toLowerCase());
+
+const fillerTitles = {
+  'no game today',
+  'no data',
+  'no event',
+  'no events',
+  'no events today',
+  'no information',
+  'no programme information',
+  'no program information',
+  'nessun evento',
+  'nessun evento in onda',
+  'programma non disponibile',
+  'informazioni non disponibili',
+};
 
 /// Which guide channels a set of channels could use: every key the
 /// [ChannelMatcher] might link them by. Big free guides list thousands of
