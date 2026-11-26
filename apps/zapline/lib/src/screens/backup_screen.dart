@@ -79,7 +79,7 @@ class _BackupScreenState extends State<BackupScreen> {
                         context.l10n.backupTitle,
                         style: TextStyle(
                           fontSize: 34,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -95,7 +95,7 @@ class _BackupScreenState extends State<BackupScreen> {
                     const SizedBox(height: 20),
                     Text(
                       context.l10n.backupPrivate,
-                      style: TextStyle(color: ZaplineColors.focus),
+                      style: TextStyle(color: ZaplineColors.accent),
                     ),
                     // A TV has no browser of its own: only desktops get the
                     // local address.
@@ -110,15 +110,15 @@ class _BackupScreenState extends State<BackupScreen> {
                         '${server.url}',
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       Text(
                         context.l10n.backupCode(server.pin),
                         style: const TextStyle(
                           fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: ZaplineColors.focus,
+                          fontWeight: FontWeight.w600,
+                          color: ZaplineColors.accent,
                         ),
                       ),
                     ],
@@ -132,7 +132,7 @@ class _BackupScreenState extends State<BackupScreen> {
                         'http://localhost:${server.port}/?pin=${server.pin}',
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],

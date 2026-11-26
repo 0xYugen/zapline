@@ -7,6 +7,24 @@ import 'package:flutter/services.dart';
 import '../input_mode.dart';
 import '../theme.dart';
 
+/// Whether the card around a widget is lit (focused): accents then need
+/// [ZaplineColors.accentOnLight], the light accent would vanish.
+class Lit extends InheritedWidget {
+  const Lit({super.key, required this.lit, required super.child});
+
+  final bool lit;
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<Lit>()?.lit ?? false;
+
+  /// The accent colour readable here.
+  static Color accent(BuildContext context) =>
+      of(context) ? ZaplineColors.accentOnLight : ZaplineColors.accent;
+
+  @override
+  bool updateShouldNotify(Lit old) => old.lit != lit;
+}
+
 /// Keys held down to open something, ignored by cards until released.
 final _held = <LogicalKeyboardKey>{};
 
@@ -101,6 +119,7 @@ class FocusCard extends StatefulWidget {
     required this.onPressed,
     this.autofocus = false,
     this.selected = false,
+    this.quiet = false,
     this.focusNode,
     this.onFocused,
     this.onLongPress,
@@ -114,6 +133,9 @@ class FocusCard extends StatefulWidget {
 
   /// Persistent highlight (e.g. the current group) shown when not focused.
   final bool selected;
+
+  /// No card drawn until focused or selected (a menu's entries).
+  final bool quiet;
   final FocusNode? focusNode;
   final VoidCallback? onFocused;
   final VoidCallback? onLongPress;
@@ -210,22 +232,44 @@ class _FocusCardState extends State<FocusCard> {
     final lit = _focused && !InputMode.instance.touch;
     final bg = lit
         ? ZaplineColors.focus
-        : (widget.selected ? ZaplineColors.surfaceHigh : ZaplineColors.surface);
+        : widget.selected
+        ? ZaplineColors.surfaceHigh
+        : widget.quiet
+        ? Colors.transparent
+        : ZaplineColors.surface;
     final fg = lit ? ZaplineColors.onFocus : ZaplineColors.text;
 
+    // Lit: light, lifted by a shadow (only the focused card has one, so a
+    // guide of hundreds of cards draws one shadow).
     final decoration = BoxDecoration(
       color: bg,
       borderRadius: BorderRadius.circular(widget.radius),
       border: Border.all(
-        color: lit ? ZaplineColors.focusBorder : Colors.transparent,
-        width: 3,
+        color: lit
+            ? ZaplineColors.focusBorder
+            : widget.selected
+            ? ZaplineColors.accent.withValues(alpha: 0.6)
+            : Colors.transparent,
+        width: 2,
       ),
+      boxShadow: lit
+          ? const [
+              BoxShadow(
+                color: Color(0x99000000),
+                blurRadius: 24,
+                offset: Offset(0, 8),
+              ),
+            ]
+          : null,
     );
-    final content = DefaultTextStyle.merge(
-      style: TextStyle(color: fg),
-      child: IconTheme.merge(
-        data: IconThemeData(color: fg),
-        child: widget.child,
+    final content = Lit(
+      lit: lit,
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: fg),
+        child: IconTheme.merge(
+          data: IconThemeData(color: fg),
+          child: widget.child,
+        ),
       ),
     );
 
@@ -311,7 +355,7 @@ class _FocusCardState extends State<FocusCard> {
               selected: widget.selected,
               child: _animated
                   ? AnimatedScale(
-                      scale: lit ? 1.02 : 1,
+                      scale: lit ? 1.04 : 1,
                       duration: const Duration(milliseconds: 100),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 100),

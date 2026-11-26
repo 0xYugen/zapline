@@ -242,7 +242,7 @@ class _ShowDetailScreenState extends State<ShowDetailScreen> {
                       d.seasonNames[season] ?? l.seasonNumber(season),
                       style: const TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -317,7 +317,7 @@ class _DetailPage extends StatelessWidget {
         foregroundColor: ZaplineColors.text,
         textStyle: const TextStyle(
           fontFamily: 'Inter',
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
         ),
       ).copyWith(
         side: WidgetStateProperty.resolveWith(
@@ -367,7 +367,7 @@ class _DetailPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: wide ? 30 : 22,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   height: 1.15,
                 ),
               ),
@@ -384,13 +384,13 @@ class _DetailPage extends StatelessWidget {
                         const Icon(
                           Icons.star_rounded,
                           size: 16,
-                          color: ZaplineColors.focus,
+                          color: ZaplineColors.accent,
                         ),
                         const SizedBox(width: 3),
                         Text(
                           rating!.toStringAsFixed(1),
                           style: const TextStyle(
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             fontSize: 13,
                           ),
                         ),
@@ -455,7 +455,7 @@ class _DetailPage extends StatelessWidget {
                                 padding: EdgeInsets.all(12),
                                 child: Center(
                                   child: CircularProgressIndicator(
-                                    color: ZaplineColors.focus,
+                                    color: ZaplineColors.accent,
                                   ),
                                 ),
                               ),
@@ -514,7 +514,7 @@ class _DetailPage extends StatelessWidget {
                                 padding: EdgeInsets.only(top: 14),
                                 child: LinearProgressIndicator(
                                   minHeight: 2,
-                                  color: ZaplineColors.focus,
+                                  color: ZaplineColors.accent,
                                   backgroundColor: ZaplineColors.line,
                                 ),
                               ),
@@ -591,12 +591,12 @@ class _PlayButton extends StatelessWidget {
                 onPressed: onPlay,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
-                  backgroundColor: ZaplineColors.focus,
+                  backgroundColor: ZaplineColors.accent,
                   foregroundColor: ZaplineColors.onFocus,
                   textStyle: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -629,7 +629,7 @@ class _PlayButton extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: r.progress,
                 minHeight: 3,
-                color: ZaplineColors.focus,
+                color: ZaplineColors.accent,
                 backgroundColor: ZaplineColors.line,
               ),
             ),
@@ -723,13 +723,13 @@ class _SeasonPills extends StatelessWidget {
           selected: on,
           showCheckmark: false,
           onSelected: (_) => onSelected(s),
-          selectedColor: ZaplineColors.focus,
+          selectedColor: ZaplineColors.accent,
           backgroundColor: ZaplineColors.surfaceHigh,
           side: BorderSide.none,
           shape: const StadiumBorder(),
           labelStyle: TextStyle(
             fontFamily: 'Inter',
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w500,
             color: on ? ZaplineColors.onFocus : ZaplineColors.text,
           ),
         );
@@ -794,7 +794,7 @@ class _EpisodeRow extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: p.progress,
                             minHeight: 3,
-                            color: ZaplineColors.focus,
+                            color: ZaplineColors.accent,
                             backgroundColor: const Color(0x99000000),
                           ),
                         ),
@@ -814,7 +814,7 @@ class _EpisodeRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   if (e.duration case final d? when d > Duration.zero)

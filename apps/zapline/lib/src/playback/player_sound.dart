@@ -145,7 +145,7 @@ class _VolumeBadgeState extends State<VolumeBadge> {
                   value: s.muted ? 0 : s.volume / 100,
                   minHeight: 6,
                   borderRadius: BorderRadius.circular(3),
-                  color: ZaplineColors.focus,
+                  color: ZaplineColors.accent,
                   backgroundColor: ZaplineColors.line,
                 ),
               ),
@@ -153,7 +153,7 @@ class _VolumeBadgeState extends State<VolumeBadge> {
               Text(
                 s.muted ? context.l10n.muted : '${s.volume}',
                 style: const TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),

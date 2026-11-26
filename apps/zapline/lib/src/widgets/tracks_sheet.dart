@@ -66,7 +66,7 @@ Future<void> showTracksSheet(
                 l.audio,
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -85,7 +85,7 @@ Future<void> showTracksSheet(
                     t.selected
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_off_rounded,
-                    color: t.selected ? ZaplineColors.focus : null,
+                    color: t.selected ? ZaplineColors.accent : null,
                   ),
                   title: Text(_trackName(context, t, i + 1)),
                   onTap: () => pick(() => engine.selectAudioTrack(t.id)),
@@ -97,7 +97,7 @@ Future<void> showTracksSheet(
                   l.subtitles,
                   style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -116,7 +116,7 @@ Future<void> showTracksSheet(
                     t.selected
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_off_rounded,
-                    color: t.selected ? ZaplineColors.focus : null,
+                    color: t.selected ? ZaplineColors.accent : null,
                   ),
                   title: Text(_trackName(context, t, i + 1)),
                   onTap: () => pick(() => engine.selectSubtitleTrack(t.id)),

@@ -49,7 +49,7 @@ class SyncSteps extends StatelessWidget {
         children: [
           Text(
             title ?? l.connecting,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -70,7 +70,7 @@ class SyncSteps extends StatelessWidget {
                       color: done
                           ? ZaplineColors.ok
                           : i == step
-                          ? ZaplineColors.focus
+                          ? ZaplineColors.accent
                           : ZaplineColors.textMuted,
                     ),
                     const SizedBox(width: 6),
@@ -93,7 +93,7 @@ class SyncSteps extends StatelessWidget {
             child: LinearProgressIndicator(
               value: (step + 0.5) / 4,
               minHeight: 6,
-              color: ZaplineColors.focus,
+              color: ZaplineColors.accent,
               backgroundColor: ZaplineColors.line,
             ),
           ),

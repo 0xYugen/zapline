@@ -106,7 +106,7 @@ class _VodTabState extends State<VodTab> {
                 l.categories,
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -118,7 +118,7 @@ class _VodTabState extends State<VodTab> {
             ])
               ListTile(
                 selected: value == _selected,
-                selectedColor: ZaplineColors.focus,
+                selectedColor: ZaplineColors.accent,
                 title: Text(label),
                 trailing: count == null
                     ? null
@@ -377,9 +377,9 @@ class _Featured extends StatelessWidget {
                                 label.toUpperCase(),
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   letterSpacing: 0.6,
-                                  color: ZaplineColors.focus,
+                                  color: ZaplineColors.accent,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -389,7 +389,7 @@ class _Featured extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 20,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   height: 1.15,
                                 ),
                               ),
@@ -412,11 +412,11 @@ class _Featured extends StatelessWidget {
                                     ? playMovie(context, state, title.movie!)
                                     : openTitle(context, state, title),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: ZaplineColors.focus,
+                                  backgroundColor: ZaplineColors.accent,
                                   foregroundColor: ZaplineColors.onFocus,
                                   textStyle: const TextStyle(
                                     fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ).copyWith(side: focusRing),
                                 icon: const Icon(Icons.play_arrow_rounded),

@@ -93,7 +93,7 @@ class ZaplineWordmark extends StatelessWidget {
       fontFamily: 'Inter',
       fontSize: height,
       height: 1,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w600,
       letterSpacing: -height * 0.02,
       color: ZaplineColors.text,
     ),

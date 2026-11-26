@@ -77,7 +77,7 @@ class _PinDialogState extends State<_PinDialog> {
                   label,
                   style: const TextStyle(
                     fontSize: 24,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
         ),
@@ -99,7 +99,7 @@ class _PinDialogState extends State<_PinDialog> {
                 widget.title,
                 style: const TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 16),
@@ -114,7 +114,7 @@ class _PinDialogState extends State<_PinDialog> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: i < _pin.length
-                            ? ZaplineColors.focus
+                            ? ZaplineColors.accent
                             : ZaplineColors.line,
                       ),
                     ),

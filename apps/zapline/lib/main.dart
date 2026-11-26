@@ -220,7 +220,7 @@ class _ZaplineAppState extends State<ZaplineApp>
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -244,7 +244,7 @@ class _ZaplineAppState extends State<ZaplineApp>
                         message,
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -397,9 +397,9 @@ class _ZaplineAppState extends State<ZaplineApp>
                 code,
                 style: const TextStyle(
                   fontSize: 48,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 12,
-                  color: ZaplineColors.focus,
+                  color: ZaplineColors.accent,
                 ),
               ),
             ],

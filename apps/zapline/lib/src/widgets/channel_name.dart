@@ -67,7 +67,7 @@ class QualityBadge extends StatelessWidget {
     // Dark text means a light (focused, amber) card: amber would vanish.
     final onLight = text != null && text.computeLuminance() < 0.2;
     final color = label == '4K' && !onLight
-        ? ZaplineColors.focus
+        ? ZaplineColors.accent
         : text?.withValues(alpha: onLight ? 0.9 : 0.75) ??
               ZaplineColors.textMuted;
     return Container(
@@ -80,7 +80,7 @@ class QualityBadge extends StatelessWidget {
         label,
         style: TextStyle(
           fontSize: 10,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           color: color,
           height: 1.2,
         ),

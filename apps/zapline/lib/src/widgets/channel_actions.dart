@@ -46,7 +46,7 @@ Future<void> showChannelActions(
                       label,
                       style: const TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -76,7 +76,7 @@ Future<void> showChannelActions(
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 20,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -177,7 +177,7 @@ Future<void> _showSheet(
               state.displayName(channel),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ),
           const Divider(height: 1, color: ZaplineColors.line),

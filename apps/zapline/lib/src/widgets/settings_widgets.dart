@@ -29,7 +29,7 @@ class SettingsGroup extends StatelessWidget {
                 title!.toUpperCase(),
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   letterSpacing: 0.8,
                   color: ZaplineColors.textMuted,
                 ),
@@ -82,8 +82,13 @@ class SettingsTile extends StatelessWidget {
     final color = danger
         ? ZaplineColors.live
         : accent
-        ? ZaplineColors.focus
+        ? ZaplineColors.accent
         : null;
+    // Read inside the card, where Lit tells whether it is focused.
+    Widget tinted(Widget Function(Color?) build) => Builder(
+      builder: (context) =>
+          build(color == ZaplineColors.accent ? Lit.accent(context) : color),
+    );
     return FocusCard(
       autofocus: autofocus,
       radius: 12,
@@ -96,7 +101,7 @@ class SettingsTile extends StatelessWidget {
         children: [
           ?leading,
           if (icon != null) ...[
-            Icon(icon, size: 22, color: color ?? iconColor),
+            tinted((c) => Icon(icon, size: 22, color: c ?? iconColor)),
             const SizedBox(width: 14),
           ] else if (leading != null)
             const SizedBox(width: 14),
@@ -104,12 +109,14 @@ class SettingsTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: m.body,
-                    fontWeight: FontWeight.w700,
-                    color: color,
+                tinted(
+                  (c) => Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: m.body,
+                      fontWeight: FontWeight.w500,
+                      color: c,
+                    ),
                   ),
                 ),
                 if (subtitle != null)
@@ -174,7 +181,7 @@ class SettingsSwitchTile extends StatelessWidget {
                   title,
                   style: TextStyle(
                     fontSize: m.body,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (subtitle != null)
@@ -256,7 +263,7 @@ Future<({T value})?> showChoice<T>(
                 title,
                 style: const TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -283,7 +290,7 @@ Future<({T value})?> showChoice<T>(
                 title,
                 style: const TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 16),
@@ -321,7 +328,7 @@ Future<bool> confirmDanger(
                 title,
                 style: const TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),
@@ -336,7 +343,7 @@ Future<bool> confirmDanger(
                 child: Center(
                   child: Text(
                     cancel,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                 ),
               ),
@@ -347,7 +354,7 @@ Future<bool> confirmDanger(
                   child: Text(
                     confirm,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: ZaplineColors.live,
                     ),
                   ),

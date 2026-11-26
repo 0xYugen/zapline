@@ -366,7 +366,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                   if (_duration == Duration.zero && _error == null)
                     const Center(
                       child: CircularProgressIndicator(
-                        color: ZaplineColors.focus,
+                        color: ZaplineColors.accent,
                       ),
                     ),
                   AnimatedOpacity(
@@ -388,7 +388,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                           foregroundColor: ZaplineColors.ground,
                           textStyle: const TextStyle(
                             fontFamily: 'Inter',
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         icon: const Icon(Icons.skip_next_rounded),
@@ -480,7 +480,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (_item.subtitle case final s?)
@@ -586,7 +586,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                     _clock(shown),
                     style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -594,9 +594,9 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         trackHeight: 4,
-                        activeTrackColor: ZaplineColors.focus,
+                        activeTrackColor: ZaplineColors.accent,
                         inactiveTrackColor: const Color(0x55FFFFFF),
-                        thumbColor: ZaplineColors.focus,
+                        thumbColor: ZaplineColors.accent,
                         overlayColor: const Color(0x33F5B841),
                         thumbShape: const RoundSliderThumbShape(
                           enabledThumbRadius: 7,
@@ -635,7 +635,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                         : '--:--',
                     style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       color: ZaplineColors.textMuted,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),

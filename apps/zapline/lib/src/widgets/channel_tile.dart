@@ -61,7 +61,7 @@ class ChannelTile extends StatelessWidget {
                   channel: c,
                   style: const TextStyle(
                     fontSize: 19,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (now != null)

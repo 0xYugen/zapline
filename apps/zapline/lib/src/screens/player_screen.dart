@@ -919,7 +919,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -952,7 +952,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 20,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -1294,7 +1294,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       caption,
                       style: const TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
                     ),
@@ -1352,7 +1352,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 17,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   shadows: shadow,
                                 ),
                               ),
@@ -1436,7 +1436,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                                 shadows: shadow,
                               ),
                             ),
@@ -1484,7 +1484,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 height: 4,
                                 width: box.maxWidth * progress,
                                 decoration: BoxDecoration(
-                                  color: ZaplineColors.focus,
+                                  color: ZaplineColors.accent,
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
@@ -1495,7 +1495,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                   width: 14,
                                   height: 14,
                                   decoration: const BoxDecoration(
-                                    color: ZaplineColors.focus,
+                                    color: ZaplineColors.accent,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -1644,8 +1644,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _digits,
             style: const TextStyle(
               fontSize: 64,
-              fontWeight: FontWeight.w800,
-              color: ZaplineColors.focus,
+              fontWeight: FontWeight.w600,
+              color: ZaplineColors.accent,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
@@ -1658,7 +1658,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: found == null
                       ? ZaplineColors.textMuted
                       : ZaplineColors.text,
@@ -1683,7 +1683,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               dimension: 56,
               child: CircularProgressIndicator(
                 strokeWidth: 5,
-                color: ZaplineColors.focus,
+                color: ZaplineColors.accent,
               ),
             ),
             if (_retries > 0) ...[
@@ -1692,7 +1692,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 context.l10n.reconnecting(_retries, _triesFor),
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   shadows: [Shadow(blurRadius: 8)],
                 ),
               ),
@@ -1722,7 +1722,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Text(
               _replay == null ? l.channelUnavailable : l.archiveUnavailable,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1857,8 +1857,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           '${widget.state.channelNumber(c, _index)}',
           style: const TextStyle(
             fontSize: 44,
-            fontWeight: FontWeight.w800,
-            color: ZaplineColors.focus,
+            fontWeight: FontWeight.w600,
+            color: ZaplineColors.accent,
           ),
         ),
         const SizedBox(width: 24),
@@ -1878,7 +1878,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 30,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1922,7 +1922,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         text,
                         style: const TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -1984,7 +1984,7 @@ class _LevelBadge extends StatelessWidget {
               value: value,
               minHeight: 6,
               borderRadius: BorderRadius.circular(3),
-              color: ZaplineColors.focus,
+              color: ZaplineColors.accent,
               backgroundColor: ZaplineColors.line,
             ),
           ),
@@ -1995,7 +1995,7 @@ class _LevelBadge extends StatelessWidget {
               '${(value * 100).round()}',
               textAlign: TextAlign.right,
               style: const TextStyle(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
@@ -2105,7 +2105,7 @@ class _ChannelListState extends State<_ChannelList> {
                           widget.state.displayName(c),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                         if (now != null)
                           // The card's own colour, faded: readable on the
@@ -2144,14 +2144,14 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: live ? ZaplineColors.live : ZaplineColors.focus,
+      color: live ? ZaplineColors.live : ZaplineColors.accent,
       borderRadius: BorderRadius.circular(6),
     ),
     child: Text(
       live ? context.l10n.liveBadge : context.l10n.catchUpBadge,
       style: const TextStyle(
         fontSize: 12,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
         color: ZaplineColors.onFocus,
       ),
     ),

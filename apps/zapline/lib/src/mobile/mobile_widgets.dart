@@ -167,7 +167,7 @@ class _PillState extends State<Pill> {
     final label = widget.label;
     final fg = selected ? ZaplineColors.onFocus : ZaplineColors.text;
     return Material(
-      color: selected ? ZaplineColors.focus : ZaplineColors.surfaceHigh,
+      color: selected ? ZaplineColors.accent : ZaplineColors.surfaceHigh,
       shape: StadiumBorder(
         side: _focused
             ? const BorderSide(color: ZaplineColors.focusBorder, width: 2.5)
@@ -204,7 +204,7 @@ class _PillState extends State<Pill> {
                   style: TextStyle(
                     color: fg,
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -264,7 +264,7 @@ class _GroupSheetState extends State<_GroupSheet> {
               alignment: Alignment.centerLeft,
               child: Text(
                 context.l10n.groups,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -290,7 +290,7 @@ class _GroupSheetState extends State<_GroupSheet> {
                 final locked = g != null && widget.state.isLocked(g);
                 return ListTile(
                   selected: g == widget.selected,
-                  selectedColor: ZaplineColors.focus,
+                  selectedColor: ZaplineColors.accent,
                   leading: Icon(switch (g) {
                     null => Icons.apps_rounded,
                     favouritesGroup => Icons.star_rounded,
@@ -380,7 +380,7 @@ class MobileChannelRow extends StatelessWidget {
                           channel: c,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -419,7 +419,7 @@ class MobileChannelRow extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 3,
-                        color: ZaplineColors.focus,
+                        color: ZaplineColors.accent,
                         backgroundColor: ZaplineColors.line,
                       ),
                     ),
@@ -433,7 +433,7 @@ class MobileChannelRow extends StatelessWidget {
                 child: Icon(
                   Icons.star_rounded,
                   size: 18,
-                  color: ZaplineColors.focus,
+                  color: ZaplineColors.accent,
                 ),
               ),
           ],
@@ -464,7 +464,7 @@ class LockedGroupView extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             context.l10n.groupLocked,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -511,6 +511,6 @@ class LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Center(
-    child: CircularProgressIndicator(color: ZaplineColors.focus),
+    child: CircularProgressIndicator(color: ZaplineColors.accent),
   );
 }

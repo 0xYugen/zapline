@@ -213,7 +213,7 @@ class _MobileHomeState extends State<MobileHome> {
           style: const TextStyle(
             fontFamily: 'Inter',
             fontSize: base,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w500,
             letterSpacing: -0.1,
           ),
         ),
@@ -232,7 +232,7 @@ class _MobileHomeState extends State<MobileHome> {
   Widget _dotted(IconData icon, String label) => Badge(
     isLabelVisible:
         label == context.l10n.settings && widget.state.update != null,
-    backgroundColor: ZaplineColors.focus,
+    backgroundColor: ZaplineColors.accent,
     smallSize: 9,
     child: Icon(icon),
   );
@@ -295,7 +295,7 @@ class MobileHeader extends StatelessWidget {
                 t,
                 style: TextStyle(
                   fontSize: isLandscape(context) ? 20 : 24,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               null => Align(
@@ -311,7 +311,7 @@ class MobileHeader extends StatelessWidget {
                 dimension: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: ZaplineColors.focus,
+                  color: ZaplineColors.accent,
                 ),
               ),
             ),
@@ -474,7 +474,7 @@ class ContinueWatchingCard extends StatelessWidget {
                           'LIVE',
                           style: TextStyle(
                             fontSize: 9,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             color: ZaplineColors.onFocus,
                           ),
                         ),
@@ -491,9 +491,9 @@ class ContinueWatchingCard extends StatelessWidget {
                         l.continueWatching.toUpperCase(),
                         style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: 0.6,
-                          color: ZaplineColors.focus,
+                          color: ZaplineColors.accent,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -505,7 +505,7 @@ class ContinueWatchingCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       if (now != null) ...[
@@ -529,7 +529,7 @@ class ContinueWatchingCard extends StatelessWidget {
                                             .inSeconds)
                                     .clamp(0.0, 1.0),
                             minHeight: 3,
-                            color: ZaplineColors.focus,
+                            color: ZaplineColors.accent,
                             backgroundColor: ZaplineColors.line,
                           ),
                         ),

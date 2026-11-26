@@ -100,7 +100,7 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
     final server = _server;
     final Widget body = switch (_stage) {
       _Receive.starting => const Center(
-        child: CircularProgressIndicator(color: ZaplineColors.focus),
+        child: CircularProgressIndicator(color: ZaplineColors.accent),
       ),
       _Receive.noNetwork => Center(
         child: Padding(
@@ -125,7 +125,7 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
                         l.receiveTitle,
                         style: const TextStyle(
                           fontSize: 34,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     const SizedBox(height: 12),
@@ -158,8 +158,8 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
                               child: Text(
                                 '${i + 1}',
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: ZaplineColors.focus,
+                                  fontWeight: FontWeight.w600,
+                                  color: ZaplineColors.accent,
                                 ),
                               ),
                             ),
@@ -200,14 +200,14 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
                 size: 64,
                 color: _stage == _Receive.done
                     ? ZaplineColors.ok
-                    : ZaplineColors.focus,
+                    : ZaplineColors.accent,
               ),
               const SizedBox(height: 16),
               Text(
                 l.receivedTitle,
                 style: const TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 10),
@@ -234,7 +234,7 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
                           title: l.loadingYourList,
                         ),
                         const LinearProgressIndicator(
-                          color: ZaplineColors.focus,
+                          color: ZaplineColors.accent,
                           backgroundColor: ZaplineColors.line,
                         ),
                       ],
@@ -249,7 +249,7 @@ class _TransferReceiveScreenState extends State<TransferReceiveScreen> {
                       Navigator.of(context).popUntil((r) => r.isFirst),
                   child: Text(
                     l.startWatching,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
             ],
@@ -517,7 +517,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
             ),
             if (_checking)
               const Center(
-                child: CircularProgressIndicator(color: ZaplineColors.focus),
+                child: CircularProgressIndicator(color: ZaplineColors.accent),
               ),
           ],
         ),
@@ -529,7 +529,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
             Text(
               l.scanTheCode,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
@@ -576,7 +576,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
               setState(() => v == true ? _parts.add(p) : _parts.remove(p)),
           title: Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(fontWeight: FontWeight.w500),
           ),
           subtitle: Text(subtitle),
           controlAffinity: ListTileControlAffinity.leading,
@@ -606,7 +606,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
           onChanged: null,
           title: Text(
             l.sendSources,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(fontWeight: FontWeight.w500),
           ),
           subtitle: Text(l.sourcesCount(s.sources.length)),
           controlAffinity: ListTileControlAffinity.leading,
@@ -622,7 +622,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
             onChanged: (v) => setState(() => _pin = v ?? false),
             title: Text(
               l.parentalPin,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
             subtitle: Text(l.sendPinHint),
             controlAffinity: ListTileControlAffinity.leading,
@@ -653,11 +653,11 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
             onPressed: _sending ? null : _send,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(54),
-              backgroundColor: ZaplineColors.focus,
+              backgroundColor: ZaplineColors.accent,
               foregroundColor: ZaplineColors.onFocus,
               textStyle: const TextStyle(
                 fontFamily: 'Inter',
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
             ),
@@ -687,7 +687,7 @@ class _TransferSendScreenState extends State<TransferSendScreen> {
           const SizedBox(height: 16),
           Text(
             l.sentTitle,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(

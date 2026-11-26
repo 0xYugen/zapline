@@ -32,14 +32,14 @@ Future<void> offerFreeEpgIfUseful(BuildContext context, AppState state) async {
               const Icon(
                 Icons.event_available_rounded,
                 size: 40,
-                color: ZaplineColors.focus,
+                color: ZaplineColors.accent,
               ),
               const SizedBox(height: 12),
               Text(
                 l.epgOfferTitle,
                 style: const TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),
@@ -55,7 +55,7 @@ Future<void> offerFreeEpgIfUseful(BuildContext context, AppState state) async {
                 child: Center(
                   child: Text(
                     l.addFreeEpgFor(epg.name),
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

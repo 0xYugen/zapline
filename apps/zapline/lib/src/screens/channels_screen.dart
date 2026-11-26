@@ -338,7 +338,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
           : loaded == null
           // A large playlist's first load, off screen.
           ? const Center(
-              child: CircularProgressIndicator(color: ZaplineColors.focus),
+              child: CircularProgressIndicator(color: ZaplineColors.accent),
             )
           : visible.isEmpty && state.isSyncing
           // A playlist just added or received: say it is on its way.
@@ -353,7 +353,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       l.loadingYourList,
                       style: const TextStyle(
                         fontSize: 30,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -370,7 +370,7 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
                       builder: (context, progress, _) => SyncSteps(progress),
                     ),
                     const LinearProgressIndicator(
-                      color: ZaplineColors.focus,
+                      color: ZaplineColors.accent,
                       backgroundColor: ZaplineColors.line,
                     ),
                   ],
@@ -687,13 +687,14 @@ class _MenuEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final mark = Badge(
       isLabelVisible: dot,
-      backgroundColor: ZaplineColors.focus,
+      backgroundColor: ZaplineColors.accent,
       smallSize: 9,
       child: Icon(icon, size: 24),
     );
     final card = FocusCard(
       focusNode: focusNode,
       selected: selected,
+      quiet: true,
       onPressed: onPressed,
       radius: 14,
       padding: EdgeInsets.symmetric(horizontal: wide ? 16 : 0, vertical: 15),
@@ -710,7 +711,7 @@ class _MenuEntry extends StatelessWidget {
                     overflow: TextOverflow.fade,
                     style: const TextStyle(
                       fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -849,7 +850,7 @@ class _GroupsState extends State<_Groups> {
           widget.title.toUpperCase(),
           style: const TextStyle(
             fontSize: 13,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             letterSpacing: 1,
             color: ZaplineColors.textMuted,
           ),
@@ -895,7 +896,7 @@ class _GroupsState extends State<_Groups> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -943,7 +944,7 @@ class _Badge extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               text,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -968,7 +969,7 @@ class _Message extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           title,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
         ),
         if (subtitle != null)
           Text(

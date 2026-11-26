@@ -351,7 +351,7 @@ class _Initials extends StatelessWidget {
         _initials,
         style: TextStyle(
           color: ZaplineColors.ground,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           fontSize: height * 0.36,
         ),
       ),

@@ -136,7 +136,7 @@ class _TitleCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               height: 1.2,
             ),
           ),
@@ -284,7 +284,7 @@ class _PosterCardState extends State<PosterCard> {
                           child: LinearProgressIndicator(
                             value: p,
                             minHeight: 4,
-                            color: ZaplineColors.focus,
+                            color: ZaplineColors.accent,
                             backgroundColor: const Color(0x99000000),
                           ),
                         ),
@@ -298,7 +298,7 @@ class _PosterCardState extends State<PosterCard> {
               title.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
             if (meta.isNotEmpty)
               Text(
@@ -351,7 +351,7 @@ class VodRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -359,10 +359,10 @@ class VodRow extends StatelessWidget {
                 TextButton(
                   onPressed: onSeeAll,
                   style: TextButton.styleFrom(
-                    foregroundColor: ZaplineColors.focus,
+                    foregroundColor: ZaplineColors.accent,
                     textStyle: const TextStyle(
                       fontFamily: 'Inter',
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   child: Text(context.l10n.seeAll),

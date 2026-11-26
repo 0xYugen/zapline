@@ -328,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (!_state.passwordsInKeystore)
                   SettingsTile(
                     icon: Icons.warning_amber_rounded,
-                    iconColor: ZaplineColors.focus,
+                    iconColor: ZaplineColors.accent,
                     title: l.noKeystoreTitle,
                     subtitle: l.noKeystoreHint,
                     chevron: false,
@@ -444,7 +444,7 @@ class SourceTile extends StatelessWidget {
         valueListenable: state.syncProgress,
         builder: (context, progress, _) => _tile(
           context,
-          color: ZaplineColors.focus,
+          color: ZaplineColors.accent,
           subtitle: context.l10n.syncingProgress('${progress ?? ''}'),
         ),
       );

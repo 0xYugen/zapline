@@ -216,7 +216,7 @@ class _PairDialogState extends State<_PairDialog> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               letterSpacing: 8,
             ),
             onSubmitted: (_) => _confirm(),
@@ -275,7 +275,7 @@ class _CastSheetState extends State<_CastSheet> {
         children: [
           Text(
             l.castTo(widget.title),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           if (devices == null)
@@ -288,7 +288,7 @@ class _CastSheetState extends State<_CastSheet> {
                     dimension: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: ZaplineColors.focus,
+                      color: ZaplineColors.accent,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -325,11 +325,11 @@ class _CastSheetState extends State<_CastSheet> {
                     ListTile(
                       leading: const Icon(
                         Icons.tv_rounded,
-                        color: ZaplineColors.focus,
+                        color: ZaplineColors.accent,
                       ),
                       title: Text(
                         d.name,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       subtitle: Text(l.castZaplineDevice),
                       onTap: () => Navigator.of(context).pop(d),
@@ -457,7 +457,7 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
           itemCount: list.length,
           itemBuilder: (context, i) => ListTile(
             selected: i == _index,
-            selectedColor: ZaplineColors.focus,
+            selectedColor: ZaplineColors.accent,
             leading: ChannelLogo(channel: list[i], width: 48, height: 34),
             title: Text(widget.state.displayName(list[i])),
             onTap: () => Navigator.of(sheet).pop(i),
@@ -516,7 +516,7 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
       VoidCallback onTap, {
       bool main = false,
     }) => Material(
-      color: main ? ZaplineColors.focus : ZaplineColors.surfaceHigh,
+      color: main ? ZaplineColors.accent : ZaplineColors.surfaceHigh,
       shape: const CircleBorder(),
       child: IconButton(
         tooltip: tip,
@@ -536,15 +536,15 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
         ),
         title: Row(
           children: [
-            const Icon(Icons.tv_rounded, size: 18, color: ZaplineColors.focus),
+            const Icon(Icons.tv_rounded, size: 18, color: ZaplineColors.accent),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 l.castOnAir(widget.device.name),
                 style: const TextStyle(
                   fontSize: 15,
-                  color: ZaplineColors.focus,
-                  fontWeight: FontWeight.w700,
+                  color: ZaplineColors.accent,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -567,7 +567,7 @@ class _CastRemoteScreenState extends State<CastRemoteScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

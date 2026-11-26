@@ -417,11 +417,42 @@ class GuideGridState extends State<GuideGrid> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _pruneNodes());
     }
 
+    // A soft light behind the programme in focus, as TV launchers have:
+    // drawn once, it costs nothing as the focus moves.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Positioned(
+          top: -160,
+          right: -120,
+          width: 820,
+          height: 520,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    Color(0x7A2B4A7A),
+                    Color(0x4D6A3D6E),
+                    Color(0x00000000),
+                  ],
+                  stops: [0, 0.45, 1],
+                ),
+              ),
+            ),
+          ),
+        ),
+        _guideColumn(),
+      ],
+    );
+  }
+
+  Widget _guideColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: 128,
+          height: 150,
           child: ValueListenableBuilder(
             valueListenable: _selected,
             builder: (context, selected, _) =>
@@ -624,7 +655,7 @@ class GuideGridState extends State<GuideGrid> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -634,7 +665,7 @@ class GuideGridState extends State<GuideGrid> {
                     child: Icon(
                       Icons.star_rounded,
                       size: 16,
-                      color: ZaplineColors.focus,
+                      color: ZaplineColors.accent,
                     ),
                   ),
                 const SizedBox(width: 12),
@@ -690,7 +721,7 @@ class GuideGridState extends State<GuideGrid> {
                 // Dim past programmes unless they can still be watched.
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: dim && !replayable ? ZaplineColors.textMuted : null,
                 ),
               ),
@@ -760,7 +791,7 @@ class _DigitBadge extends StatelessWidget {
     decoration: BoxDecoration(
       color: ZaplineColors.surfaceHigh,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: ZaplineColors.focus, width: 2),
+      border: Border.all(color: ZaplineColors.accent, width: 2),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -770,8 +801,8 @@ class _DigitBadge extends StatelessWidget {
           digits,
           style: const TextStyle(
             fontSize: 40,
-            fontWeight: FontWeight.w800,
-            color: ZaplineColors.focus,
+            fontWeight: FontWeight.w600,
+            color: ZaplineColors.accent,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
@@ -782,7 +813,7 @@ class _DigitBadge extends StatelessWidget {
               name!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
             ),
           ),
       ],
@@ -804,18 +835,22 @@ class _Details extends StatelessWidget {
     if (s == null) return const SizedBox.shrink();
     final p = s.programme;
     final description = p == null ? null : state.programmeDescription(p);
+    final now = DateTime.now().toUtc();
+    final airing = p != null && !now.isBefore(p.start) && now.isBefore(p.stop);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          p == null
-              ? state.displayName(s.channel)
-              : '${state.displayName(s.channel)} · ${_day(context, p.start)}'
-                    '${time(p.start)}–${time(p.stop)}',
+          (p == null
+                  ? state.displayName(s.channel)
+                  : '${state.displayName(s.channel)} · ${_day(context, p.start)}'
+                        '${time(p.start)}–${time(p.stop)}')
+              .toUpperCase(),
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 14,
+            letterSpacing: 0.6,
             fontWeight: FontWeight.w600,
-            color: ZaplineColors.focus,
+            color: ZaplineColors.accent,
           ),
         ),
         const SizedBox(height: 6),
@@ -825,13 +860,37 @@ class _Details extends StatelessWidget {
           semanticsLabel: p?.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            fontSize: 40,
+            height: 1.15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.4,
+          ),
         ),
+        // How far into what's on now.
+        if (airing)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 2),
+            child: SizedBox(
+              width: 280,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value:
+                      now.difference(p.start).inSeconds /
+                      p.stop.difference(p.start).inSeconds,
+                  minHeight: 4,
+                  color: ZaplineColors.accent,
+                  backgroundColor: ZaplineColors.line,
+                ),
+              ),
+            ),
+          ),
         if (description != null) ...[
           const SizedBox(height: 6),
           Text(
             description,
-            maxLines: 2,
+            maxLines: airing ? 1 : 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 17,
@@ -916,7 +975,7 @@ class _Ruler extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: ZaplineColors.textMuted,
               ),
             ),
@@ -950,7 +1009,7 @@ class _NowLine extends StatelessWidget {
       top: 0,
       bottom: 0,
       child: IgnorePointer(
-        child: Container(width: 2, color: ZaplineColors.live),
+        child: Container(width: 2, color: ZaplineColors.accent),
       ),
     );
   }

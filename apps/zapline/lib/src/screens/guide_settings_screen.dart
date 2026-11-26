@@ -329,7 +329,7 @@ class _GuideSettingsScreenState extends State<GuideSettingsScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.link_rounded, color: ZaplineColors.focus),
+                    const Icon(Icons.link_rounded, color: ZaplineColors.accent),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -339,7 +339,7 @@ class _GuideSettingsScreenState extends State<GuideSettingsScreen> {
                             l.channelsWithoutGuide(missing),
                             style: const TextStyle(
                               fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
@@ -386,7 +386,7 @@ class _GuideSettingsScreenState extends State<GuideSettingsScreen> {
                 ),
               SettingsTile(
                 icon: Icons.add_rounded,
-                iconColor: ZaplineColors.focus,
+                iconColor: ZaplineColors.accent,
                 title: l.addGuide,
                 accent: true,
                 chevron: false,
@@ -436,7 +436,7 @@ class _Coverage extends StatelessWidget {
     final color = ratio >= 0.8
         ? ZaplineColors.ok
         : ratio >= 0.4
-        ? ZaplineColors.focus
+        ? ZaplineColors.accent
         : ZaplineColors.live;
     return Container(
       padding: const EdgeInsets.all(16),
@@ -465,7 +465,7 @@ class _Coverage extends StatelessWidget {
                         '${(ratio * 100).round()}%',
                         style: const TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -481,7 +481,7 @@ class _Coverage extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),

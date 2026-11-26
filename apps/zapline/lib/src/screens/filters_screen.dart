@@ -198,7 +198,7 @@ class _FiltersScreenState extends State<FiltersScreen> {
           m == mode
               ? Icons.radio_button_checked_rounded
               : Icons.radio_button_off_rounded,
-          color: m == mode ? ZaplineColors.focus : ZaplineColors.textMuted,
+          color: m == mode ? ZaplineColors.accent : ZaplineColors.textMuted,
         ),
         title: title,
         subtitle: subtitle,
@@ -369,7 +369,7 @@ class KindTabs extends StatelessWidget {
                         },
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           // Amber when chosen, unless the card itself is lit.
                           color:
                               k == selected &&
@@ -377,12 +377,12 @@ class KindTabs extends StatelessWidget {
                                               ?.computeLuminance() ??
                                           1) >
                                       0.2
-                              ? ZaplineColors.focus
+                              ? ZaplineColors.accent
                               : null,
                           decoration: k == selected
                               ? TextDecoration.underline
                               : null,
-                          decorationColor: ZaplineColors.focus,
+                          decorationColor: ZaplineColors.accent,
                           decorationThickness: 2.5,
                         ),
                       ),
@@ -425,7 +425,7 @@ class _CountryTile extends StatelessWidget {
         ),
         child: Text(
           code?.toUpperCase() ?? '…',
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
         ),
       ),
       title: name,
@@ -740,7 +740,7 @@ class _GroupRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
@@ -748,7 +748,7 @@ class _GroupRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12.5,
                     color: locked
-                        ? ZaplineColors.focus
+                        ? ZaplineColors.accent
                         : DefaultTextStyle.of(context).style.color
                               ?.withValues(alpha: 0.7),
                   ),
@@ -763,7 +763,7 @@ class _GroupRow extends StatelessWidget {
               icon: Icon(
                 locked ? Icons.lock_rounded : Icons.lock_open_rounded,
                 size: 20,
-                color: locked ? ZaplineColors.focus : ZaplineColors.textMuted,
+                color: locked ? ZaplineColors.accent : ZaplineColors.textMuted,
               ),
             ),
           ExcludeFocus(
@@ -832,7 +832,7 @@ class FilterPage extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontSize: m.title,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ...children,
@@ -876,7 +876,7 @@ class FilterPage extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         Text(
@@ -886,7 +886,7 @@ class FilterPage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: undo.message == null ? 14 : 12.5,
                             fontWeight: undo.message == null
-                                ? FontWeight.w700
+                                ? FontWeight.w500
                                 : FontWeight.w500,
                             color: undo.message == null
                                 ? ZaplineColors.text
@@ -900,10 +900,10 @@ class FilterPage extends StatelessWidget {
                     TextButton(
                       onPressed: undo.undo,
                       style: TextButton.styleFrom(
-                        foregroundColor: ZaplineColors.focus,
+                        foregroundColor: ZaplineColors.accent,
                         textStyle: const TextStyle(
                           fontFamily: 'Inter',
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       child: Text(l.undo),

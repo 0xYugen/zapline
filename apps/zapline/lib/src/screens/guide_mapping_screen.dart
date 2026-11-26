@@ -141,7 +141,7 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
                   l.fixTvGuide,
                   style: const TextStyle(
                     fontSize: 34,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               if (_total > 1) ...[
@@ -171,7 +171,7 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
                     child: LinearProgressIndicator(
                       value: _done / _total,
                       minHeight: 4,
-                      color: ZaplineColors.focus,
+                      color: ZaplineColors.accent,
                       backgroundColor: ZaplineColors.line,
                     ),
                   ),
@@ -236,7 +236,7 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(
           fontFamily: 'Inter',
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
           fontSize: 14,
         ),
       );
@@ -256,7 +256,7 @@ class _GuideMappingScreenState extends State<GuideMappingScreen> {
           Text(
             widget.only != null ? l.fixDone : l.fixAllMatched,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 20),
           FocusCard(
@@ -288,7 +288,7 @@ class _SureBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.auto_awesome_rounded, color: ZaplineColors.focus),
+          const Icon(Icons.auto_awesome_rounded, color: ZaplineColors.accent),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -296,7 +296,7 @@ class _SureBanner extends StatelessWidget {
               children: [
                 Text(
                   l.sureMatches(count),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(l.sureMatchesHint, style: const TextStyle(fontSize: 13)),
               ],
@@ -309,7 +309,7 @@ class _SureBanner extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Text(
               l.takeAll,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -370,7 +370,7 @@ class _ChannelCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (channel.groupTitle case final g? when g.isNotEmpty)
@@ -435,10 +435,10 @@ class _ChannelCard extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: onSearch,
                 style: TextButton.styleFrom(
-                  foregroundColor: ZaplineColors.focus,
+                  foregroundColor: ZaplineColors.accent,
                   textStyle: const TextStyle(
                     fontFamily: 'Inter',
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 icon: const Icon(Icons.search_rounded),
@@ -490,7 +490,7 @@ class _GuideOption extends StatelessWidget {
                   name,
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -508,7 +508,7 @@ class _GuideOption extends StatelessWidget {
                     l.veryLikely,
                     style: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: ZaplineColors.ok,
                     ),
                   ),

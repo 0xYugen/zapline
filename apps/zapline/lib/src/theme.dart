@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// Palette tuned for 10-foot viewing: dark ground, one high-contrast focus
-/// colour that stays visible from the sofa.
+/// Palette tuned for 10-foot viewing, in the manner of Google TV: a
+/// neutral dark ground, quiet surfaces, the focused item lit up light (it
+/// grows a little and casts a shadow) and one soft blue for accents.
 abstract final class ZaplineColors {
-  static const ground = Color(0xFF0B0E13);
-  static const rail = Color(0xFF10141B);
-  static const surface = Color(0xFF141922);
-  static const surfaceHigh = Color(0xFF1C2330);
-  static const line = Color(0xFF2A3342);
-  static const text = Color(0xFFEEF2F7);
-  static const textMuted = Color(0xFF9AA6B8);
-  static const focus = Color(0xFFF5B841);
-  static const focusBorder = Color(0xFFFFE3A3);
-  static const onFocus = Color(0xFF1A1204);
-  static const live = Color(0xFFFF8A7A);
-  static const ok = Color(0xFF7FD6A4);
+  static const ground = Color(0xFF0F1115);
+  static const rail = Color(0xFF0F1115);
+  static const surface = Color(0xFF1B1E25);
+  static const surfaceHigh = Color(0xFF262A33);
+  static const line = Color(0xFF33373F);
+  static const text = Color(0xFFE8EAED);
+  static const textMuted = Color(0xFF9AA0A6);
+
+  /// The focused item's fill, and its text.
+  static const focus = Color(0xFFE8EAED);
+  static const focusBorder = Color(0xFFFFFFFF);
+  static const onFocus = Color(0xFF202124);
+
+  /// Accents: what is selected, links, progress, the "now" line.
+  static const accent = Color(0xFF8AB4F8);
+
+  /// [accent] where the ground is light (a focused item).
+  static const accentOnLight = Color(0xFF1A62D6);
+  static const live = Color(0xFFF28B82);
+  static const ok = Color(0xFF81C995);
 }
 
 ThemeData buildTheme() {
@@ -24,8 +33,8 @@ ThemeData buildTheme() {
     brightness: Brightness.dark,
     scaffoldBackgroundColor: ZaplineColors.ground,
     colorScheme: const ColorScheme.dark(
-      primary: ZaplineColors.focus,
-      onPrimary: ZaplineColors.onFocus,
+      primary: ZaplineColors.accent,
+      onPrimary: Color(0xFF062E6F),
       surface: ZaplineColors.surface,
       onSurface: ZaplineColors.text,
       error: ZaplineColors.live,
@@ -48,7 +57,7 @@ ThemeData buildTheme() {
     appBarTheme: AppBarTheme(
       titleTextStyle: base.textTheme.titleLarge!.copyWith(
         fontSize: 20,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
         color: ZaplineColors.text,
       ),
       backgroundColor: ZaplineColors.ground,
@@ -60,12 +69,12 @@ ThemeData buildTheme() {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: ZaplineColors.rail,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: ZaplineColors.focus,
+      indicatorColor: ZaplineColors.accent,
       height: 64,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           color: states.contains(WidgetState.selected)
-              ? ZaplineColors.onFocus
+              ? const Color(0xFF062E6F)
               : ZaplineColors.textMuted,
         ),
       ),
@@ -74,7 +83,7 @@ ThemeData buildTheme() {
         (states) => TextStyle(
           fontSize: 11,
           letterSpacing: -0.1,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
           color: states.contains(WidgetState.selected)
               ? ZaplineColors.text
               : ZaplineColors.textMuted,
@@ -87,11 +96,11 @@ ThemeData buildTheme() {
       selectedIconTheme: const IconThemeData(color: ZaplineColors.onFocus),
       unselectedIconTheme: const IconThemeData(color: ZaplineColors.textMuted),
       selectedLabelTextStyle: base.textTheme.labelMedium!.copyWith(
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w500,
         color: ZaplineColors.text,
       ),
       unselectedLabelTextStyle: base.textTheme.labelMedium!.copyWith(
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w500,
         color: ZaplineColors.textMuted,
       ),
     ),
@@ -119,7 +128,7 @@ ThemeData buildTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: ZaplineColors.focus, width: 3),
+        borderSide: const BorderSide(color: ZaplineColors.accent, width: 3),
       ),
     ),
   );

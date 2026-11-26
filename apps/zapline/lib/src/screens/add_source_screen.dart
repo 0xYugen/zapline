@@ -60,7 +60,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                color: primary ? ZaplineColors.focus : ZaplineColors.text,
+                color: primary ? ZaplineColors.accent : ZaplineColors.text,
               ),
             ),
             const SizedBox(width: 14),
@@ -72,7 +72,7 @@ class WelcomeScreen extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   Opacity(
@@ -117,7 +117,7 @@ class WelcomeScreen extends StatelessWidget {
                     l.howDoYouGetChannels.toUpperCase(),
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       letterSpacing: 0.8,
                       color: ZaplineColors.textMuted,
                     ),
@@ -420,7 +420,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
             Text(
               first ? l.addFirstSource : l.addSource,
               style: (phone ? t.headlineMedium : t.displaySmall)?.copyWith(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
@@ -556,7 +556,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                 textStyle: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               child: _busy
@@ -580,7 +580,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
                         l.connect,
                         style: const TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
               ),
@@ -597,7 +597,7 @@ class _AddSourceScreenState extends State<AddSourceScreen> {
               child: Center(
                 child: Text(
                   l.restoreFromBackup,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
               ),
             ),

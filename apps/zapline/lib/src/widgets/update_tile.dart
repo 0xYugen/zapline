@@ -62,13 +62,13 @@ class _UpdateTileState extends State<UpdateTile> {
     final done = _done;
     return SettingsTile(
       leading: done == null
-          ? const Icon(Icons.system_update_rounded, color: ZaplineColors.focus)
+          ? const Icon(Icons.system_update_rounded, color: ZaplineColors.accent)
           : SizedBox.square(
               dimension: 24,
               child: CircularProgressIndicator(
                 value: done == 0 ? null : done,
                 strokeWidth: 3,
-                color: ZaplineColors.focus,
+                color: ZaplineColors.accent,
               ),
             ),
       title: l.updateAvailable(widget.update.version),
