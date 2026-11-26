@@ -49,6 +49,15 @@ flutter:
   generate: true
   # Inter (SIL Open Font License 1.1, assets/fonts/inter/OFL.txt).
   fonts:
+    # Rounded and easy to read from the sofa, close to Google TV's own.
+    - family: Figtree
+      fonts:
+        - asset: assets/fonts/figtree/Figtree-Regular.ttf
+        - asset: assets/fonts/figtree/Figtree-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/figtree/Figtree-SemiBold.ttf
+          weight: 600
+    # Letters Figtree lacks (Greek, Cyrillic, more of Latin).
     - family: Inter
       fonts:
         - asset: assets/fonts/inter/Inter-Regular.ttf
@@ -62,3 +71,4 @@ flutter:
           weight: 800
   assets:
     - assets/fonts/inter/OFL.txt
+    - assets/fonts/figtree/OFL.txt

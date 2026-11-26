@@ -1571,15 +1571,26 @@ class ZaplineDatabase {
   /// The guide channels any channel of any source could use (see
   /// [GuideWants]): a guide import keeps only their programmes, plus what
   /// airs around now on the others.
+  ///
+  /// Only channels shown count (hidden groups and channels don't, locked
+  /// ones do): a list of 50,000 channels of which a few hundred are kept
+  /// would otherwise store the guide of all of them. Showing a group again
+  /// changes the guide's fingerprint, so the next sync brings its
+  /// programmes.
   GuideWants guideWants() => GuideWants(
     [
-      for (final r in _db.select('SELECT epg_id, name FROM channels'))
+      for (final r in _db.select(
+        'SELECT c.epg_id, c.name FROM channels c '
+        'WHERE ${_visibleSql(ChannelVisibility.unlocked)}',
+      ))
         (r['epg_id'] as String?, r['name'] as String),
     ],
     guideIds: [
       for (final r in _db.select(
         'SELECT guide_id FROM epg_overrides UNION '
-        'SELECT guide_id FROM epg_map',
+        'SELECT m.guide_id FROM epg_map m JOIN channels c '
+        "ON m.channel_key = c.source_id || '/' || c.id "
+        'WHERE ${_visibleSql(ChannelVisibility.unlocked)}',
       ))
         if (r['guide_id'] as String case final id
             when !id.startsWith(channelGuidePrefix))

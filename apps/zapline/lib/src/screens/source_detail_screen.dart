@@ -156,7 +156,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
               SettingsTile(
                 autofocus: !context.isPhone,
                 icon: Icons.calendar_month_rounded,
-                iconColor: ZaplineColors.focus,
+                iconColor: ZaplineColors.accent,
                 title: l.sectionGuide,
                 subtitle: [
                   l.guideFromSource,
@@ -170,7 +170,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
               ),
               SettingsTile(
                 icon: Icons.filter_alt_outlined,
-                iconColor: ZaplineColors.focus,
+                iconColor: ZaplineColors.accent,
                 title: l.sectionGroups,
                 subtitle: [
                   if (_same(s.groupFilter.include, italianTerms))
@@ -186,7 +186,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
               if (missing > 0)
                 SettingsTile(
                   icon: Icons.link_rounded,
-                  iconColor: ZaplineColors.focus,
+                  iconColor: ZaplineColors.accent,
                   title: l.fixTvGuide,
                   subtitle: l.channelsWithoutGuide(missing),
                   onTap: () =>
@@ -194,7 +194,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                 ),
               SettingsTile(
                 icon: Icons.edit_outlined,
-                iconColor: ZaplineColors.focus,
+                iconColor: ZaplineColors.accent,
                 title: l.sectionName,
                 subtitle: [
                   Uri.tryParse(
@@ -263,7 +263,7 @@ class _Summary extends StatelessWidget {
     final (statusText, statusColor) = switch (g) {
       _ when syncing => (
         l.syncingProgress('${state.progress ?? ''}'),
-        ZaplineColors.focus,
+        ZaplineColors.accent,
       ),
       _ when failed != null => (
         l.lastUpdateFailed(friendlyError(l, failed)),
@@ -297,14 +297,14 @@ class _Summary extends StatelessWidget {
             child: CustomPaint(
               painter: _Ring(
                 ratio,
-                ratio >= 0.8 ? ZaplineColors.ok : ZaplineColors.focus,
+                ratio >= 0.8 ? ZaplineColors.ok : ZaplineColors.accent,
               ),
               child: Center(
                 child: Text(
                   '${(ratio * 100).round()}%',
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -319,7 +319,7 @@ class _Summary extends StatelessWidget {
                   l.channelCount(coverage.channels),
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -406,7 +406,7 @@ class _Suggestion extends StatelessWidget {
           children: [
             const Icon(
               Icons.auto_awesome_rounded,
-              color: ZaplineColors.focus,
+              color: ZaplineColors.accent,
               size: 22,
             ),
             const SizedBox(width: 12),
@@ -429,7 +429,7 @@ class _Suggestion extends StatelessWidget {
                 onPressed: onTap,
                 child: Text(
                   label,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
               ),
           ],

@@ -155,7 +155,7 @@ class AdaptivePage extends StatelessWidget {
                   title,
                   style: TextStyle(
                     fontSize: m.title,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -190,7 +190,7 @@ class PageSection extends StatelessWidget {
       padding: EdgeInsets.only(top: m.gap * 2.5, bottom: m.gap),
       child: Text(
         title,
-        style: TextStyle(fontSize: m.section, fontWeight: FontWeight.w800),
+        style: TextStyle(fontSize: m.section, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -237,7 +237,7 @@ class LabeledRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: m.body, fontWeight: FontWeight.w700),
+          style: TextStyle(fontSize: m.body, fontWeight: FontWeight.w500),
         ),
         if (subtitle != null)
           Text(

@@ -93,7 +93,7 @@ class _VersionSheetState extends State<_VersionSheet> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
@@ -131,7 +131,7 @@ class _VersionSheetState extends State<_VersionSheet> {
                     ),
                     title: Text(
                       title(v),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     subtitle: Text(
                       _describe(l, v).$2,
@@ -141,7 +141,7 @@ class _VersionSheetState extends State<_VersionSheet> {
                     trailing: current(v)
                         ? const Icon(
                             Icons.check_rounded,
-                            color: ZaplineColors.focus,
+                            color: ZaplineColors.accent,
                           )
                         : null,
                   ),
@@ -155,7 +155,7 @@ class _VersionSheetState extends State<_VersionSheet> {
             onChanged: (v) => setState(() => _remember = v),
             title: Text(
               l.rememberVersion,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
             subtitle: Text(
               state.settings.saveData

@@ -24,7 +24,8 @@ String? _focused() {
   }
 
   (ctx as Element).visitChildren(visit);
-  return texts.join(' ');
+  // A guide cell's times (15:00–16:00) left out: its title is enough.
+  return texts.where((t) => !_times.hasMatch(t)).join(' ');
 }
 
 Future<AppState> _home(
@@ -147,3 +148,5 @@ void main() {
     expect(_focused(), 'News');
   });
 }
+
+final _times = RegExp(r'^\d{1,2}:\d{2}–\d{1,2}:\d{2}$');

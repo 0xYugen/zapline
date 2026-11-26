@@ -74,7 +74,10 @@ class GuideGridState extends State<GuideGrid> {
   static const _span = Duration(hours: 2);
   static const _step = Duration(minutes: 30);
   static const _labelWidth = 240.0;
-  static const _rowHeight = 64.0;
+  static const _rowHeight = 58.0;
+
+  /// The programme in focus, large, above the grid.
+  static const _headerHeight = 184.0;
 
   /// A row, taller with large system text.
   double get _rowExtent => scaledExtent(context, _rowHeight);
@@ -417,11 +420,38 @@ class GuideGridState extends State<GuideGrid> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _pruneNodes());
     }
 
+    // Behind the programme in focus, a picture-like wash of colour in the
+    // channel's own hues, fading into the page, as TV launchers have. It
+    // changes only when the focus moves to another channel.
+    return LayoutBuilder(
+      builder: (context, box) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: -48,
+            right: -56,
+            width: box.maxWidth * 0.62 + 56,
+            height: _headerHeight + 40,
+            child: IgnorePointer(
+              child: ValueListenableBuilder(
+                valueListenable: _selected,
+                builder: (context, selected, _) =>
+                    _HeroArt(seed: selected?.channel.name ?? ''),
+              ),
+            ),
+          ),
+          _guideColumn(),
+        ],
+      ),
+    );
+  }
+
+  Widget _guideColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: 128,
+          height: _headerHeight,
           child: ValueListenableBuilder(
             valueListenable: _selected,
             builder: (context, selected, _) =>
@@ -520,6 +550,28 @@ class GuideGridState extends State<GuideGrid> {
                           left: _labelWidth,
                           pxPerMin: pxPerMin,
                         ),
+                        // The rows fade out at the bottom instead of being
+                        // cut.
+                        const Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 40,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [
+                                    ZaplineColors.ground,
+                                    Color(0x000F1115),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                         if (_digits.isNotEmpty)
                           Positioned(
                             top: 8,
@@ -587,6 +639,11 @@ class GuideGridState extends State<GuideGrid> {
           left: left,
           width: width,
           label: p.title,
+          time: '${widget.state.time(p.start)}–${widget.state.time(p.stop)}',
+          onAir: !past && !now.isBefore(p.start)
+              ? now.difference(p.start).inSeconds /
+                    p.stop.difference(p.start).inSeconds
+              : null,
           dim: past,
           replayable: past && canReplay(c, p),
           reminder: p.start.isAfter(now) && widget.state.hasReminder(c, p),
@@ -598,33 +655,37 @@ class GuideGridState extends State<GuideGrid> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
           SizedBox(
             width: _labelWidth,
             child: Row(
               children: [
-                ChannelLogo(channel: c, width: 52, height: 36),
-                const SizedBox(width: 10),
                 SizedBox(
-                  width: 36,
+                  width: 28,
                   child: Text(
                     '${widget.state.channelNumber(c, i)}',
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
                     style: const TextStyle(
-                      color: ZaplineColors.textMuted,
+                      fontSize: 13,
+                      color: Color(0xFF6F757C),
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                 ),
+                const SizedBox(width: 12),
+                ChannelLogo(channel: c, width: 46, height: 31),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     widget.state.displayName(c),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -634,7 +695,7 @@ class GuideGridState extends State<GuideGrid> {
                     child: Icon(
                       Icons.star_rounded,
                       size: 16,
-                      color: ZaplineColors.focus,
+                      color: ZaplineColors.accent,
                     ),
                   ),
                 const SizedBox(width: 12),
@@ -652,6 +713,8 @@ class GuideGridState extends State<GuideGrid> {
     required double left,
     required double width,
     required String label,
+    String? time,
+    double? onAir,
     required bool dim,
     bool replayable = false,
     bool reminder = false,
@@ -669,31 +732,60 @@ class GuideGridState extends State<GuideGrid> {
       top: 0,
       bottom: 0,
       width: width - 4,
+      // What's on now stands out a little.
       child: FocusCard(
         focusNode: _node(nodeKey),
         radius: 10,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        selected: onAir != null,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         onFocused: onFocus,
         onPressed: onPressed,
         onLongPress: onLongPress,
-        child: Row(
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18),
-              const SizedBox(width: 6),
-            ],
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                // Dim past programmes unless they can still be watched.
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: dim && !replayable ? ZaplineColors.textMuted : null,
+            Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        // Dim past programmes unless they can still be
+                        // watched.
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: dim && !replayable
+                              ? ZaplineColors.textMuted
+                              : null,
+                        ),
+                      ),
+                      // The times, where there is room for them.
+                      if (time != null && width > 150)
+                        Opacity(
+                          opacity: 0.6,
+                          child: Text(
+                            time,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -760,7 +852,7 @@ class _DigitBadge extends StatelessWidget {
     decoration: BoxDecoration(
       color: ZaplineColors.surfaceHigh,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: ZaplineColors.focus, width: 2),
+      border: Border.all(color: ZaplineColors.accent, width: 2),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -770,8 +862,8 @@ class _DigitBadge extends StatelessWidget {
           digits,
           style: const TextStyle(
             fontSize: 40,
-            fontWeight: FontWeight.w800,
-            color: ZaplineColors.focus,
+            fontWeight: FontWeight.w600,
+            color: ZaplineColors.accent,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
@@ -782,12 +874,90 @@ class _DigitBadge extends StatelessWidget {
               name!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
             ),
           ),
       ],
     ),
   );
+}
+
+/// A wash of two colours picked from [seed] (the channel's name), with a
+/// soft disc, fading to the page on the left and below.
+class _HeroArt extends StatelessWidget {
+  const _HeroArt({required this.seed});
+
+  final String seed;
+
+  static const _hues = [215.0, 265.0, 330.0, 15.0, 160.0, 195.0, 290.0, 35.0];
+
+  @override
+  Widget build(BuildContext context) {
+    final h = seed.hashCode.abs();
+    final a = HSLColor.fromAHSL(1, _hues[h % _hues.length], 0.45, 0.32);
+    final b = HSLColor.fromAHSL(
+      1,
+      _hues[(h ~/ 8 + 3) % _hues.length],
+      0.35,
+      0.30,
+    );
+    // Faded out by masks, not painted over: it then blends into whatever
+    // is under it, with no edge. Drawn once per channel focused.
+    return RepaintBoundary(
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (r) => const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          // Eased, so the eye finds no line where it ends.
+          colors: [
+            Color(0x00FFFFFF),
+            Color(0x14FFFFFF),
+            Color(0x55FFFFFF),
+            Color(0xB3FFFFFF),
+            Color(0xFFFFFFFF),
+          ],
+          stops: [0, 0.18, 0.4, 0.65, 0.9],
+        ).createShader(r),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (r) => const LinearGradient(
+            colors: [Color(0x00FFFFFF), Color(0x99FFFFFF), Color(0xFFFFFFFF)],
+            stops: [0, 0.45, 1],
+          ).createShader(r),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [a.toColor(), b.toColor()],
+                  ),
+                ),
+              ),
+              const Align(
+                alignment: Alignment(0.45, -0.35),
+                child: FractionallySizedBox(
+                  widthFactor: 0.42,
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0x14FFFFFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _Details extends StatelessWidget {
@@ -804,18 +974,23 @@ class _Details extends StatelessWidget {
     if (s == null) return const SizedBox.shrink();
     final p = s.programme;
     final description = p == null ? null : state.programmeDescription(p);
+    final now = DateTime.now().toUtc();
+    final airing = p != null && !now.isBefore(p.start) && now.isBefore(p.stop);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          p == null
-              ? state.displayName(s.channel)
-              : '${state.displayName(s.channel)} · ${_day(context, p.start)}'
-                    '${time(p.start)}–${time(p.stop)}',
+          [
+            if (airing) context.l10n.onAirNow,
+            state.displayName(s.channel),
+            if (p != null)
+              '${_day(context, p.start)}${time(p.start)}–${time(p.stop)}',
+          ].join(' · ').toUpperCase(),
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 14,
+            letterSpacing: 0.6,
             fontWeight: FontWeight.w600,
-            color: ZaplineColors.focus,
+            color: ZaplineColors.accent,
           ),
         ),
         const SizedBox(height: 6),
@@ -825,13 +1000,37 @@ class _Details extends StatelessWidget {
           semanticsLabel: p?.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            fontSize: 46,
+            height: 1.15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.4,
+          ),
         ),
+        // How far into what's on now.
+        if (airing)
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: SizedBox(
+              width: 280,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value:
+                      now.difference(p.start).inSeconds /
+                      p.stop.difference(p.start).inSeconds,
+                  minHeight: 4,
+                  color: ZaplineColors.accent,
+                  backgroundColor: ZaplineColors.line,
+                ),
+              ),
+            ),
+          ),
         if (description != null) ...[
           const SizedBox(height: 6),
           Text(
             description,
-            maxLines: 2,
+            maxLines: airing ? 1 : 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 17,
@@ -891,12 +1090,22 @@ class _Ruler extends StatelessWidget {
       marks.add(
         Positioned(
           left: t.difference(from).inMinutes * pxPerMin,
-          top: 8,
-          child: Text(
-            time(t),
-            style: const TextStyle(
-              color: ZaplineColors.textMuted,
-              fontFeatures: [FontFeature.tabularFigures()],
+          top: 4,
+          bottom: 6,
+          // A fine line marks each half hour.
+          child: Container(
+            padding: const EdgeInsets.only(left: 8),
+            alignment: Alignment.centerLeft,
+            decoration: const BoxDecoration(
+              border: Border(left: BorderSide(color: Color(0x1AFFFFFF))),
+            ),
+            child: Text(
+              time(t),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF80868B),
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ),
@@ -912,12 +1121,14 @@ class _Ruler extends StatelessWidget {
               [
                 ?caption,
                 sameDay ? context.l10n.today : '${l.day}/${l.month}',
-              ].join(' · '),
+              ].join(' · ').toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: ZaplineColors.textMuted,
+                fontSize: 12,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF80868B),
               ),
             ),
           ),
@@ -946,11 +1157,32 @@ class _NowLine extends StatelessWidget {
     final now = DateTime.now().toUtc();
     if (now.isBefore(from) || !now.isBefore(to)) return const SizedBox.shrink();
     return Positioned(
-      left: left + now.difference(from).inMinutes * pxPerMin,
+      left: left + now.difference(from).inMinutes * pxPerMin - 3,
       top: 0,
       bottom: 0,
       child: IgnorePointer(
-        child: Container(width: 2, color: ZaplineColors.live),
+        // A line with a dot where it meets the hours.
+        child: SizedBox(
+          width: 8,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: [
+              Container(width: 2, color: ZaplineColors.accent),
+              Positioned(
+                top: -4,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: ZaplineColors.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -33,7 +33,7 @@ class QrPanel extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
@@ -65,7 +65,7 @@ class QrPanel extends StatelessWidget {
             server.shortUrl,
             style: const TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w500,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
@@ -88,9 +88,9 @@ class QrPanel extends StatelessWidget {
             server.pin,
             style: const TextStyle(
               fontSize: 30,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               letterSpacing: 6,
-              color: ZaplineColors.focus,
+              color: ZaplineColors.accent,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),

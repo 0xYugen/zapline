@@ -300,24 +300,48 @@ class SourceSync {
   ) async {
     List<T> all(List<R> raw) => [for (final r in raw) ?convert(r)];
     if (categories.isEmpty) return all(await fetch(null));
-    final out = <T>[];
+    // A few at a time: one after the other, a panel with hundreds of
+    // categories took minutes; all at once, it would refuse (and hold
+    // every answer in memory).
+    // The first alone: a panel that ignores the category sends the whole
+    // list every time, which must not be asked for four times at once.
+    final parts = List<List<T>?>.filled(categories.length, null);
+    var next = 0, ignored = false;
+    Future<void> one(int i) async {
+      final c = categories[i];
+      final raw = await fetch(c.id);
+      // A film can be in more than one category, listed under another as
+      // its own; most of them from elsewhere means the category was
+      // ignored.
+      final elsewhere = raw.where((r) => categoryOf(r) != c.id).length;
+      if (raw.length > 1 && elsewhere * 2 > raw.length) {
+        ignored = true;
+      } else {
+        parts[i] = all(raw);
+      }
+    }
+
+    Future<void> worker() async {
+      while (!ignored && next < categories.length) {
+        await one(next++);
+      }
+    }
+
     try {
-      for (final c in categories) {
-        final raw = await fetch(c.id);
-        // A film can be in more than one category, listed under another
-        // as its own; most of them from elsewhere means the category was
-        // ignored.
-        final elsewhere = raw.where((r) => categoryOf(r) != c.id).length;
-        if (raw.length > 1 && elsewhere * 2 > raw.length) {
-          return all(await fetch(null));
-        }
-        out.addAll(all(raw));
+      await one(next++);
+      if (!ignored) {
+        await Future.wait([for (var w = 0; w < _parallel; w++) worker()]);
       }
     } on Exception {
       return all(await fetch(null));
     }
+    if (ignored) return all(await fetch(null));
+    final out = <T>[for (final p in parts) ...?p];
     return out;
   }
+
+  /// Categories asked for at the same time.
+  static const _parallel = 4;
 
   /// Where and how to log in to an Xtream source.
   static XtreamCredentials credentialsOf(SourceRecord s) {

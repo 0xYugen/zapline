@@ -227,7 +227,7 @@ class _SearchScreenState extends State<SearchScreen> {
             context.l10n.inTheTvGuide,
             style: TextStyle(
               fontSize: Metrics.of(context).section,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -275,7 +275,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 context.l10n.search,
                 style: const TextStyle(
                   fontSize: 34,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               SizedBox(height: m.gap * 1.5),
@@ -369,7 +369,7 @@ class _ProgrammeRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
@@ -387,14 +387,14 @@ class _ProgrammeRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: onAir ? ZaplineColors.live : ZaplineColors.focus,
+                color: onAir ? ZaplineColors.live : ZaplineColors.accent,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 onAir ? context.l10n.onNow : context.l10n.replay,
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: ZaplineColors.onFocus,
                 ),
               ),
@@ -445,7 +445,7 @@ class _PhoneProgrammeRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   Text(
@@ -464,7 +464,7 @@ class _PhoneProgrammeRow extends StatelessWidget {
             if (onAir)
               const Icon(Icons.live_tv_rounded, color: ZaplineColors.live)
             else if (replay)
-              const Icon(Icons.replay_rounded, color: ZaplineColors.focus),
+              const Icon(Icons.replay_rounded, color: ZaplineColors.accent),
           ],
         ),
       ),

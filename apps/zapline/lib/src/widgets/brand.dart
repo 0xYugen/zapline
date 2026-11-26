@@ -90,10 +90,10 @@ class ZaplineWordmark extends StatelessWidget {
       applyHeightToLastDescent: false,
     ),
     style: TextStyle(
-      fontFamily: 'Inter',
+      fontFamily: 'Figtree',
       fontSize: height,
       height: 1,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w600,
       letterSpacing: -height * 0.02,
       color: ZaplineColors.text,
     ),

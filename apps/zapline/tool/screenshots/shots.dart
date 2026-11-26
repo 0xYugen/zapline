@@ -56,14 +56,15 @@ Future<void> loadFonts() async {
     await loader.load();
   }
 
-  // The app's own font, as bundled.
-  final inter = Directory('assets/fonts/inter');
-  final loader = FontLoader('Inter');
-  for (final f in inter.listSync().whereType<File>()) {
-    if (!f.path.endsWith('.ttf')) continue;
-    loader.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+  // The app's own fonts, as bundled.
+  for (final (name, folder) in [('Figtree', 'figtree'), ('Inter', 'inter')]) {
+    final loader = FontLoader(name);
+    for (final f in Directory('assets/fonts/$folder').listSync()) {
+      if (f is! File || !f.path.endsWith('.ttf')) continue;
+      loader.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+    }
+    await loader.load();
   }
-  await loader.load();
   await family('MaterialIcons', ['MaterialIcons-Regular.otf']);
 }
 

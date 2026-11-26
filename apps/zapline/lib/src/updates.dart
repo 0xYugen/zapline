@@ -27,6 +27,14 @@ const updatesSupported = !bool.fromEnvironment('ZAPLINE_STORE_BUILD');
 int? buildOf(String version) =>
     int.tryParse(RegExp(r'\((\d+)\)').firstMatch(version)?.group(1) ?? '');
 
+/// [text] as a download address, or null when it isn't one (an empty
+/// string parses as an empty Uri, which the download then fails on with
+/// "No host specified in URI").
+Uri? _downloadUrl(Object? text) {
+  final u = text is String ? Uri.tryParse(text) : null;
+  return u != null && u.hasScheme && u.host.isNotEmpty ? u : null;
+}
+
 /// A newer release than the running build.
 class AppUpdate {
   const AppUpdate({
@@ -66,7 +74,7 @@ class AppUpdate {
       build: build,
       version: version,
       page: page,
-      apk: json['apk'] is String ? Uri.tryParse(json['apk'] as String) : null,
+      apk: _downloadUrl(json['apk']),
       apkSize: json['size'] as int?,
     );
   }
@@ -93,7 +101,7 @@ class AppUpdate {
       build: build,
       version: '${m.group(1)} ($build)',
       page: page,
-      apk: Uri.tryParse('${asset?['browser_download_url'] ?? ''}'),
+      apk: _downloadUrl(asset?['browser_download_url']),
       apkSize: asset?['size'] as int?,
     );
   }
@@ -106,19 +114,90 @@ class Updater {
   final http.Client _http;
 
   /// The latest release when it is newer than [currentBuild], else null.
-  /// One anonymous request to GitHub's public API.
+  /// One anonymous request to GitHub's public API; when that fails (it
+  /// allows 60 an hour per address, shared by everything on the network,
+  /// and can be slow), the release page and its download links instead.
+  ///
+  /// On Android a release whose package isn't there yet (it is attached a
+  /// few minutes after the release is published) is not offered: it
+  /// couldn't be installed.
   Future<AppUpdate?> check(int currentBuild) async {
+    AppUpdate? update;
+    try {
+      update = await _fromApi();
+    } on Object {
+      update = await _fromPage();
+      // Neither answered: said as a failure, not as "up to date".
+      if (update == null) rethrow;
+    }
+    if (update == null || update.build <= currentBuild) return null;
+    if (installsInApp && update.apk == null) return null;
+    return update;
+  }
+
+  Future<AppUpdate?> _fromApi() async {
     final res = await _http
         .get(
           Uri.https('api.github.com', '/repos/$releasesRepo/releases/latest'),
           headers: {'Accept': 'application/vnd.github+json'},
         )
-        .timeout(const Duration(seconds: 20));
-    if (res.statusCode != 200) return null;
+        .timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) throw HttpException('HTTP ${res.statusCode}');
     final json = jsonDecode(res.body);
-    if (json is! Map<String, Object?>) return null;
-    final update = AppUpdate.fromRelease(json, tv: FormFactor.isTv);
-    return update != null && update.build > currentBuild ? update : null;
+    if (json is! Map<String, Object?>) throw const FormatException();
+    return AppUpdate.fromRelease(json, tv: FormFactor.isTv);
+  }
+
+  /// The latest release from github.com itself: its address names the
+  /// tag, and the packages have fixed download links.
+  Future<AppUpdate?> _fromPage() async {
+    try {
+      final latest = http.Request(
+        'HEAD',
+        Uri.https('github.com', '/$releasesRepo/releases/latest'),
+      )..followRedirects = false;
+      final res = await _http.send(latest).timeout(const Duration(seconds: 15));
+      final location = res.headers['location'] ?? '';
+      final tag = Uri.tryParse(location)?.pathSegments.lastOrNull;
+      if (tag == null) return null;
+      final names = [
+        if (!FormFactor.isTv && Abi.current() == Abi.androidArm64)
+          'zapline-phone.apk',
+        'zapline-tv.apk',
+      ];
+      Uri? apk;
+      int? size;
+      if (installsInApp) {
+        for (final name in names) {
+          final url = Uri.https(
+            'github.com',
+            '/$releasesRepo/releases/download/$tag/$name',
+          );
+          final head = await _http
+              .head(url)
+              .timeout(const Duration(seconds: 15));
+          if (head.statusCode == 200) {
+            apk = url;
+            size = int.tryParse(head.headers['content-length'] ?? '');
+            break;
+          }
+        }
+      }
+      return AppUpdate.fromRelease({
+        'tag_name': tag,
+        'html_url': 'https://github.com/$releasesRepo/releases/tag/$tag',
+        'assets': [
+          if (apk != null)
+            {
+              'name': 'zapline-tv.apk',
+              'browser_download_url': '$apk',
+              'size': ?size,
+            },
+        ],
+      }, tv: true);
+    } on Object {
+      return null;
+    }
   }
 
   /// Downloads the update's package into the app's cache, reporting the

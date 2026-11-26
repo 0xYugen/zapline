@@ -10,6 +10,7 @@ import '../layout.dart';
 import '../theme.dart';
 import 'vod_detail_screens.dart';
 import 'vod_widgets.dart';
+import '../widgets/focus_card.dart';
 import '../widgets/tab_visibility.dart';
 
 enum VodKind { movies, shows }
@@ -106,7 +107,7 @@ class _VodTabState extends State<VodTab> {
                 l.categories,
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -118,7 +119,7 @@ class _VodTabState extends State<VodTab> {
             ])
               ListTile(
                 selected: value == _selected,
-                selectedColor: ZaplineColors.focus,
+                selectedColor: ZaplineColors.accent,
                 title: Text(label),
                 trailing: count == null
                     ? null
@@ -199,7 +200,6 @@ class _VodTabState extends State<VodTab> {
               ],
             ),
           ),
-          const Divider(height: 1, color: ZaplineColors.line),
           Expanded(
             child: switch (_selected) {
               _home => _homeView(context, categories),
@@ -328,10 +328,168 @@ class _Featured extends StatelessWidget {
   final VodTitle title;
   final String label;
 
+  /// TVs and desktops: the title large over its picture, which fades into
+  /// the page, as TV launchers show what they put forward.
+  Widget _hero(BuildContext context, AppLocalizations l, String meta) {
+    // Series carry their plot in the list; a film's comes with its details.
+    final plot = title.show?.plot;
+    final resume =
+        title.isMovie && (state.positionOf(title.key)?.resumable ?? false);
+    Widget fade(Alignment from, Alignment to, List<double> stops, Widget c) =>
+        ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (r) => LinearGradient(
+            begin: from,
+            end: to,
+            colors: const [Color(0x00FFFFFF), Color(0xFFFFFFFF)],
+            stops: stops,
+          ).createShader(r),
+          child: c,
+        );
+    Widget button(
+      IconData icon,
+      String text,
+      VoidCallback onPressed, {
+      bool autofocus = false,
+    }) => FocusCard(
+      autofocus: autofocus,
+      selected: true,
+      radius: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+      onPressed: onPressed,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 22),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+    return SizedBox(
+      height: 330,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Align(
+            alignment: Alignment.topRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.68,
+              child: RepaintBoundary(
+                child: fade(
+                  Alignment.bottomCenter,
+                  Alignment.topCenter,
+                  const [0, 0.55],
+                  fade(
+                    Alignment.centerLeft,
+                    Alignment.centerRight,
+                    const [0, 0.5],
+                    Backdrop(
+                      url: title.show?.backdropUrl ?? title.poster,
+                      blur: title.show?.backdropUrl == null,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 34, 28, 16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      color: ZaplineColors.accent,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 42,
+                      height: 1.15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  if (meta.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFFBDC1C6),
+                      ),
+                    ),
+                  ],
+                  if (plot != null && plot.trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      plot.trim(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.45,
+                        color: ZaplineColors.textMuted,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Row(
+                    children: [
+                      button(
+                        Icons.play_arrow_rounded,
+                        resume ? l.resume : l.play,
+                        () => title.isMovie
+                            ? playMovie(context, state, title.movie!)
+                            : openTitle(context, state, title),
+                        autofocus: FormFactor.isTv,
+                      ),
+                      const SizedBox(width: 12),
+                      StatefulBuilder(
+                        builder: (context, set) {
+                          final inList = state.inMyList(title.key);
+                          return button(
+                            inList ? Icons.check_rounded : Icons.add_rounded,
+                            l.myList,
+                            () {
+                              state.toggleMyList(title.key);
+                              set(() {});
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
     final meta = titleMeta(title, extra: title.category);
+    if (!context.isPhone) return _hero(context, l, meta);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: ClipRRect(
@@ -377,9 +535,9 @@ class _Featured extends StatelessWidget {
                                 label.toUpperCase(),
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   letterSpacing: 0.6,
-                                  color: ZaplineColors.focus,
+                                  color: ZaplineColors.accent,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -389,7 +547,7 @@ class _Featured extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 20,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   height: 1.15,
                                 ),
                               ),
@@ -412,11 +570,11 @@ class _Featured extends StatelessWidget {
                                     ? playMovie(context, state, title.movie!)
                                     : openTitle(context, state, title),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: ZaplineColors.focus,
+                                  backgroundColor: ZaplineColors.accent,
                                   foregroundColor: ZaplineColors.onFocus,
                                   textStyle: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w800,
+                                    fontFamily: 'Figtree',
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ).copyWith(side: focusRing),
                                 icon: const Icon(Icons.play_arrow_rounded),

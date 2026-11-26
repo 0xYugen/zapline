@@ -41,7 +41,7 @@ Future<FreeEpg?> pickFreeEpg(BuildContext context, {FreeEpg? first}) {
             children: [
               Text(
                 context.l10n.freeEpgByCountry,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
               Text(
@@ -59,7 +59,7 @@ Future<FreeEpg?> pickFreeEpg(BuildContext context, {FreeEpg? first}) {
                       onPressed: () => Navigator.of(dialogContext).pop(list[i]),
                       child: Text(
                         list[i].name,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                     ),
                   ),
@@ -103,7 +103,7 @@ class _PhonePickerState extends State<_PhonePicker> {
             padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
             child: Text(
               context.l10n.freeEpgByCountry,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
           ),
           Padding(

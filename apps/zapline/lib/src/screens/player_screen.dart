@@ -815,6 +815,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_okDownAt == null || _okLong || !mounted) return;
     _okLong = true;
     _okDownAt = null;
+    swallowHeldKey(_okKeys);
     _openOptions();
   }
 
@@ -899,30 +900,58 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
           final favourite = state.isFavourite(c);
           var first = true;
-          Widget action(IconData icon, String label, VoidCallback onPressed) {
+          // A row per option, its current value on the right; only the
+          // focused one is a card.
+          Widget action(
+            IconData icon,
+            String label,
+            VoidCallback onPressed, {
+            String? value,
+          }) {
             final autofocus = first;
             first = false;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 4),
               child: FocusCard(
                 autofocus: autofocus,
+                quiet: true,
+                radius: 14,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 onPressed: onPressed,
-                child: Row(
-                  children: [
-                    Icon(icon, size: 22),
-                    const SizedBox(width: 14),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                child: Builder(
+                  builder: (context) {
+                    final lit = Lit.of(context);
+                    final muted = lit
+                        ? const Color(0xFF5F6368)
+                        : ZaplineColors.textMuted;
+                    return Row(
+                      children: [
+                        Icon(icon, size: 22, color: muted),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                        if (value != null) ...[
+                          const SizedBox(width: 12),
+                          Text(
+                            value,
+                            style: TextStyle(fontSize: 15, color: muted),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
             );
@@ -932,90 +961,125 @@ class _PlayerScreenState extends State<PlayerScreen> {
             alignment: Alignment.centerRight,
             child: Padding(
               padding: const EdgeInsets.all(32),
-              child: Material(
-                color: ZaplineColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
-                          child: Text(
-                            state.displayName(c),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x66000000),
+                      blurRadius: 60,
+                      offset: Offset(0, 20),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: ZaplineColors.surface.withValues(alpha: 0.97),
+                  borderRadius: BorderRadius.circular(24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 26, 18, 18),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // The channel, and what's on it.
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  state.displayName(c),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (p != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      '${p.title} · ${_hm(p.start)}–${_hm(p.stop)}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: ZaplineColors.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        ),
-                        action(
-                          Icons.subtitles_outlined,
-                          l.audioAndSubtitles,
-                          () => close(_tracks),
-                        ),
-                        action(
-                          Icons.aspect_ratio_rounded,
-                          l.pictureSizeIs(_fitName(state.settings.videoFit)),
-                          () {
-                            _cycleFit();
-                            setDialog(() {});
-                          },
-                        ),
-                        if (state.versionsOf(c).length > 1)
+                          const Divider(height: 1, color: Color(0x12FFFFFF)),
+                          const SizedBox(height: 12),
                           action(
-                            Icons.hd_outlined,
-                            l.channelVersion,
-                            () => close(_pickVersion),
+                            Icons.subtitles_outlined,
+                            l.audioAndSubtitles,
+                            () => close(_tracks),
                           ),
-                        if (_replay != null)
                           action(
-                            Icons.live_tv_rounded,
-                            l.backToLive,
-                            () => close(_goLive),
-                          )
-                        else if (_restartable != null)
-                          action(
-                            Icons.replay_rounded,
-                            l.watchFromStart,
-                            () => close(_restart),
+                            Icons.aspect_ratio_rounded,
+                            l.pictureSizeSetting,
+                            value: _fitName(state.settings.videoFit),
+                            () {
+                              _cycleFit();
+                              setDialog(() {});
+                            },
                           ),
-                        if (p != null)
+                          if (state.versionsOf(c).length > 1)
+                            action(
+                              Icons.hd_outlined,
+                              l.channelVersion,
+                              value: state.qualityOf(c),
+                              () => close(_pickVersion),
+                            ),
+                          if (_replay != null)
+                            action(
+                              Icons.live_tv_rounded,
+                              l.backToLive,
+                              () => close(_goLive),
+                            )
+                          else if (_restartable != null)
+                            action(
+                              Icons.replay_rounded,
+                              l.watchFromStart,
+                              () => close(_restart),
+                            ),
+                          if (p != null)
+                            action(
+                              Icons.info_outline_rounded,
+                              l.programmeInfo,
+                              () => close(() => _showInfo(c, p)),
+                            ),
                           action(
-                            Icons.info_outline_rounded,
-                            l.programmeInfo,
-                            () => close(() => _showInfo(c, p)),
+                            favourite
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            favourite
+                                ? l.removeFromFavourites
+                                : l.addToFavourites,
+                            () {
+                              state.toggleFavourite(c);
+                              setDialog(() {});
+                            },
                           ),
-                        action(
-                          favourite
-                              ? Icons.star_rounded
-                              : Icons.star_outline_rounded,
-                          favourite
-                              ? l.removeFromFavourites
-                              : l.addToFavourites,
-                          () {
-                            state.toggleFavourite(c);
-                            setDialog(() {});
-                          },
-                        ),
-                        if (back != null)
+                          if (back != null)
+                            action(
+                              Icons.history_rounded,
+                              l.backToChannel(state.displayName(back)),
+                              () => close(_recall),
+                            ),
                           action(
-                            Icons.history_rounded,
-                            l.backToChannel(state.displayName(back)),
-                            () => close(_recall),
+                            Icons.format_list_bulleted_rounded,
+                            l.channelList,
+                            () => close(_openList),
                           ),
-                        action(
-                          Icons.format_list_bulleted_rounded,
-                          l.channelList,
-                          () => close(_openList),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1293,7 +1357,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       caption,
                       style: const TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
                     ),
@@ -1351,7 +1415,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 17,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   shadows: shadow,
                                 ),
                               ),
@@ -1435,7 +1499,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                                 shadows: shadow,
                               ),
                             ),
@@ -1483,7 +1547,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 height: 4,
                                 width: box.maxWidth * progress,
                                 decoration: BoxDecoration(
-                                  color: ZaplineColors.focus,
+                                  color: ZaplineColors.accent,
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
@@ -1494,7 +1558,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                   width: 14,
                                   height: 14,
                                   decoration: const BoxDecoration(
-                                    color: ZaplineColors.focus,
+                                    color: ZaplineColors.accent,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -1643,8 +1707,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             _digits,
             style: const TextStyle(
               fontSize: 64,
-              fontWeight: FontWeight.w800,
-              color: ZaplineColors.focus,
+              fontWeight: FontWeight.w600,
+              color: ZaplineColors.accent,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
@@ -1657,7 +1721,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: found == null
                       ? ZaplineColors.textMuted
                       : ZaplineColors.text,
@@ -1682,7 +1746,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               dimension: 56,
               child: CircularProgressIndicator(
                 strokeWidth: 5,
-                color: ZaplineColors.focus,
+                color: ZaplineColors.accent,
               ),
             ),
             if (_retries > 0) ...[
@@ -1691,7 +1755,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 context.l10n.reconnecting(_retries, _triesFor),
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   shadows: [Shadow(blurRadius: 8)],
                 ),
               ),
@@ -1721,7 +1785,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Text(
               _replay == null ? l.channelUnavailable : l.archiveUnavailable,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1846,104 +1910,148 @@ class _PlayerScreenState extends State<PlayerScreen> {
     ),
   );
 
-  Widget _infoBar(Channel c) => Container(
-    height: 140,
-    padding: const EdgeInsets.symmetric(horizontal: 48),
-    color: ZaplineColors.ground.withValues(alpha: 0.94),
-    child: Row(
-      children: [
-        Text(
-          '${widget.state.channelNumber(c, _index)}',
-          style: const TextStyle(
-            fontSize: 44,
-            fontWeight: FontWeight.w800,
-            color: ZaplineColors.focus,
-          ),
+  Widget _infoBar(Channel c) {
+    final now = DateTime.now().toUtc();
+    final on = _replay == null ? _now : null;
+    final progress =
+        on != null && !now.isBefore(on.start) && now.isBefore(on.stop)
+        ? now.difference(on.start).inSeconds /
+              on.stop.difference(on.start).inSeconds
+        : null;
+    // Fades in from the picture instead of a hard-edged bar over it.
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.fromLTRB(56, 56, 56, 30),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            ZaplineColors.ground.withValues(alpha: 0),
+            ZaplineColors.ground.withValues(alpha: 0.82),
+            ZaplineColors.ground.withValues(alpha: 0.95),
+          ],
+          stops: const [0, 0.45, 1],
         ),
-        const SizedBox(width: 24),
-        ChannelLogo(channel: c, width: 84, height: 60),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      widget.state.displayName(c),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: ChannelLogo(channel: c, width: 96, height: 64),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '${widget.state.channelNumber(c, _index)}',
                       style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                        color: ZaplineColors.textMuted,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _Badge(live: _replay == null),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.state.displayName(c),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _infoLine(c),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: ZaplineColors.textMuted,
+                  ),
+                ),
+                if (progress != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: SizedBox(
+                      width: 360,
+                      child: LinearProgressIndicator(
+                        value: progress.clamp(0.0, 1.0),
+                        minHeight: 3,
+                        borderRadius: BorderRadius.circular(2),
+                        color: ZaplineColors.accent,
+                        backgroundColor: ZaplineColors.text.withValues(
+                          alpha: 0.18,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  _Badge(live: _replay == null),
-                ],
-              ),
+              ],
+            ),
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (InputMode.instance.pointer) _pointerControls(),
+              if (!InputMode.instance.pointer)
+                for (final (icon, text) in [
+                  ?_hint,
+                  (
+                    Icons.radio_button_checked_rounded,
+                    context.l10n.holdOkForOptions,
+                  ),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 16, color: ZaplineColors.textMuted),
+                        const SizedBox(width: 6),
+                        Text(
+                          text,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: ZaplineColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               Text(
-                _infoLine(c),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                // The zap time only matters when measuring engines and
+                // devices; users see the clock.
+                kReleaseMode || _lastZap == null
+                    ? _hm(DateTime.now())
+                    : '${_engine.name} · zap ${_lastZap!.inMilliseconds} ms',
                 style: const TextStyle(
-                  fontSize: 16,
-                  color: ZaplineColors.textMuted,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w500,
+                  fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),
             ],
           ),
-        ),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (InputMode.instance.pointer) _pointerControls(),
-            if (!InputMode.instance.pointer)
-              for (final (icon, text) in [
-                ?_hint,
-                (
-                  Icons.radio_button_checked_rounded,
-                  context.l10n.holdOkForOptions,
-                ),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        text,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            Text(
-              // The zap time only matters when measuring engines and
-              // devices; users see the clock.
-              kReleaseMode || _lastZap == null
-                  ? _hm(DateTime.now())
-                  : '${_engine.name} · zap ${_lastZap!.inMilliseconds} ms',
-              style: const TextStyle(
-                fontSize: 16,
-                color: ZaplineColors.textMuted,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 /// What a drag on a side of the phone's picture sets.
@@ -1983,7 +2091,7 @@ class _LevelBadge extends StatelessWidget {
               value: value,
               minHeight: 6,
               borderRadius: BorderRadius.circular(3),
-              color: ZaplineColors.focus,
+              color: ZaplineColors.accent,
               backgroundColor: ZaplineColors.line,
             ),
           ),
@@ -1994,7 +2102,7 @@ class _LevelBadge extends StatelessWidget {
               '${(value * 100).round()}',
               textAlign: TextAlign.right,
               style: const TextStyle(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
@@ -2104,7 +2212,7 @@ class _ChannelListState extends State<_ChannelList> {
                           widget.state.displayName(c),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                         if (now != null)
                           // The card's own colour, faded: readable on the
@@ -2140,19 +2248,37 @@ class _Badge extends StatelessWidget {
   final bool live;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: live ? ZaplineColors.live : ZaplineColors.focus,
-      borderRadius: BorderRadius.circular(6),
-    ),
-    child: Text(
-      live ? context.l10n.liveBadge : context.l10n.catchUpBadge,
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
-        color: ZaplineColors.onFocus,
+  Widget build(BuildContext context) {
+    // A dot and a word, tinted: a solid red label shouted over the picture.
+    final color = live ? ZaplineColors.live : ZaplineColors.accent;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(6),
       ),
-    ),
-  );
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (live) ...[
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            live ? context.l10n.liveBadge : context.l10n.catchUpBadge,
+            style: TextStyle(
+              fontSize: 12,
+              letterSpacing: 0.6,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -156,10 +156,10 @@ class _TimeChip extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
     child: Material(
-      color: selected ? ZaplineColors.focus : Colors.transparent,
+      color: selected ? ZaplineColors.accent : Colors.transparent,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected ? ZaplineColors.focus : ZaplineColors.line,
+          color: selected ? ZaplineColors.accent : ZaplineColors.line,
         ),
       ),
       child: InkWell(
@@ -182,7 +182,7 @@ class _TimeChip extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: selected ? ZaplineColors.onFocus : ZaplineColors.text,
                 ),
               ),
@@ -248,7 +248,7 @@ class _WhatsOnRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       color: current == null
                           ? ZaplineColors.textMuted
                           : ZaplineColors.text,
@@ -411,7 +411,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
             onPressed: () =>
                 openPlayer(context, state, widget.channels, widget.index),
             icon: const Icon(Icons.play_circle_fill_rounded, size: 32),
-            color: ZaplineColors.focus,
+            color: ZaplineColors.accent,
           ),
         ],
       ),
@@ -472,7 +472,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
                                 child: Text(
                                   state.time(p.start),
                                   style: TextStyle(
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w500,
                                     color: past && !onAir
                                         ? ZaplineColors.textMuted
                                         : ZaplineColors.text,
@@ -493,7 +493,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 15,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w500,
                                         color: past && !onAir && !replay
                                             ? ZaplineColors.textMuted
                                             : ZaplineColors.text,
@@ -518,7 +518,7 @@ class _ChannelScheduleScreenState extends State<ChannelScheduleScreen> {
                               else if (replay)
                                 const Icon(
                                   Icons.replay_rounded,
-                                  color: ZaplineColors.focus,
+                                  color: ZaplineColors.accent,
                                 ),
                             ],
                           ),
@@ -550,7 +550,7 @@ class _Badge extends StatelessWidget {
       text,
       style: const TextStyle(
         fontSize: 11,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
         color: ZaplineColors.onFocus,
       ),
     ),

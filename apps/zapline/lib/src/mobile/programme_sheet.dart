@@ -107,8 +107,8 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
     final (badge, badgeColor) = onAir
         ? (l.onNow, ZaplineColors.live)
         : past
-        ? (archived ? l.replay : _when(p).toUpperCase(), ZaplineColors.focus)
-        : (_when(p).toUpperCase(), ZaplineColors.focus);
+        ? (archived ? l.replay : _when(p).toUpperCase(), ZaplineColors.accent)
+        : (_when(p).toUpperCase(), ZaplineColors.accent);
 
     // Primary action first; the channel is always one tap away.
     final actions = <(IconData, String, VoidCallback, bool)>[
@@ -145,7 +145,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: ZaplineColors.textMuted,
                   ),
                 ),
@@ -160,7 +160,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                   badge,
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: ZaplineColors.onFocus,
                   ),
                 ),
@@ -170,7 +170,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
           const SizedBox(height: 14),
           Text(
             p.title,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
@@ -191,7 +191,7 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                             p.stop.difference(p.start).inSeconds)
                         .clamp(0.0, 1.0),
                 minHeight: 4,
-                color: ZaplineColors.focus,
+                color: ZaplineColors.accent,
                 backgroundColor: ZaplineColors.line,
               ),
             ),
@@ -232,9 +232,9 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                           minimumSize: const Size(0, 52),
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           textStyle: const TextStyle(
-                            fontFamily: 'Inter',
+                            fontFamily: 'Figtree',
                             fontSize: 15,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ).copyWith(side: focusRing),
                       )
@@ -250,9 +250,9 @@ class _ProgrammeSheetState extends State<_ProgrammeSheet> {
                                 horizontal: 18,
                               ),
                               textStyle: const TextStyle(
-                                fontFamily: 'Inter',
+                                fontFamily: 'Figtree',
                                 fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w500,
                               ),
                             ).copyWith(
                               side: WidgetStateProperty.resolveWith(
