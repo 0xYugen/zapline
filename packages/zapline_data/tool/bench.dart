@@ -170,6 +170,22 @@ Future<void> main(List<String> args) async {
     () => db.guide(row, _now, _now.add(const Duration(hours: 2))),
     runs: 20,
   );
+  final page = all.sublist(0, 300);
+  _time(
+    'guide(300 rows, 3 days)',
+    () => db.guide(page, _now, _now.add(const Duration(days: 3))),
+    runs: 5,
+  );
+  _time(
+    'guide(300 rows, 3 days, no desc)',
+    () => db.guide(
+      page,
+      _now,
+      _now.add(const Duration(days: 3)),
+      withDescriptions: false,
+    ),
+    runs: 5,
+  );
   _time('nowNext x15', () {
     for (final c in row) {
       db.nowNext(c, _now);

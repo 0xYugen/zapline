@@ -1706,11 +1706,21 @@ class ZaplineDatabase {
 
   /// Programmes overlapping [from, to) for each channel, keyed by
   /// [channelKey]. Channels without a guide are absent.
+  ///
+  /// A guide grid doesn't show descriptions: [withDescriptions] false
+  /// leaves them out (a week of a big guide's descriptions is tens of
+  /// megabytes read for nothing); [programmeDescription] fetches the one
+  /// a detail panel shows.
+  ///
+  /// Programmes are found from [longestProgramme] before [from]: without
+  /// a lower bound on the start, every past programme kept for replay
+  /// would be read to find the few still airing.
   Map<String, List<Programme>> guide(
     Iterable<Channel> channels,
     DateTime from,
-    DateTime to,
-  ) {
+    DateTime to, {
+    bool withDescriptions = true,
+  }) {
     final keys = [for (final c in channels) channelKey(c)];
     if (keys.isEmpty) return const {};
     final out = <String, List<Programme>>{};
@@ -1722,17 +1732,40 @@ class ZaplineDatabase {
       );
       final rows = _db.select(
         'SELECT m.channel_key, p.guide_id, p.start, p.stop, p.title, '
-        'p.description, p.category, p.episode, p.icon '
+        '${withDescriptions ? 'p.description' : 'NULL AS description'}, '
+        'p.category, p.episode, p.icon '
         'FROM epg_map m JOIN programmes p ON p.guide_id = m.guide_id '
         'WHERE m.channel_key IN (${List.filled(part.length, '?').join(',')}) '
-        'AND p.stop > ? AND p.start < ? ORDER BY m.channel_key, p.start',
-        [...part, _secs(from), _secs(to)],
+        'AND p.start >= ? AND p.stop > ? AND p.start < ? '
+        'ORDER BY m.channel_key, p.start',
+        [
+          ...part,
+          _secs(from.subtract(longestProgramme)),
+          _secs(from),
+          _secs(to),
+        ],
       );
       for (final r in rows) {
         (out[r['channel_key'] as String] ??= []).add(_programme(r));
       }
     }
     return out;
+  }
+
+  /// How long a programme can be and still be found by [guide] from
+  /// after its start. Guides fill nights with programmes of a few hours;
+  /// a channel's "programme" that lasts days is a placeholder.
+  static const longestProgramme = Duration(hours: 24);
+
+  /// The description of the programme of guide channel [guideId]
+  /// (a [Programme.channelId]) starting at [start], for programmes read
+  /// without one (see [guide]).
+  String? programmeDescription(String guideId, DateTime start) {
+    final r = _db.select(
+      'SELECT description FROM programmes WHERE guide_id = ? AND start = ?',
+      [guideId, _secs(start)],
+    );
+    return r.isEmpty ? null : r.first.columnAt(0) as String?;
   }
 
   /// A programme from a row with the programmes table's column names.
@@ -1828,8 +1861,8 @@ class ZaplineDatabase {
   Programme? airingOn(String guideId, DateTime at) {
     final r = _db.select(
       'SELECT start, stop, title FROM programmes '
-      'WHERE guide_id = ? AND start <= ? AND stop > ? LIMIT 1',
-      [guideId, _secs(at), _secs(at)],
+      'WHERE guide_id = ? AND start BETWEEN ? AND ? AND stop > ? LIMIT 1',
+      [guideId, _secs(at.subtract(longestProgramme)), _secs(at), _secs(at)],
     );
     if (r.isEmpty) return null;
     return Programme(
@@ -1849,9 +1882,14 @@ class ZaplineDatabase {
         'SELECT p.guide_id, p.start, p.stop, p.title, p.description, '
         'p.category, p.episode, p.icon '
         'FROM epg_map m JOIN programmes p ON p.guide_id = m.guide_id '
-        'WHERE m.channel_key = ? AND p.stop > ? AND p.start < ? '
-        'ORDER BY p.start LIMIT 4',
-        [channelKey(c), _secs(at), _secs(at) + 12 * 3600],
+        'WHERE m.channel_key = ? AND p.start >= ? AND p.stop > ? '
+        'AND p.start < ? ORDER BY p.start LIMIT 4',
+        [
+          channelKey(c),
+          _secs(at.subtract(longestProgramme)),
+          _secs(at),
+          _secs(at) + 12 * 3600,
+        ],
       ))
         _programme(r),
     ];

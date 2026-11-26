@@ -138,6 +138,35 @@ void main() {
     expect(db.rebuildGuideLinks().matched, 3);
   });
 
+  test('the guide grid can leave descriptions out', () async {
+    db.replaceChannels('a', [_ch('a', '1', 'News 24', epg: 'news.example')]);
+    Stream<XmltvItem> guide() async* {
+      yield const XmltvChannel(id: 'news.example', displayNames: ['News']);
+      yield XmltvProgramme(
+        Programme(
+          channelId: 'news.example',
+          start: now,
+          stop: now.add(const Duration(hours: 1)),
+          title: 'Evening news',
+          description: 'Headlines',
+        ),
+      );
+    }
+
+    await db.importGuide(guide(), now: now);
+    db.rebuildGuideLinks();
+    final chans = db.channels();
+    final to = now.add(const Duration(hours: 2));
+    expect(db.guide(chans, now, to)['a/1']!.single.description, 'Headlines');
+    final bare = db
+        .guide(chans, now, to, withDescriptions: false)['a/1']!
+        .single;
+    expect(bare.title, 'Evening news');
+    expect(bare.description, isNull);
+    expect(db.programmeDescription(bare.channelId, bare.start), 'Headlines');
+    expect(db.programmeDescription(bare.channelId, to), isNull);
+  });
+
   test('favourites keep order, survive re-sync, go with their source', () {
     final chans = [
       _ch('a', '1', 'One'),
