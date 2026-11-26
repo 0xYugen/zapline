@@ -87,6 +87,7 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     super.initState();
     _sound; // the saved volume, before the first stream
     DesktopWindow.fullScreen.addListener(_fullScreenChanged);
+    DesktopWindow.mini.addListener(_fullScreenChanged);
     DeviceControls.inPip.addListener(_fullScreenChanged);
     _errors = _engine.errors.listen((e) {
       if (mounted) setState(() => _error = e);
@@ -125,6 +126,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
       SystemChrome.setPreferredOrientations(const []);
     }
     DesktopWindow.fullScreen.removeListener(_fullScreenChanged);
+    DesktopWindow.mini.removeListener(_fullScreenChanged);
+    DesktopWindow.exitMini();
     DeviceControls.inPip.removeListener(_fullScreenChanged);
     DeviceControls.disablePip();
     DesktopWindow.exitFullScreen();
@@ -297,13 +300,18 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
     // Saved as the page starts closing, so the page below already shows
     // where to resume from.
     final fullScreen = DesktopWindow.fullScreen.value;
-    final pip = DeviceControls.inPip.value;
+    final mini = DesktopWindow.mini.value;
+    // A phone's picture-in-picture or the desktop mini player: the
+    // picture alone.
+    final pip = DeviceControls.inPip.value || mini;
     return PopScope(
       // Esc leaves full screen before the player.
-      canPop: !fullScreen,
+      canPop: !fullScreen && !mini,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) {
           _save();
+        } else if (mini) {
+          DesktopWindow.exitMini();
         } else if (fullScreen) {
           DesktopWindow.exitFullScreen();
         }
@@ -321,6 +329,8 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
             // Phones: a double tap skips 10 s back or ahead, by side.
             // Computers: a double click is full screen.
             onDoubleTapDown: (d) {
+              // The mini player's own double click brings the window back.
+              if (DesktopWindow.mini.value) return;
               if (DesktopWindow.supported) {
                 DesktopWindow.toggleFullScreen();
                 return;
@@ -334,6 +344,14 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
               children: [
                 // The native video view would swallow taps otherwise.
                 IgnorePointer(child: _engine.buildView(fit: _fit)),
+                if (mini)
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanStart: (_) => DesktopWindow.startDragging(),
+                      onDoubleTap: DesktopWindow.exitMini,
+                    ),
+                  ),
                 // In picture-in-picture only the picture shows.
                 if (!pip) ...[
                   Positioned(
@@ -481,6 +499,13 @@ class _VodPlayerScreenState extends State<VodPlayerScreen> {
                     setState(_sound.toggleMute);
                     _showOverlay();
                   }, 24),
+                  if (DesktopWindow.supported)
+                    round(
+                      Icons.picture_in_picture_alt_rounded,
+                      l.miniPlayerKey,
+                      DesktopWindow.toggleMini,
+                      24,
+                    ),
                   if (DesktopWindow.supported)
                     round(
                       DesktopWindow.fullScreen.value

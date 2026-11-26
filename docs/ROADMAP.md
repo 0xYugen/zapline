@@ -126,7 +126,9 @@ Xtream login.
       details; a notice with "Watch" when the programme starts
 - [x] Picture-in-picture on Android phones (Home while watching); desktop
       full screen and volume
-- [ ] Desktop mini-player; background audio on phones
+- [x] Desktop mini-player (P, or the player's button): a small window in
+      a corner above other apps, moved by dragging the picture
+- [ ] Background audio on phones
 - [ ] Stalker portals
 - [x] Logical channels with fallback across sources: channels of several
       sources with the same guide channel and name are one entry whose

@@ -647,5 +647,6 @@
   "mergeSources": "Same channel from several sources as one",
   "mergeSourcesHint": "Channels with the same guide and name show once; if one source fails, the next one plays.",
   "versionFrom": "{quality} · {source}",
-  "@versionFrom": {"placeholders": {"quality": {"type": "String"}, "source": {"type": "String"}}}
+  "@versionFrom": {"placeholders": {"quality": {"type": "String"}, "source": {"type": "String"}}},
+  "miniPlayerKey": "Mini player (P)"
 }

@@ -14,7 +14,7 @@ import 'playback_engine.dart';
 /// start.
 ///
 /// Keys: M mutes, + and − (or Ctrl+Up/Down) change the volume by 5,
-/// F or F11 toggles full screen on desktop.
+/// F or F11 toggles full screen and P the mini player on desktop.
 class PlayerSound {
   PlayerSound(this._engine, this._settings) {
     _apply(show: false);
@@ -69,6 +69,10 @@ class PlayerSound {
         e is KeyDownEvent &&
         (k == LogicalKeyboardKey.keyF || k == LogicalKeyboardKey.f11)) {
       DesktopWindow.toggleFullScreen();
+    } else if (DesktopWindow.supported &&
+        e is KeyDownEvent &&
+        k == LogicalKeyboardKey.keyP) {
+      DesktopWindow.toggleMini();
     } else {
       return false;
     }

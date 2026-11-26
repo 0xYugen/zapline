@@ -211,6 +211,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _sound; // the saved volume, before the first stream
     DesktopWindow.fullScreen.addListener(_fullScreenChanged);
+    DesktopWindow.mini.addListener(_fullScreenChanged);
     DeviceControls.inPip.addListener(_pipChanged);
     widget.state.guideVersion.addListener(_guideArrived);
     _subs
@@ -294,6 +295,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     widget.state.guideVersion.removeListener(_guideArrived);
     DesktopWindow.fullScreen.removeListener(_fullScreenChanged);
+    DesktopWindow.mini.removeListener(_fullScreenChanged);
+    DesktopWindow.exitMini();
     DeviceControls.inPip.removeListener(_pipChanged);
     DeviceControls.disablePip();
     // The brightness set by a swipe was for watching.
@@ -913,15 +916,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     final c = _channel;
     final fullScreen = DesktopWindow.fullScreen.value;
-    final pip = DeviceControls.inPip.value;
+    final mini = DesktopWindow.mini.value;
+    // A phone's picture-in-picture or the desktop mini player: the
+    // picture alone.
+    final pip = DeviceControls.inPip.value || mini;
     return PopScope(
       // Back (Esc) closes the channel list, then full screen, before
       // leaving the player.
-      canPop: !_list && !fullScreen,
+      canPop: !_list && !fullScreen && !mini,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (_list) {
           _closeList();
+        } else if (mini) {
+          DesktopWindow.exitMini();
         } else if (fullScreen) {
           DesktopWindow.exitFullScreen();
         }
@@ -1000,6 +1008,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                     ),
                   ),
+                  // The mini player moves with the mouse; a double click
+                  // brings the window back.
+                  if (mini)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onPanStart: (_) => DesktopWindow.startDragging(),
+                        onDoubleTap: DesktopWindow.exitMini,
+                      ),
+                    ),
                   // In picture-in-picture only the picture shows.
                   if (!pip) ...[
                     ValueListenableBuilder<bool>(
@@ -1678,6 +1696,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
             tooltip: context.l10n.volumeKey,
           ),
         ),
+        if (DesktopWindow.supported)
+          IconButton(
+            onPressed: DesktopWindow.toggleMini,
+            icon: const Icon(Icons.picture_in_picture_alt_rounded),
+            tooltip: context.l10n.miniPlayerKey,
+          ),
         if (DesktopWindow.supported)
           IconButton(
             onPressed: DesktopWindow.toggleFullScreen,

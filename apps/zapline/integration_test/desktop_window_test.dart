@@ -24,4 +24,24 @@ void main() {
     expect(DesktopWindow.fullScreen.value, isFalse);
     expect(await windowManager.isFullScreen(), isFalse);
   });
+
+  testWidgets('mini player: small, above others, then back', (tester) async {
+    if (!DesktopWindow.supported) return;
+    await DesktopWindow.init();
+    await tester.pumpWidget(const SizedBox());
+    final before = await windowManager.getBounds();
+    await DesktopWindow.setMini(true);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(DesktopWindow.mini.value, isTrue);
+    expect(await windowManager.isAlwaysOnTop(), isTrue);
+    final small = await windowManager.getSize();
+    expect(small.width, closeTo(DesktopWindow.miniSize.width, 2));
+    expect(small.height, closeTo(DesktopWindow.miniSize.height, 2));
+
+    await DesktopWindow.exitMini();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(DesktopWindow.mini.value, isFalse);
+    expect(await windowManager.isAlwaysOnTop(), isFalse);
+    expect((await windowManager.getSize()).width, closeTo(before.width, 2));
+  });
 }

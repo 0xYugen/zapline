@@ -3277,6 +3277,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{quality} · {source}'**
   String versionFrom(String quality, String source);
+
+  /// No description provided for @miniPlayerKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Mini player (P)'**
+  String get miniPlayerKey;
 }
 
 class _AppLocalizationsDelegate

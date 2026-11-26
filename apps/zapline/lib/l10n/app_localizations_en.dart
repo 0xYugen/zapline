@@ -2001,4 +2001,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String versionFrom(String quality, String source) {
     return '$quality · $source';
   }
+
+  @override
+  String get miniPlayerKey => 'Mini player (P)';
 }
